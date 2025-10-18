@@ -1,3 +1,4 @@
+import os
 import json
 from supabase import create_client, Client
 from datetime import datetime
@@ -5,9 +6,9 @@ import openai
 import math
 
 # ====== CONFIG ======
-SUPABASE_URL = "https://tojtfjkreudspzhkwdwj.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRmamtyZXVkc3B6aGt3ZHdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMjc3OTksImV4cCI6MjA3NDYwMzc5OX0.7KTJ9yqjGzXA2wmIMUMiAVXBhqQGLu_JRMabcRQrfaU"
-OPENAI_API_KEY = "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"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 openai.api_key = OPENAI_API_KEY

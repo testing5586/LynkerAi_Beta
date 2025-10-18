@@ -1,8 +1,9 @@
+import os
 import asyncio
 from supabase import create_client, Client
 
-SUPABASE_URL = "https://tojtfjkreudspzhkwdwj.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRmamtyZXVkc3B6aGt3ZHdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMjc3OTksImV4cCI6MjA3NDYwMzc5OX0.7KTJ9yqjGzXA2wmIMUMiAVXBhqQGLu_JRMabcRQrfaU"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 def insert_birthchart():
     # Initialize Supabase client
