@@ -81,4 +81,8 @@ def login_refresh():
 # 启动服务
 # ===============================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    import sys
+    port = 5000
+    if len(sys.argv) > 1 and sys.argv[1] == '--port' and len(sys.argv) > 2:
+        port = int(sys.argv[2])
+    app.run(host="0.0.0.0", port=port)
