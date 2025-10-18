@@ -11,6 +11,13 @@ This is LynkerAI, an AI-powered task execution system that uses OpenAI's API to 
 - Added defensive checks for empty OpenAI response arrays to prevent IndexError
 - Cleaned up duplicate imports and reorganized file structure
 - Successfully tested code generation functionality
+- **Fixed package installation to work with Replit's `uv` package manager**:
+  - Updated commands from `pip install` to `uv add` to comply with Replit's environment
+  - Added comprehensive dependency sanitization to prevent shell injection attacks
+  - Support for version specifiers (e.g., `requests==2.32.3`, `Django>=3.0,<4.0`)
+  - Support for extras syntax (e.g., `uvicorn[standard]`)
+  - Validation to ignore invalid dependency declarations (无, none, malicious inputs)
+  - Clean extraction of dependencies from code blocks to prevent syntax errors
 
 # User Preferences
 
