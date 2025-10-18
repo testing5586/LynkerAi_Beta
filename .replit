@@ -27,18 +27,19 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Python App"
+args = "Flask API"
 
 [[workflows.workflow]]
-name = "Python App"
+name = "Flask API"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python lynker_master_ai.py"
+args = "python on_user_login_api.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 5000
