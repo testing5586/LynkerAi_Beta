@@ -43,7 +43,7 @@ def instruct_and_execute(task_description: str):
     注意：
     - 文件名必须写在"文件名："后面
     - 代码内容必须写在```代码块中
-    - 如果需要安装依赖，在最后注明 pip install 命令
+    - 如果需要安装Python依赖，使用格式：依赖：package1 package2（不要用pip install，系统会自动处理）
     """
     
     try:
@@ -69,6 +69,36 @@ def instruct_and_execute(task_description: str):
         
         import re
         
+        dependencies = re.findall(r'(?:依赖[：:]\s*|pip install\s+|uv add\s+)([^\n]+)', output)
+        if dependencies:
+            for deps in dependencies:
+                raw_packages = deps.strip()
+                
+                if not raw_packages or raw_packages.lower() in ['无', 'none', 'n/a', '不需要', '无需']:
+                    continue
+                
+                if any(char in raw_packages for char in ['&', '|', ';', '`', '$']):
+                    print(f"⚠️ 跳过不安全的依赖: {raw_packages}")
+                    continue
+                
+                packages = re.sub(r'[（）]', '', raw_packages)
+                packages = re.sub(r'，|、', ' ', packages)
+                packages = ' '.join(packages.split())
+                
+                valid_packages = []
+                for pkg in packages.split():
+                    if re.match(r'^[a-zA-Z0-9_-]+(\[[a-zA-Z0-9_,-]+\])?(==|>=|<=|~=|!=|<|>)?[a-zA-Z0-9._,<>!=~-]*$', pkg):
+                        valid_packages.append(pkg)
+                    elif pkg.strip():
+                        print(f"⚠️ 跳过无效的包名: {pkg}")
+                
+                if valid_packages:
+                    packages_str = ' '.join(valid_packages)
+                    print(f"\n📦 安装依赖: {packages_str}")
+                    run_command(f"uv add {packages_str}")
+                else:
+                    print(f"⚠️ 未找到有效的包名: {raw_packages}")
+        
         filename_match = re.search(r'文件名[：:]\s*[`"]?([^`"\n]+)[`"]?', output)
         if filename_match:
             filename = filename_match.group(1).strip()
@@ -76,17 +106,13 @@ def instruct_and_execute(task_description: str):
             code_blocks = re.findall(r'```(?:python)?\s*\n(.*?)```', output, re.DOTALL)
             if code_blocks:
                 content = code_blocks[0].strip()
+                content = re.sub(r'^依赖[：:][^\n]+\n*', '', content, flags=re.MULTILINE)
                 write_file(filename, content)
                 print(f"\n✅ 成功创建文件: {filename}")
             else:
                 print("⚠️ 未找到代码块")
         else:
             print("⚠️ 未找到文件名")
-        
-        pip_commands = re.findall(r'pip install\s+([^\n]+)', output)
-        if pip_commands:
-            for cmd in pip_commands:
-                run_command(f"pip install {cmd.strip()}")
             
     except Exception as e:
         print(f"❌ 错误: {str(e)}")
