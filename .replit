@@ -39,3 +39,7 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python lynker_master_ai.py"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
