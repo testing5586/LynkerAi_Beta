@@ -1,132 +1,187 @@
+#!/usr/bin/env python3
 """
-child_ai_memory.py
-------------------------------------
-📘 功能：
-Lynker 子AI记忆仓库系统
-
-从 child_ai_insights 提取信息，
-自动生成记忆摘要，
-保存至 Supabase 或本地 JSON，
-并预留 Google Drive 同步接口。
-------------------------------------
-运行方式：
-python child_ai_memory.py
+==========================================================
+子AI记忆仓库模块 - 记录和管理匹配互动记忆
+==========================================================
+功能：
+1. 基于 child_ai_insights 自动生成记忆摘要
+2. 追踪用户与匹配对象的互动历史
+3. 支持记忆更新（互动次数、最后互动时间）
+4. 为前端 React 组件 ChildAIMemoryVault.jsx 提供数据源
 """
 
-import json, os
+import json
+import os
 from datetime import datetime
-
-try:
-    from supabase_init import get_supabase
-    supabase = get_supabase()
-except Exception as e:
-    supabase = None
-    print(f"⚠️ Supabase连接失败，转为本地模式: {e}")
+from supabase_init import init_supabase
 
 
-# ✅ 本地备份函数
-def save_local_backup(filename, data):
-    os.makedirs("./data", exist_ok=True)
-    with open(f"./data/{filename}", "a", encoding="utf-8") as f:
-        f.write(json.dumps(data, ensure_ascii=False) + "\n")
-    print(f"💾 本地备份 → {filename}")
-
-
-# ✅ 预留 Google Drive 接口
-def save_to_google_drive(user_id, memory_record):
+def generate_memory_summary(insight_text, shared_tags):
     """
-    📂 未来功能：用户授权后写入 Google Drive
-    Scope: https://www.googleapis.com/auth/drive.file
-    Path: My Drive / LynkerAI / memory / u_{user_id}_memory.json
+    从洞察文本和共同标签生成记忆摘要
+    
+    参数:
+        insight_text: 洞察文本（来自 child_ai_insights）
+        shared_tags: 共同标签（dict或list）
+    
+    返回:
+        记忆摘要文本
     """
-    # TODO: Integrate OAuth 2.0 + Drive API
-    print(f"☁️ [预留] 将写入 Google Drive：{user_id} - {memory_record['summary']}")
+    lines = insight_text.strip().split("\n")
+    summary_parts = []
+    
+    for line in lines:
+        if "→" in line:
+            core_insight = line.split("→")[-1].strip()
+            summary_parts.append(core_insight)
+    
+    if summary_parts:
+        return "，".join(summary_parts)
+    else:
+        return lines[0].strip() if lines else "暂无摘要"
 
 
-# ✅ 从 child_ai_insights 提取用户的匹配记忆
-def extract_ai_memories(user_id):
-    if not supabase:
-        print("⚠️ 无法连接 Supabase，使用本地模式。")
-        return []
+def extract_tags_from_shared_tags(shared_tags):
+    """从 shared_tags 提取标签列表"""
+    tags = []
+    
+    if isinstance(shared_tags, dict):
+        for key, value in shared_tags.items():
+            if key in ["children", "event_count", "similarity"]:
+                continue
+            if isinstance(value, str) and value.strip():
+                tags.append(value)
+    elif isinstance(shared_tags, list):
+        tags = [str(tag) for tag in shared_tags if tag]
+    
+    return tags
 
-    resp = supabase.table("child_ai_insights").select("*").eq("user_id", user_id).execute()
-    data = resp.data if resp and resp.data else []
-    if not data:
-        print("⚠️ 没有找到任何洞察记录。")
-        return []
 
-    memories = []
-    for record in data:
-        partner = record.get("partner_id", "未知")
-        # 🧩 自动展开 shared_tags 的各种类型结构
-        tags = record.get("shared_tags", [])
+def save_or_update_memory(user_id, partner_id, insight_text, shared_tags, similarity, supabase_client=None):
+    """保存或更新记忆记录到 Supabase child_ai_memory 表"""
+    if supabase_client is None:
+        return {"success": False, "error": "Supabase client not provided"}
+    
+    try:
+        summary = generate_memory_summary(insight_text, shared_tags)
+        tags = extract_tags_from_shared_tags(shared_tags)
+        
+        existing = supabase_client.table("child_ai_memory").select("*").eq("user_id", user_id).eq("partner_id", partner_id).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            memory_id = existing.data[0]["id"]
+            interaction_count = existing.data[0].get("interaction_count", 0) + 1
+            
+            result = supabase_client.table("child_ai_memory").update({
+                "summary": summary,
+                "tags": tags,
+                "similarity": similarity,
+                "interaction_count": interaction_count,
+                "last_interaction": datetime.now().isoformat()
+            }).eq("id", memory_id).execute()
+            
+            print(f"🔄 已更新记忆：{user_id} ↔ {partner_id} (互动次数：{interaction_count})")
+            return {"success": True, "action": "updated", "data": result.data}
+        else:
+            memory_data = {
+                "user_id": user_id,
+                "partner_id": partner_id,
+                "summary": summary,
+                "tags": tags,
+                "similarity": similarity,
+                "interaction_count": 1,
+                "last_interaction": datetime.now().isoformat(),
+                "created_at": datetime.now().isoformat()
+            }
+            
+            result = supabase_client.table("child_ai_memory").insert(memory_data).execute()
+            
+            print(f"💾 已保存新记忆：{user_id} ↔ {partner_id}")
+            return {"success": True, "action": "created", "data": result.data}
+            
+    except Exception as e:
+        print(f"❌ 保存记忆失败：{e}")
+        return {"success": False, "error": str(e)}
 
-        # 若是字符串 → 尝试反序列化
-        if isinstance(tags, str):
-            try:
-                tags = json.loads(tags)
-            except:
-                tags = [tags]
 
-        # 若是 dict → 取值
-        if isinstance(tags, dict):
-            tags = list(tags.values())
-
-        # 若是嵌套 list → 展平
-        if isinstance(tags, list):
-            flat_tags = []
-            for t in tags:
-                if isinstance(t, list):
-                    flat_tags.extend(t)
-                elif isinstance(t, dict):
-                    flat_tags.extend(list(t.values()))
+def batch_create_memories_from_insights(user_id, supabase_client=None):
+    """从 child_ai_insights 批量创建记忆"""
+    if supabase_client is None:
+        print("⚠️ Supabase client not provided")
+        return 0
+    
+    try:
+        insights = supabase_client.table("child_ai_insights").select("*").eq("user_id", user_id).execute()
+        
+        if not insights.data:
+            print(f"⚠️ 用户 {user_id} 没有洞察记录")
+            return 0
+        
+        created_count = 0
+        updated_count = 0
+        
+        for insight in insights.data:
+            result = save_or_update_memory(
+                user_id=insight["user_id"],
+                partner_id=insight["partner_id"],
+                insight_text=insight["insight_text"],
+                shared_tags=insight["shared_tags"],
+                similarity=insight["similarity"],
+                supabase_client=supabase_client
+            )
+            
+            if result["success"]:
+                if result["action"] == "created":
+                    created_count += 1
                 else:
-                    flat_tags.append(str(t))
-            tags = flat_tags
-
-        # 统一转字符串
-        tags_str = "、".join([str(t) for t in tags if t])
-        sim = round(record.get("similarity", 0.0), 3)
-        summary = f"与 {partner} 共鸣 ({sim})：{tags_str}"
-        memories.append({
-            "user_id": user_id,
-            "partner_id": partner,
-            "tags": tags,
-            "summary": summary,
-            "created_at": datetime.now().isoformat()
-        })
-    print(f"🧠 已提取 {len(memories)} 条AI记忆。")
-    return memories
+                    updated_count += 1
+        
+        print(f"\n✅ 记忆同步完成：新建 {created_count} 条，更新 {updated_count} 条")
+        return created_count + updated_count
+        
+    except Exception as e:
+        print(f"❌ 批量创建记忆失败：{e}")
+        return 0
 
 
-# ✅ 保存至 Supabase
-def save_ai_memories(user_id, memories):
-    if not memories:
-        print("⚠️ 没有可保存的记忆。")
-        return
-
-    for mem in memories:
-        try:
-            if supabase:
-                supabase.table("child_ai_memory").insert(mem).execute()
-                print(f"💾 已保存至 Supabase.child_ai_memory → {mem['partner_id']}")
-            else:
-                save_local_backup("child_ai_memory_backup.jsonl", mem)
-            # ☁️ 可选未来同步
-            # save_to_google_drive(user_id, mem)
-        except Exception as e:
-            print(f"⚠️ Supabase写入失败，保存本地：{e}")
-            save_local_backup("child_ai_memory_backup.jsonl", mem)
+def get_user_memories(user_id, supabase_client=None, limit=10):
+    """获取用户的记忆列表（按最后互动时间排序）"""
+    if supabase_client is None:
+        return []
+    
+    try:
+        result = supabase_client.table("child_ai_memory").select("*").eq("user_id", user_id).order("last_interaction", desc=True).limit(limit).execute()
+        return result.data if result.data else []
+    except Exception as e:
+        print(f"❌ 获取记忆失败：{e}")
+        return []
 
 
-# ✅ 主执行函数
-def run_child_ai_memory(user_id="u_demo"):
-    print(f"📜 子AI记忆生成中：{user_id}")
-    memories = extract_ai_memories(user_id)
-    save_ai_memories(user_id, memories)
-    print("✅ 子AI记忆同步完成。")
-
-
-# ✅ 测试运行
 if __name__ == "__main__":
-    run_child_ai_memory("u_demo")
+    print("🧪 测试子AI记忆仓库模块 ...\n")
+    
+    supabase = init_supabase()
+    
+    if supabase is None:
+        print("⚠️ Supabase 未连接，退出测试")
+        exit(1)
+    
+    test_user_id = "u_demo"
+    
+    print(f"📊 正在为用户 {test_user_id} 创建记忆...\n")
+    
+    count = batch_create_memories_from_insights(test_user_id, supabase)
+    
+    print(f"\n🧠 用户 {test_user_id} 的记忆列表：\n")
+    memories = get_user_memories(test_user_id, supabase, limit=5)
+    
+    for i, memory in enumerate(memories, 1):
+        print(f"{i}. 💞 {memory['partner_id']}")
+        print(f"   📝 摘要：{memory['summary']}")
+        print(f"   🏷️ 标签：{', '.join(memory['tags']) if memory.get('tags') else '无'}")
+        print(f"   📊 相似度：{memory['similarity']}")
+        print(f"   🔄 互动次数：{memory['interaction_count']}")
+        print(f"   ⏰ 最后互动：{memory['last_interaction']}")
+        print()
+    
+    print(f"✅ 测试完成！共找到 {len(memories)} 条记忆")

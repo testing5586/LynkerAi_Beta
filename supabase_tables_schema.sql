@@ -84,6 +84,29 @@ CREATE INDEX IF NOT EXISTS idx_child_ai_insights_user_id ON child_ai_insights(us
 CREATE INDEX IF NOT EXISTS idx_child_ai_insights_partner_id ON child_ai_insights(partner_id);
 CREATE INDEX IF NOT EXISTS idx_child_ai_insights_created_at ON child_ai_insights(created_at DESC);
 
+-- 6️⃣ 子AI记忆仓库表（用于前端 React 组件展示）
+CREATE TABLE IF NOT EXISTS child_ai_memory (
+    id BIGSERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    partner_id TEXT NOT NULL,
+    summary TEXT,
+    tags TEXT[],
+    similarity FLOAT,
+    interaction_count INTEGER DEFAULT 1,
+    last_interaction TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 为查询优化添加索引
+CREATE INDEX IF NOT EXISTS idx_child_ai_memory_user_id ON child_ai_memory(user_id);
+CREATE INDEX IF NOT EXISTS idx_child_ai_memory_partner_id ON child_ai_memory(partner_id);
+CREATE INDEX IF NOT EXISTS idx_child_ai_memory_created_at ON child_ai_memory(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_child_ai_memory_last_interaction ON child_ai_memory(last_interaction DESC);
+
+-- 创建复合唯一索引，防止重复记忆记录
+CREATE UNIQUE INDEX IF NOT EXISTS idx_child_ai_memory_unique 
+ON child_ai_memory(user_id, partner_id);
+
 -- ============================================================
 -- 验证表是否创建成功
 -- ============================================================
@@ -91,5 +114,5 @@ SELECT
     tablename, 
     schemaname 
 FROM pg_tables 
-WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches', 'child_ai_insights')
+WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches', 'child_ai_insights', 'child_ai_memory')
 ORDER BY tablename;
