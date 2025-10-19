@@ -4,7 +4,7 @@ import os
 def init_supabase():
     """
     初始化 Supabase 连接，并自动检测必需的表。
-    检测表：verified_charts, life_event_weights, user_life_tags
+    检测表：verified_charts, life_event_weights, user_life_tags, soulmate_matches
     返回 supabase 客户端对象。
     """
     url = os.getenv("SUPABASE_URL")
@@ -17,7 +17,7 @@ def init_supabase():
     print("🔗 Connected to Supabase!")
 
     # 检测必需的表
-    tables_to_check = ["verified_charts", "life_event_weights", "user_life_tags"]
+    tables_to_check = ["verified_charts", "life_event_weights", "user_life_tags", "soulmate_matches"]
     
     for table_name in tables_to_check:
         try:

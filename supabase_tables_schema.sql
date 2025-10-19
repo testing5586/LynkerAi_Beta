@@ -48,6 +48,26 @@ CREATE TABLE IF NOT EXISTS user_life_tags (
 -- 为查询优化添加索引
 CREATE INDEX IF NOT EXISTS idx_user_life_tags_user_id ON user_life_tags(user_id);
 
+-- 4️⃣ 同命匹配结果表
+CREATE TABLE IF NOT EXISTS soulmate_matches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    matched_user_id TEXT NOT NULL,
+    similarity NUMERIC(5,3),
+    shared_tags JSONB,
+    verified_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 为查询优化添加索引
+CREATE INDEX IF NOT EXISTS idx_soulmate_matches_user_id ON soulmate_matches(user_id);
+CREATE INDEX IF NOT EXISTS idx_soulmate_matches_matched_user_id ON soulmate_matches(matched_user_id);
+CREATE INDEX IF NOT EXISTS idx_soulmate_matches_similarity ON soulmate_matches(similarity DESC);
+
+-- 创建复合唯一索引，防止重复匹配记录
+CREATE UNIQUE INDEX IF NOT EXISTS idx_soulmate_matches_unique 
+ON soulmate_matches(user_id, matched_user_id);
+
 -- ============================================================
 -- 验证表是否创建成功
 -- ============================================================
@@ -55,5 +75,5 @@ SELECT
     tablename, 
     schemaname 
 FROM pg_tables 
-WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags')
+WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches')
 ORDER BY tablename;

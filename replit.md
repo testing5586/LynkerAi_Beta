@@ -5,6 +5,13 @@ This is LynkerAI, an AI-powered task execution system that uses OpenAI's API to 
 # Recent Changes
 
 **October 19, 2025**
+- **Created Soulmate Matcher Module (`soulmate_matcher.py`)**:
+  - Semantic similarity-based matching system using Chinese language model
+  - Computes life_tags similarity between users to find soulmates
+  - Auto-detects and creates `soulmate_matches` table in Supabase
+  - Returns top N most similar users with shared tags analysis
+  - Integrated into main.py control engine
+  - Updated SQL schema to include soulmate_matches table with indexes
 - **Added Intelligent Weight Learning System & Life Tags Storage (`ai_truechart_verifier.py` v3.3)**:
   - Implemented `update_event_weights()`: Dynamic event weight adjustment based on similarity scores
   - Implemented `save_life_tags()`: User life profile storage (career, marriage, children, event count)
@@ -83,7 +90,8 @@ The application follows a command-line interface (CLI) architecture with an AI-d
 - **Module Integration**:
   - `supabase_init.py` - Database connection
   - `ai_truechart_verifier.py` - Birth chart validation
-  - (Future) `guru_apprentice.py`, `soulmate_matcher.py`
+  - `soulmate_matcher.py` - Soulmate matching system
+  - (Future) `guru_apprentice.py`
 - **Design Decision**: Single entry point enables coordinated execution and comprehensive logging
 
 ### Code Generator (`lynker_master_ai.py`)
@@ -109,8 +117,24 @@ The application follows a command-line interface (CLI) architecture with an AI-d
   - `run_truechart_verifier()`: Main entry point for external calls
   - `verify_chart()`: Single chart validation with semantic similarity
   - `verify_multiple_charts()`: Multi-chart comparison
+  - `update_event_weights()`: Intelligent weight learning system
+  - `save_life_tags()`: User life profile storage
 - **AI Model**: shibing624/text2vec-base-chinese (free Chinese semantic model)
 - **Design Decision**: Uses sentence transformers for Chinese semantic understanding
+
+### Soulmate Matcher (`soulmate_matcher.py`)
+- **Purpose**: Find users with similar life experiences using semantic matching
+- **Key Functions**:
+  - `run_soulmate_matcher()`: Main entry point for soulmate matching
+  - `compute_similarity()`: Calculate semantic similarity between user life_tags
+  - `init_match_table()`: Auto-detect and create soulmate_matches table
+- **Matching Algorithm**:
+  - Encodes life_tags into semantic vectors using Chinese language model
+  - Computes cosine similarity between user profiles
+  - Returns top N most similar users with shared tag analysis
+- **AI Model**: shibing624/text2vec-base-chinese (shared with TrueChart Verifier)
+- **Database Integration**: Stores match results in `soulmate_matches` table with JSONB shared_tags
+- **Design Decision**: Leverages semantic understanding for deeper compatibility analysis beyond simple tag matching
 
 ### Bridge Module (`replit_bridge.py`)
 - **Purpose**: Abstracts file system and command execution operations

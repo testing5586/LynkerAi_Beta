@@ -1,0 +1,98 @@
+💡 任务：在当前项目中新建文件 `soulmate_matcher.py`，实现同命匹配系统，并加入自动建表逻辑。
+
+---
+
+📁 文件：soulmate_matcher.py
+
+实现以下功能结构：
+
+```python
+from datetime import datetime
+from sentence_transformers import SentenceTransformer, util
+from supabase_init import init_supabase
+import torch
+
+# 初始化语义模型（复用免费模型）
+model = SentenceTransformer("shibing624/text2vec-base-chinese")
+
+def init_match_table(supabase):
+    """自动检测并创建匹配结果表"""
+    if supabase is None:
+        print("⚠️ Supabase 未连接。")
+        return
+    try:
+        ddl = """
+        create table if not exists public.soulmate_matches (
+          id uuid primary key default gen_random_uuid(),
+          user_id text not null,
+          matched_user_id text not null,
+          similarity numeric,
+          shared_tags jsonb,
+          verified_at timestamptz default now(),
+          created_at timestamptz default now()
+        );
+        """
+        try:
+            supabase.postgrest.rpc('exec_sql', {'sql': ddl})
+        except Exception:
+            print("⚠️ exec_sql 不可用，跳过 RPC 检查。")
+        print("✅ Table 'soulmate_matches' 已存在或已创建。")
+    except Exception as e:
+        print("⚠️ 检查匹配表失败：", e)
+
+def compute_similarity(tags1, tags2):
+    """计算两位用户的相似度"""
+    t1 = " ".join([str(v) for v in tags1.values() if v])
+    t2 = " ".join([str(v) for v in tags2.values() if v])
+    emb1 = model.encode(t1, convert_to_tensor=True)
+    emb2 = model.encode(t2, convert_to_tensor=True)
+    sim = util.cos_sim(emb1, emb2).item()
+    return round(sim, 3)
+
+def run_soulmate_matcher(user_id="u_demo", supabase=None, top_n=3):
+    """执行同命匹配"""
+    print("\n💞 正在执行同命匹配 Soulmate Matcher ...")
+
+    if supabase is None:
+        supabase = init_supabase()
+    init_match_table(supabase)
+
+    # 读取所有用户标签
+    data = supabase.table("user_life_tags").select("*").execute().data
+    if not data or len(data) < 2:
+        print("⚠️ 数据不足，无法匹配。")
+        return None
+
+    # 找出目标用户与他人对比
+    current = next((u for u in data if u["user_id"] == user_id), None)
+    if not current:
+        print(f"⚠️ 未找到用户 {user_id} 的 life_tags。")
+        return None
+
+    results = []
+    for other in data:
+        if other["user_id"] == user_id:
+            continue
+        sim = compute_similarity(current, other)
+        shared = {k: v for k, v in current.items() if k in other and current[k] == other[k] and v}
+        results.append({
+            "matched_user_id": other["user_id"],
+            "similarity": sim,
+            "shared_tags": shared
+        })
+
+    results = sorted(results, key=lambda x: x["similarity"], reverse=True)[:top_n]
+
+    # 保存结果
+    for r in results:
+        supabase.table("soulmate_matches").upsert({
+            "user_id": user_id,
+            "matched_user_id": r["matched_user_id"],
+            "similarity": r["similarity"],
+            "shared_tags": r["shared_tags"],
+            "verified_at": datetime.now().isoformat()
+        }).execute()
+        print(f"💗 匹配保存：{user_id} ↔ {r['matched_user_id']} ({r['similarity']})")
+
+    print("✅ Soulmate 匹配完成。")
+    return results

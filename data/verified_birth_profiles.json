@@ -8,7 +8,7 @@
       "matched_keywords": [
         "婚姻迟成"
       ],
-      "verified_at": "2025-10-19 04:23:10"
+      "verified_at": "2025-10-19 04:34:47"
     },
     {
       "chart_id": "c_B",
@@ -17,16 +17,16 @@
       "matched_keywords": [
         "婚早但破"
       ],
-      "verified_at": "2025-10-19 04:22:14"
+      "verified_at": "2025-10-19 04:28:49"
     },
     {
       "chart_id": "c_A",
       "score": 0.0,
       "confidence": "低",
       "matched_keywords": [],
-      "verified_at": "2025-10-19 04:21:50"
+      "verified_at": "2025-10-19 04:25:04"
     }
   ],
   "best_match": "c_C",
-  "verified_at": "2025-10-19 04:23:11"
+  "verified_at": "2025-10-19 04:34:48"
 }
