@@ -4,6 +4,7 @@ import math
 from datetime import datetime
 from supabase import create_client, Client
 import openai
+from ai_guard_middleware import check_permission
 
 # ====== 从环境变量读取主密钥 ======
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -128,6 +129,12 @@ def insert_recommendations(user_id, recs):
 
 # ====== 主执行函数 ======
 def find_top_matches(user_id):
+    # LynkerAI 防火墙检查
+    resp = check_permission(user_id)
+    if resp["status"] != "ok":
+        print(resp)
+        return resp
+
     charts = fetch_all_birthcharts()
     user = next((c for c in charts if c["id"] == user_id), None)
     if not user:
