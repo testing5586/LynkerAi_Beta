@@ -5,9 +5,12 @@ Google Drive 绑定流程模拟器
 ==========================================================
 功能：
 1. 模拟用户绑定 Google Drive（不调用真实 Google API）
-2. 将绑定状态存入 Supabase user_profiles 表
+2. 将绑定状态存入 Supabase public.users 表
 3. 生成模拟的 access_token
 4. 为后续样板账号测试做准备
+
+⚠️ 注意：现在使用 public.users 表（而非 user_profiles）
+字段映射：user_id → name, email → email, drive_email → drive_email
 """
 
 from datetime import datetime
@@ -35,18 +38,18 @@ def simulate_drive_auth(user_id: str, email: str):
     timestamp = int(datetime.now().timestamp())
     fake_token = f"FAKE_TOKEN_{user_id}_{timestamp}"
     
-    # 准备数据
+    # 准备数据（使用 public.users 表）
     data = {
-        "user_id": user_id,
+        "name": user_id,  # users 表使用 name 字段作为用户标识
         "email": email,
         "drive_connected": True,
         "drive_access_token": fake_token,
-        "drive_connected_at": datetime.now().isoformat()
+        "drive_email": email  # 专门存储 Google Drive 邮箱
     }
     
     try:
-        # 使用 upsert 插入或更新
-        result = supabase.table("user_profiles").upsert(data).execute()
+        # 使用 upsert 插入或更新（基于 name 字段）
+        result = supabase.table("users").upsert(data).execute()
         
         print(f"✅ 模拟绑定成功：{user_id} ({email})")
         print(f"🔑 Access Token: {fake_token}")
@@ -80,7 +83,8 @@ def check_drive_status(user_id: str):
         return None
     
     try:
-        result = supabase.table("user_profiles").select("*").eq("user_id", user_id).execute()
+        # 使用 name 字段查询（而非 user_id）
+        result = supabase.table("users").select("*").eq("name", user_id).execute()
         
         if result.data and len(result.data) > 0:
             profile = result.data[0]
@@ -88,8 +92,8 @@ def check_drive_status(user_id: str):
             
             if is_connected:
                 print(f"✅ {user_id} 已绑定 Google Drive")
-                print(f"   邮箱：{profile.get('email')}")
-                print(f"   绑定时间：{profile.get('drive_connected_at')}")
+                print(f"   邮箱：{profile.get('drive_email') or profile.get('email')}")
+                print(f"   Token：{profile.get('drive_access_token')[:30]}..." if profile.get('drive_access_token') else "   Token：无")
             else:
                 print(f"⚠️ {user_id} 尚未绑定 Google Drive")
             
@@ -120,14 +124,15 @@ def unbind_drive(user_id: str):
         return {"success": False, "error": "Supabase not connected"}
     
     try:
+        # 使用 name 字段作为标识
         data = {
-            "user_id": user_id,
+            "name": user_id,
             "drive_connected": False,
             "drive_access_token": None,
-            "drive_refresh_token": None
+            "drive_email": None
         }
         
-        result = supabase.table("user_profiles").upsert(data).execute()
+        result = supabase.table("users").upsert(data).execute()
         
         print(f"✅ 已解除 {user_id} 的 Google Drive 绑定")
         return {"success": True}
@@ -151,12 +156,14 @@ def get_all_connected_users():
         return []
     
     try:
-        result = supabase.table("user_profiles").select("*").eq("drive_connected", True).execute()
+        result = supabase.table("users").select("*").eq("drive_connected", True).execute()
         
         if result.data:
             print(f"\n📊 已绑定 Google Drive 的用户数量：{len(result.data)}\n")
             for user in result.data:
-                print(f"  - {user['user_id']} ({user['email']})")
+                user_name = user.get('name', 'Unknown')
+                user_email = user.get('drive_email') or user.get('email', 'N/A')
+                print(f"  - {user_name} ({user_email})")
         else:
             print("⚠️ 暂无用户绑定 Google Drive")
         
