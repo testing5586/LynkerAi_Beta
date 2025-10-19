@@ -68,6 +68,22 @@ CREATE INDEX IF NOT EXISTS idx_soulmate_matches_similarity ON soulmate_matches(s
 CREATE UNIQUE INDEX IF NOT EXISTS idx_soulmate_matches_unique 
 ON soulmate_matches(user_id, matched_user_id);
 
+-- 5️⃣ 子AI独立洞察表
+CREATE TABLE IF NOT EXISTS child_ai_insights (
+    id BIGSERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    partner_id TEXT NOT NULL,
+    similarity FLOAT,
+    shared_tags JSONB,
+    insight_text TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 为查询优化添加索引
+CREATE INDEX IF NOT EXISTS idx_child_ai_insights_user_id ON child_ai_insights(user_id);
+CREATE INDEX IF NOT EXISTS idx_child_ai_insights_partner_id ON child_ai_insights(partner_id);
+CREATE INDEX IF NOT EXISTS idx_child_ai_insights_created_at ON child_ai_insights(created_at DESC);
+
 -- ============================================================
 -- 验证表是否创建成功
 -- ============================================================
@@ -75,5 +91,5 @@ SELECT
     tablename, 
     schemaname 
 FROM pg_tables 
-WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches')
+WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches', 'child_ai_insights')
 ORDER BY tablename;

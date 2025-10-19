@@ -11,6 +11,7 @@ from ai_truechart_verifier import run_truechart_verifier
 # 预留未来模块接口
 # from guru_apprentice import run_guru_apprentice
 from soulmate_matcher import run_soulmate_matcher
+from child_ai_insight import run_child_ai_insight
 
 def log_event(event_type, data):
     """统一日志记录"""
@@ -36,15 +37,18 @@ def main():
     verifier_result = run_truechart_verifier(user_id, supabase_client=supabase)
     log_event("truechart_verification", verifier_result)
 
-    # 未来扩展接口：
-    # print("\n🧙 [2] 启动师徒系统模块...")
-    # apprentice_result = run_guru_apprentice(user_id, supabase)
-    # log_event("guru_apprentice", apprentice_result)
-
     # 启动同命匹配模块
-    print("\n💞 [3] 启动同命匹配模块...")
+    print("\n💞 [2] 启动同命匹配模块...")
     match_result = run_soulmate_matcher(user_id, supabase)
     log_event("soulmate_matching", match_result)
+
+    # 启动子AI洞察生成模块
+    print("\n🤖 [3] 启动子AI洞察生成模块...")
+    if match_result and isinstance(match_result, dict) and match_result.get("matches"):
+        insight_result = run_child_ai_insight(user_id, match_result["matches"], supabase)
+        log_event("child_ai_insights", insight_result)
+    else:
+        print("⚠️ 无匹配结果，跳过子AI洞察生成。")
 
     print("\n✅ Lynker Master AI 完成所有模块任务。")
 

@@ -17,7 +17,7 @@ def init_supabase():
     print("🔗 Connected to Supabase!")
 
     # 检测必需的表
-    tables_to_check = ["verified_charts", "life_event_weights", "user_life_tags", "soulmate_matches"]
+    tables_to_check = ["verified_charts", "life_event_weights", "user_life_tags", "soulmate_matches", "child_ai_insights"]
     
     for table_name in tables_to_check:
         try:
