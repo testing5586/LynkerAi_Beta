@@ -5,14 +5,21 @@
 
 import json, os, re
 from datetime import datetime
+from functools import lru_cache
 from sentence_transformers import SentenceTransformer, util
 from supabase_init import init_supabase
 
-# ----------------------------------------------------------
-# 加载模型
-# ----------------------------------------------------------
-print("🧠 Loading high-semantic Chinese model (shibing624/text2vec-base-chinese)...")
-model = SentenceTransformer("shibing624/text2vec-base-chinese")
+# ==================================================
+# 模型缓存机制（方案 A）
+# ==================================================
+@lru_cache(maxsize=1)
+def get_semantic_model():
+    """加载并缓存中文语义模型，只加载一次"""
+    print("🧠 Loading high-semantic Chinese model (cached)...")
+    return SentenceTransformer("shibing624/text2vec-base-chinese")
+
+# 使用缓存模型（第一次加载后将常驻内存）
+model = get_semantic_model()
 print("✅ Model loaded successfully!")
 
 # ----------------------------------------------------------
