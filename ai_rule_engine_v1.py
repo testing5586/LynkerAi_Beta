@@ -1,6 +1,7 @@
 import os
 import datetime
 from supabase import create_client, Client
+from ai_truechart_verifier import verify_chart
 
 # === 环境变量读取 ===
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -49,6 +50,13 @@ def update_usage(user_id):
 
 def check_ai_permission(user_id):
     """判断用户是否还能调用 AI"""
+    # 第一步：命盘验证检查
+    result = verify_chart(user_id)
+    if result["status"] == "verified":
+        verification_msg = f"命盘已验证，置信度：{result['confidence']}"
+    else:
+        return {"status": "need_verification", "msg": "请先完成真命盘验证"}
+
     user = get_user(user_id)
     if not user:
         return {"status": "error", "msg": "用户不存在"}
@@ -59,7 +67,7 @@ def check_ai_permission(user_id):
 
     # Lynker Master 永远不受限
     if role == "admin":
-        return {"status": "ok", "msg": "Lynker Master 权限无限制"}
+        return {"status": "ok", "msg": f"Lynker Master 权限无限制 ({verification_msg})"}
 
     # 检查是否被主AI停用
     if user.get("ai_status") == "disabled":
@@ -74,7 +82,7 @@ def check_ai_permission(user_id):
 
     # 正常通过
     update_usage(user_id)
-    return {"status": "ok", "msg": f"允许调用 ({usage+1}/{limit})"}
+    return {"status": "ok", "msg": f"允许调用 ({usage+1}/{limit})，{verification_msg}"}
 
 def master_control(action, target_user_id):
     """Lynker Master 远程控制接口"""
