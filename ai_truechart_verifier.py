@@ -1,105 +1,80 @@
 # ==========================================================
-# LynkerAI TrueChart Verifier v1.0
-# 功能：验证用户导入的命盘与人生轨迹吻合度，并生成 life_tags
-# 作者：GPT-5（协同 Kynn）
-# 日期：2025-10-19
+# LynkerAI TrueChart Verifier v2.0
+# 中文语义比对版（免费模型：uer/sbert-base-chinese-nli）
 # ==========================================================
 
-import json
-import os
+import json, os
 from datetime import datetime
-from difflib import SequenceMatcher
+from sentence_transformers import SentenceTransformer, util
 
 # ----------------------------------------------------------------
-# 辅助函数
+# 初始化免费中文模型
 # ----------------------------------------------------------------
-def similarity(a, b):
-    """模糊匹配计算两句文字的相似度"""
-    return SequenceMatcher(None, a, b).ratio()
-
-
-def fuzzy_match(text, keywords):
-    """判断文本中是否出现关键词列表中的任意词"""
-    for kw in keywords:
-        if kw in text:
-            return True
-    return False
-
+print("🧠 Loading free Chinese semantic model (uer/sbert-base-chinese-nli)...")
+model = SentenceTransformer('uer/sbert-base-chinese-nli')
+print("✅ Model loaded successfully!")
 
 # ----------------------------------------------------------------
-# 主函数：验证命盘
+# 主函数
 # ----------------------------------------------------------------
+def semantic_similarity(text1: str, text2: str) -> float:
+    """语义相似度（0~1）"""
+    emb1 = model.encode(text1, convert_to_tensor=True)
+    emb2 = model.encode(text2, convert_to_tensor=True)
+    score = util.pytorch_cos_sim(emb1, emb2).item()
+    return round(float(score), 4)
+
+
 def verify_chart(user_id):
-    """
-    主逻辑：读取用户上传的命盘与人生轨迹资料，
-    对比后输出评分、置信度与 life_tags。
-    """
-
-    # 假设路径结构（未来可连接 Supabase）
     base_dir = "./data"
     chart_file = os.path.join(base_dir, f"{user_id}_chart.json")
     life_file = os.path.join(base_dir, f"{user_id}_life.json")
     verified_file = os.path.join(base_dir, "verified_birth_profiles.json")
 
-    # ----------------------------------------------------------------
-    # 1. 读取命盘与人生轨迹
-    # ----------------------------------------------------------------
     if not os.path.exists(chart_file) or not os.path.exists(life_file):
         return {"status": "error", "msg": "缺少命盘或人生资料文件"}
 
     with open(chart_file, "r", encoding="utf-8") as f:
         chart_data = json.load(f)
-
     with open(life_file, "r", encoding="utf-8") as f:
         life_data = json.load(f)
 
-    # ----------------------------------------------------------------
-    # 2. 比对关键事件（示例逻辑）
-    # ----------------------------------------------------------------
-    matched = []
-    unmatched = []
-    total_weight = 0
-    gained_score = 0
+    # 命盘文本化（供比对）
+    chart_text = " ".join([
+        chart_data.get("notes", ""),
+        chart_data.get("main_star", ""),
+        chart_data.get("source", ""),
+    ])
+
+    matched, unmatched = [], []
+    total_weight, gained_score = 0, 0
 
     for ev in life_data.get("events", []):
-        key = ev.get("key", "")
         desc = ev.get("desc", "")
         weight = ev.get("weight", 1.0)
         total_weight += weight
+        sim = semantic_similarity(chart_text, desc)
+        ev["similarity"] = sim
 
-        # 简单匹配逻辑：若命盘描述文本中含有关键字
-        if fuzzy_match(str(chart_data), [key, desc]):
+        if sim >= 0.65:  # 相似度阈值
             matched.append(ev)
-            gained_score += weight
+            gained_score += weight * sim
         else:
-            # 模糊相似度判定
-            score = similarity(str(chart_data), desc)
-            if score > 0.45:
-                matched.append(ev)
-                gained_score += weight * score
-            else:
-                unmatched.append(ev)
+            unmatched.append(ev)
 
-    # ----------------------------------------------------------------
-    # 3. 计算综合评分
-    # ----------------------------------------------------------------
     score = round(gained_score / total_weight, 3) if total_weight else 0.0
     confidence = "高" if score >= 0.85 else "中" if score >= 0.65 else "低"
 
-    # ----------------------------------------------------------------
-    # 4. life_tags 提取（用于同命匹配）
-    # ----------------------------------------------------------------
+    # life_tags 提取
     life_tags = {
         "career_type": life_data.get("career_type", ""),
         "marriage_status": life_data.get("marriage_status", ""),
         "children": life_data.get("children", 0),
         "study_abroad": any("留学" in ev.get("desc", "") for ev in life_data.get("events", [])),
-        "major_accident": next((ev.get("desc") for ev in life_data.get("events", []) if "病" in ev.get("desc", "") or "伤" in ev.get("desc", "")), None)
+        "major_accident": next((ev.get("desc") for ev in life_data.get("events", [])
+                                if any(k in ev.get("desc", "") for k in ["病", "伤", "车祸", "手术"])), None)
     }
 
-    # ----------------------------------------------------------------
-    # 5. 生成验证结果
-    # ----------------------------------------------------------------
     result = {
         "user_id": user_id,
         "verified_chart_id": chart_data.get("chart_id", "unknown"),
@@ -112,37 +87,26 @@ def verify_chart(user_id):
         "verified_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    # ----------------------------------------------------------------
-    # 6. 写入或更新验证档案
-    # ----------------------------------------------------------------
     os.makedirs(base_dir, exist_ok=True)
+    verified_data = []
     if os.path.exists(verified_file):
-        with open(verified_file, "r", encoding="utf-8") as vf:
-            try:
-                verified_data = json.load(vf)
-            except:
-                verified_data = []
-    else:
-        verified_data = []
-
-    # 更新或新增
+        try:
+            verified_data = json.load(open(verified_file, encoding="utf-8"))
+        except:
+            verified_data = []
     existing = next((r for r in verified_data if r["user_id"] == user_id), None)
     if existing:
         existing.update(result)
     else:
         verified_data.append(result)
-
-    with open(verified_file, "w", encoding="utf-8") as vf:
-        json.dump(verified_data, vf, ensure_ascii=False, indent=2)
-
+    json.dump(verified_data, open(verified_file, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     return result
 
 
 # ----------------------------------------------------------------
-# 手动测试入口
+# 手动测试
 # ----------------------------------------------------------------
 if __name__ == "__main__":
-    # 模拟数据
     os.makedirs("./data", exist_ok=True)
 
     chart_demo = {
@@ -150,7 +114,7 @@ if __name__ == "__main__":
         "source": "wenmo",
         "birth_datetime": "1975-05-10 23:10",
         "main_star": "天府",
-        "notes": "命宫在巳，武曲、天同格局"
+        "notes": "命宫在巳，武曲、天同格局，母缘浅，事业早起波折后成"
     }
 
     life_demo = {
@@ -158,18 +122,16 @@ if __name__ == "__main__":
         "marriage_status": "晚婚",
         "children": 1,
         "events": [
-            {"key": "母亲早逝", "desc": "2003年母亲去世", "weight": 2.0},
-            {"key": "留学", "desc": "2006年海外留学", "weight": 1.0},
-            {"key": "事业", "desc": "2010年获设计奖项", "weight": 1.5},
-            {"key": "婚姻", "desc": "晚婚，妻子比自己大", "weight": 1.2}
+            {"desc": "2003年母亲去世", "weight": 2.0},
+            {"desc": "2006年海外留学", "weight": 1.0},
+            {"desc": "2010年获设计奖项", "weight": 1.5},
+            {"desc": "婚姻晚成，妻子年长八岁", "weight": 1.2}
         ]
     }
 
     with open("./data/u_demo_chart.json", "w", encoding="utf-8") as f:
         json.dump(chart_demo, f, ensure_ascii=False, indent=2)
-
     with open("./data/u_demo_life.json", "w", encoding="utf-8") as f:
         json.dump(life_demo, f, ensure_ascii=False, indent=2)
 
-    result = verify_chart("u_demo")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(json.dumps(verify_chart("u_demo"), ensure_ascii=False, indent=2))
