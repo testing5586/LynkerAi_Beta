@@ -107,6 +107,24 @@ CREATE INDEX IF NOT EXISTS idx_child_ai_memory_last_interaction ON child_ai_memo
 CREATE UNIQUE INDEX IF NOT EXISTS idx_child_ai_memory_unique 
 ON child_ai_memory(user_id, partner_id);
 
+-- 7️⃣ 用户配置表（用于存储用户 Google Drive 绑定状态）
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id BIGSERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL UNIQUE,
+    email TEXT,
+    drive_connected BOOLEAN DEFAULT FALSE,
+    drive_access_token TEXT,
+    drive_refresh_token TEXT,
+    drive_connected_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 为查询优化添加索引
+CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_drive_connected ON user_profiles(drive_connected);
+
 -- ============================================================
 -- 验证表是否创建成功
 -- ============================================================
@@ -114,5 +132,5 @@ SELECT
     tablename, 
     schemaname 
 FROM pg_tables 
-WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches', 'child_ai_insights', 'child_ai_memory')
+WHERE tablename IN ('verified_charts', 'life_event_weights', 'user_life_tags', 'soulmate_matches', 'child_ai_insights', 'child_ai_memory', 'user_profiles')
 ORDER BY tablename;
