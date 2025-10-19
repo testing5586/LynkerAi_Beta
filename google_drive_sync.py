@@ -159,6 +159,62 @@ def sync_memories_to_drive(user_id, memories_data, access_token):
     return result
 
 
+def auto_sync_user_memories(user_id):
+    """
+    自动同步用户的子AI记忆到 Google Drive（一站式函数）
+    
+    功能：
+    1. 从 Supabase users 表读取用户的 access_token
+    2. 从 child_ai_memory 表读取用户的记忆数据
+    3. 自动上传到 Google Drive
+    
+    参数:
+        user_id: 用户ID
+    
+    返回:
+        同步结果字典
+    """
+    from supabase_init import init_supabase
+    
+    supabase = init_supabase()
+    
+    if supabase is None:
+        return {"success": False, "error": "Supabase 未连接"}
+    
+    try:
+        # 1. 获取用户的 access_token
+        user_result = supabase.table("users").select("*").eq("name", user_id).execute()
+        
+        if not user_result.data or len(user_result.data) == 0:
+            return {"success": False, "error": f"用户 {user_id} 不存在"}
+        
+        user_profile = user_result.data[0]
+        
+        if not user_profile.get("drive_connected"):
+            return {"success": False, "error": "用户未绑定 Google Drive", "skipped": True}
+        
+        access_token = user_profile.get("drive_access_token")
+        
+        if not access_token:
+            return {"success": False, "error": "未找到 access_token", "skipped": True}
+        
+        # 2. 获取用户的记忆数据
+        memories_result = supabase.table("child_ai_memory").select("*").eq("user_id", user_id).execute()
+        
+        if not memories_result.data or len(memories_result.data) == 0:
+            return {"success": False, "error": "用户暂无记忆数据", "skipped": True}
+        
+        memories_data = memories_result.data
+        
+        # 3. 同步到 Google Drive
+        sync_result = sync_memories_to_drive(user_id, memories_data, access_token)
+        
+        return sync_result
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def test_google_drive_connection(access_token):
     """
     测试 Google Drive 连接

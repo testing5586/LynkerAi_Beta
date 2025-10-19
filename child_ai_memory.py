@@ -14,6 +14,7 @@ import json
 import os
 from datetime import datetime
 from supabase_init import init_supabase
+from google_drive_sync import auto_sync_user_memories
 
 
 def generate_memory_summary(insight_text, shared_tags):
@@ -137,6 +138,21 @@ def batch_create_memories_from_insights(user_id, supabase_client=None):
                     updated_count += 1
         
         print(f"\n✅ 记忆同步完成：新建 {created_count} 条，更新 {updated_count} 条")
+        
+        # 自动同步到 Google Drive
+        try:
+            print("☁️ 正在上传子AI记忆到 Google Drive ...")
+            sync_result = auto_sync_user_memories(user_id)
+            
+            if sync_result.get("success"):
+                print("✅ Google Drive 同步成功！")
+            elif sync_result.get("skipped"):
+                print(f"⚠️ Google Drive 同步跳过：{sync_result.get('error')}")
+            else:
+                print(f"⚠️ Google Drive 同步失败: {sync_result.get('error')}")
+        except Exception as e:
+            print(f"⚠️ Google Drive 同步失败: {e}")
+        
         return created_count + updated_count
         
     except Exception as e:
