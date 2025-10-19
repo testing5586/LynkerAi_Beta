@@ -28,3 +28,15 @@ def init_supabase():
             print(f"📋 Please create it using the SQL editor in Supabase Dashboard if needed.")
 
     return supabase
+
+# === Add this at the end of supabase_init.py ===
+from supabase import create_client
+import os
+
+def get_supabase():
+    """通用获取 Supabase 客户端"""
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    if not url or not key:
+        raise ValueError("❌ 缺少 SUPABASE_URL 或 SUPABASE_KEY 环境变量。")
+    return create_client(url, key)

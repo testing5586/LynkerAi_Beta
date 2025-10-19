@@ -1,0 +1,90 @@
+// components/ChildAIMemoryVault.jsx
+import React, { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
+
+// ✅ 绑定你的 Supabase 公共凭证
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
+export default function ChildAIMemoryVault({ userId }) {
+  const [memories, setMemories] = useState([]);
+  const [filter, setFilter] = useState("");
+
+  useEffect(() => {
+    async function fetchMemories() {
+      const { data, error } = await supabase
+        .from("child_ai_memory")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (!error && data) setMemories(data);
+    }
+    fetchMemories();
+  }, [userId]);
+
+  const filtered = memories.filter(
+    (m) =>
+      m.partner_id.toLowerCase().includes(filter.toLowerCase()) ||
+      (m.summary && m.summary.includes(filter))
+  );
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold">🧠 AI 记忆仓库</h2>
+        <Input
+          placeholder="🔍 搜索 partner 或 关键词..."
+          className="w-1/3"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {filtered.map((m, idx) => (
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.05 }}
+          >
+            <Card className="rounded-2xl shadow-md border border-gray-200 bg-white/70 backdrop-blur">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-gray-700">
+                  💞 {m.partner_id}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-gray-600">{m.summary}</p>
+                {m.tags && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {m.tags.map((t, i) => (
+                      <span
+                        key={i}
+                        className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mt-2">
+                  {new Date(m.created_at).toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="text-center text-gray-400 mt-10">暂无 AI 记忆记录。</p>
+      )}
+    </div>
+  );
+}
