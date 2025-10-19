@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from supabase import create_client
 from match_palace import calculate_match_score
+from ai_guard_middleware import check_permission
 import os
 
 app = Flask(__name__)
@@ -28,6 +29,11 @@ def login_refresh():
     data = request.get_json()
     user_id = data.get("user_id")
     filter_data = data.get("filter", {})
+
+    # LynkerAI 防火墙检查
+    resp = check_permission(user_id)
+    if resp["status"] != "ok":
+        return jsonify(resp), 403
 
     # 获取登录者的命盘
     user_res = supabase.table("birthcharts").select("*").eq("id", user_id).execute()
