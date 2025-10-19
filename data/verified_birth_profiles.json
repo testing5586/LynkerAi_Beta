@@ -9,22 +9,22 @@
       {
         "desc": "2003年母亲去世",
         "weight": 2.0,
-        "similarity": 0.2511
+        "similarity": 0.2643
       },
       {
         "desc": "2006年海外留学",
         "weight": 1.0,
-        "similarity": 0.2516
+        "similarity": 0.1767
       },
       {
         "desc": "2010年获设计奖项",
         "weight": 1.5,
-        "similarity": 0.3325
+        "similarity": 0.1749
       },
       {
         "desc": "婚姻晚成，妻子年长八岁",
         "weight": 1.2,
-        "similarity": 0.3219
+        "similarity": 0.4987
       }
     ],
     "life_tags": {
@@ -35,6 +35,6 @@
       "major_accident": null
     },
     "status": "unverified",
-    "verified_at": "2025-10-19 02:46:21"
+    "verified_at": "2025-10-19 02:51:46"
   }
 ]
