@@ -1,0 +1,40 @@
+[
+  {
+    "user_id": "u_demo",
+    "verified_chart_id": "c_demo",
+    "score": 0.0,
+    "confidence": "低",
+    "matched_events": [],
+    "unmatched_events": [
+      {
+        "key": "母亲早逝",
+        "desc": "2003年母亲去世",
+        "weight": 2.0
+      },
+      {
+        "key": "留学",
+        "desc": "2006年海外留学",
+        "weight": 1.0
+      },
+      {
+        "key": "事业",
+        "desc": "2010年获设计奖项",
+        "weight": 1.5
+      },
+      {
+        "key": "婚姻",
+        "desc": "晚婚，妻子比自己大",
+        "weight": 1.2
+      }
+    ],
+    "life_tags": {
+      "career_type": "设计行业",
+      "marriage_status": "晚婚",
+      "children": 1,
+      "study_abroad": true,
+      "major_accident": null
+    },
+    "status": "unverified",
+    "verified_at": "2025-10-19 02:31:47"
+  }
+]
