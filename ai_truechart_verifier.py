@@ -29,6 +29,49 @@ else:
     print("⚠️ Warning: Supabase credentials not found. Results will only be saved locally.")
 
 # ----------------------------------------------------------
+# 自动建表逻辑
+# ----------------------------------------------------------
+def ensure_verified_charts_table():
+    """检查并创建 verified_charts 表（如果不存在）"""
+    if not supabase:
+        return
+    
+    try:
+        # 尝试查询表，如果表不存在会抛出异常
+        supabase.table("verified_charts").select("id").limit(1).execute()
+        print("✅ Table 'verified_charts' already exists.")
+    except Exception as e:
+        print("🛠️ Table 'verified_charts' not found. Creating it now...")
+        try:
+            # 使用 SQL 创建表
+            create_table_sql = """
+            CREATE TABLE IF NOT EXISTS public.verified_charts (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                chart_id TEXT NOT NULL,
+                score FLOAT NOT NULL,
+                confidence TEXT,
+                matched_keywords TEXT[],
+                verified_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_verified_charts_user_id ON public.verified_charts(user_id);
+            CREATE INDEX IF NOT EXISTS idx_verified_charts_chart_id ON public.verified_charts(chart_id);
+            """
+            
+            # 注意：Supabase 的 Python 客户端可能不支持直接执行 DDL
+            # 如果这个方法不工作，需要在 Supabase 控制台手动创建表
+            print("⚠️ Please create the 'verified_charts' table manually in Supabase Dashboard:")
+            print(create_table_sql)
+        except Exception as create_error:
+            print(f"❌ Failed to create table: {create_error}")
+
+# 在连接后立即检查并创建表
+if supabase:
+    ensure_verified_charts_table()
+
+# ----------------------------------------------------------
 # 辅助函数
 # ----------------------------------------------------------
 def semantic_similarity(a: str, b: str) -> float:
