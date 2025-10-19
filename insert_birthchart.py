@@ -1,11 +1,18 @@
 import os
 import asyncio
 from supabase import create_client, Client
+from ai_guard_middleware import check_permission
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-def insert_birthchart():
+def insert_birthchart(user_id=1):
+    # LynkerAI 防火墙检查
+    resp = check_permission(user_id)
+    if resp["status"] != "ok":
+        print(resp)
+        return resp
+
     # Initialize Supabase client
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     

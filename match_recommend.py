@@ -1,6 +1,7 @@
 import os
 from supabase import create_client, Client
 from match_palace import calculate_match_score
+from ai_guard_middleware import check_permission
 
 # Get Supabase credentials from environment variables
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -12,6 +13,12 @@ def fetch_birthcharts():
     return response.data
 
 def get_matching_scores(current_user_id, birthcharts):
+    # LynkerAI 防火墙检查
+    resp = check_permission(current_user_id)
+    if resp["status"] != "ok":
+        print(resp)
+        return resp
+
     current_user_chart = None
     for chart in birthcharts:
         if chart['id'] == current_user_id:

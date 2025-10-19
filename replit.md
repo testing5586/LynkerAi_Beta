@@ -4,6 +4,17 @@ This is LynkerAI, an AI-powered task execution system that uses OpenAI's API to 
 
 # Recent Changes
 
+**October 19, 2025**
+- **Unified LynkerAI Firewall Protection Across All AI Modules**:
+  - Added `ai_guard_middleware` firewall checks to all major AI modules
+  - Protected files: `on_user_login_ai.py`, `pattern_match_engine_v3.py`, `insert_birthchart.py`, `match_recommend.py`
+  - Firewall blocks unauthorized AI calls with 403 responses for:
+    - Users who are blocked/banned
+    - Users who exceed daily AI call limits
+    - When Lynker Master suspends all AI services
+  - All API keys and secrets now loaded from environment variables (no hardcoded credentials)
+  - Successfully tested all firewall-protected modules
+
 **October 18, 2025**
 - Fixed all type safety issues in `lynker_master_ai.py` by adding null checks for AI responses
 - Added command-line interface to accept task descriptions as arguments
@@ -52,6 +63,17 @@ The application follows a command-line interface (CLI) architecture with an AI-d
   - `write_file()`: Creates files with UTF-8 encoding support
   - `run_command()`: Executes shell commands and captures output
 - **Design Decision**: Separated I/O operations to enable future extensibility (e.g., remote file systems, containerized execution)
+
+### Security Layer (`ai_guard_middleware.py`)
+- **Purpose**: Provides centralized access control for all AI operations
+- **Key Function**:
+  - `check_permission(user_id)`: Validates user authorization before AI calls
+- **Protection Rules**:
+  - Blocks users who are banned/disabled
+  - Enforces daily AI call limits per user
+  - Allows Lynker Master to suspend all AI services globally
+- **Integration**: All AI modules (`on_user_login_ai.py`, `pattern_match_engine_v3.py`, `insert_birthchart.py`, `match_recommend.py`) check permissions before execution
+- **Design Decision**: Centralized security layer ensures consistent access control across all AI features
 
 ## Prompt Engineering Strategy
 The system uses structured prompt templates that enforce specific output formats:
