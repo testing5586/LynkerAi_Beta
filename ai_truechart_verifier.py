@@ -87,12 +87,17 @@ def save_life_tags(supabase_client, user_id, life_tags):
         return
     
     try:
+        # Supabase upsert() 会自动使用 user_id 的 UNIQUE 约束进行冲突检测
         supabase_client.table("user_life_tags").upsert({
             "user_id": user_id,
             **life_tags,
             "updated_at": datetime.now().isoformat()
         }).execute()
-        print(f"💾 已保存 life_tags → {user_id}")
+        
+        # 提取关键标签信息用于日志
+        career = life_tags.get("career_type", "未知职业")
+        marriage = life_tags.get("marriage_status", "未知婚姻")
+        print(f"💾 UPSERT 用户标签：{user_id} → {career}, {marriage}")
     except Exception as err:
         print(f"⚠️ 保存 life_tags 失败: {err}")
 
