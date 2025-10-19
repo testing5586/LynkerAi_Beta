@@ -74,17 +74,10 @@ def update_event_weights(supabase_client, unmatched_events):
         except Exception as err:
             print(f"⚠️ 权重保存失败: {e['desc'][:20]}... | {err}")
 
-def save_life_tags(supabase_client, user_id, life_data):
+def save_life_tags(supabase_client, user_id, life_tags):
     """保存或更新用户的 life_tags（人生标签）"""
     if supabase_client is None:
         return
-    
-    life_tags = {
-        "career_type": life_data.get("career_type", ""),
-        "marriage_status": life_data.get("marriage_status", ""),
-        "children": life_data.get("children", 0),
-        "event_count": len(life_data.get("events", []))
-    }
     
     try:
         supabase_client.table("user_life_tags").upsert({
@@ -142,13 +135,20 @@ def verify_chart(user_id: str, chart_data: dict, life_data: dict):
     }
 
     # ✅ 智能权重学习：根据未匹配事件的相似度动态调整权重
-    if unmatched:
-        print(f"\n🧠 智能权重学习中... ({len(unmatched)} 个未匹配事件)")
-        update_event_weights(supabase, unmatched)
+    unmatched_events = unmatched
+    if unmatched_events:
+        print(f"\n🧠 智能权重学习中... ({len(unmatched_events)} 个未匹配事件)")
+        update_event_weights(supabase, unmatched_events)
     
-    # ✅ 保存用户 life_tags 到数据库
+    # ✅ 构建并保存用户 life_tags 到数据库
+    life_tags = {
+        "career_type": life_data.get("career_type", ""),
+        "marriage_status": life_data.get("marriage_status", ""),
+        "children": life_data.get("children", 0),
+        "event_count": len(life_data.get("events", []))
+    }
     print(f"\n💾 保存用户人生标签...")
-    save_life_tags(supabase, user_id, life_data)
+    save_life_tags(supabase, user_id, life_tags)
 
     # ✅ 写入验证结果到 Supabase
     if supabase:
