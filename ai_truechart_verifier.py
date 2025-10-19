@@ -76,8 +76,8 @@ def update_event_weights(supabase_client, unmatched_events):
                 "weight": new_weight,
                 "similarity": sim,
                 "updated_at": datetime.now().isoformat()
-            }).execute()
-            print(f"📈 权重更新：{e['desc']} → {new_weight:.2f}")
+            }, on_conflict="event_desc").execute()
+            print(f"📈 权重更新或新增：{e['desc']} → {new_weight:.2f}")
         except Exception as err:
             print(f"⚠️ 权重保存失败：{e['desc']} | {err}")
 
