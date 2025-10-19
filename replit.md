@@ -48,6 +48,21 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   Utilizes templates to generate insights categorized by similarity levels.
 -   Stores insights in the Supabase `child_ai_insights` table with a local JSON file backup for redundancy.
 
+### Child AI Memory Vault (`child_ai_memory.py`)
+-   Manages user interaction history with matched partners, tracking memories and engagement.
+-   Automatically generates memory summaries from insights and extracts meaningful tags.
+-   Supports updating interaction counts and last interaction timestamps.
+-   Provides data for the frontend React component `ChildAIMemoryVault.jsx`.
+-   Stores data in Supabase `child_ai_memory` table with JSONB support for flexible tag storage.
+
+### Google Drive Sync (`google_drive_sync.py`)
+-   **Manual Integration** (Replit connector declined by user)
+-   Enables users to backup AI memories to their personal Google Drive.
+-   Uses OAuth 2.0 for secure authorization (access_token managed by frontend).
+-   Automatically creates "LynkerAI_Memories" folder in user's Drive.
+-   Uploads memories as JSON files with timestamps.
+-   Frontend component: `GoogleDriveSyncButton.jsx` handles OAuth flow and token storage.
+
 ### Bridge Module (`replit_bridge.py`)
 -   Abstracts file system operations (`write_file`) and command execution (`run_command`) for platform independence.
 
@@ -73,17 +88,24 @@ Includes environment validation, graceful degradation for optional services, and
 ## Optional Services
 
 ### Supabase
--   **Purpose**: Database and backend services (e.g., `verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights` tables).
+-   **Purpose**: Database and backend services (e.g., `verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`, `child_ai_memory` tables).
 -   **Authentication**: `SUPABASE_URL` and `SUPABASE_KEY` environment variables.
+
+### Google Drive API (Optional)
+-   **Purpose**: User data backup to personal cloud storage.
+-   **Authentication**: OAuth 2.0 (user-provided access_token).
+-   **Configuration**: `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_REDIRECT_URI` environment variables.
+-   **Note**: Manual integration - user declined Replit's Google Drive connector.
 
 ## Python Package Dependencies
 -   `openai`: OpenAI Python client.
 -   `supabase`: Supabase Python client.
+-   `requests`: HTTP library for Google Drive API calls.
 -   `uv`: Replit's package manager for dependency installation.
 -   `numpy`: Used for vectorized similarity computations.
 -   `sentence-transformers`: For semantic model loading and embeddings.
 -   `functools.lru_cache`: For model caching.
--   Standard libraries: `subprocess`, `os`, `sys`, `concurrent.futures`.
+-   Standard libraries: `subprocess`, `os`, `sys`, `concurrent.futures`, `json`, `datetime`.
 
 ## Development Environment
 -   **Platform**: Replit.
