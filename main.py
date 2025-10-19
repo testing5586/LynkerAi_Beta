@@ -42,8 +42,8 @@ def main():
     # log_event("guru_apprentice", apprentice_result)
 
     # 启动同命匹配模块
-    print("\n💞 [2] 启动同命匹配模块...")
-    match_result = run_soulmate_matcher(user_id, supabase=supabase, top_n=5)
+    print("\n💞 [3] 启动同命匹配模块...")
+    match_result = run_soulmate_matcher(user_id, supabase)
     log_event("soulmate_matching", match_result)
 
     print("\n✅ Lynker Master AI 完成所有模块任务。")
