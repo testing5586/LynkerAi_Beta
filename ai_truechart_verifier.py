@@ -1,11 +1,14 @@
 # ==========================================================
-# LynkerAI TrueChart Verifier v3.2
+# LynkerAI TrueChart Verifier v3.3
 # AI记忆数据库版（Supabase 写入机制）
+# 性能优化：批量向量化 + 并发验证
 # ==========================================================
 
-import json, os, re
+import json, os, re, time
+import numpy as np
 from datetime import datetime
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 from sentence_transformers import SentenceTransformer, util
 from supabase_init import init_supabase
 
@@ -34,6 +37,38 @@ def semantic_similarity(a: str, b: str) -> float:
     emb1 = model.encode(a, convert_to_tensor=True)
     emb2 = model.encode(b, convert_to_tensor=True)
     return round(float(util.pytorch_cos_sim(emb1, emb2).item()), 4)
+
+def batch_similarity(model_instance, events: list, chart_features: list):
+    """
+    批量计算每个事件与命盘特征的最佳相似度
+    参数：
+        model_instance: 语义模型实例
+        events: 人生事件列表，每个事件包含 desc 和 weight
+        chart_features: 命盘特征列表
+    返回：
+        更新了 similarity 和 top_match_feature 的事件列表
+    """
+    if not events or not chart_features:
+        return events
+    
+    # 提取事件描述和命盘特征文本
+    event_texts = [e.get("desc", "") for e in events]
+    
+    # 批量编码（一次性向量化所有文本）
+    event_vecs = model_instance.encode(event_texts, normalize_embeddings=True, show_progress_bar=False)
+    chart_vecs = model_instance.encode(chart_features, normalize_embeddings=True, show_progress_bar=False)
+    
+    # 计算相似度矩阵（event_count × feature_count）
+    sim_matrix = np.dot(event_vecs, chart_vecs.T)
+    
+    # 为每个事件找到最佳匹配特征
+    for i, e in enumerate(events):
+        best_idx = np.argmax(sim_matrix[i])
+        best_sim = float(sim_matrix[i, best_idx])
+        e["similarity"] = round(best_sim, 4)
+        e["top_match_feature"] = chart_features[best_idx] if best_sim > 0 else None
+    
+    return events
 
 def extract_features_from_chart(chart_text: str):
     patterns = {
@@ -112,22 +147,19 @@ def verify_chart(user_id: str, chart_data: dict, life_data: dict):
         chart_data.get("birth_datetime", "")
     ])
     features = extract_features_from_chart(chart_text)
+    
+    # ⚡ 批量向量化：一次性计算所有事件与特征的相似度
+    events = [ev.copy() for ev in life_data.get("events", [])]
+    events = batch_similarity(model, events, features)
+    
     matched, unmatched = [], []
     total_weight, gained_score = 0, 0
 
-    for ev in life_data.get("events", []):
-        desc = ev.get("desc", "")
+    # 根据批量计算的相似度进行分类
+    for ev in events:
         weight = ev.get("weight", 1.0)
         total_weight += weight
-
-        best_sim, best_feature = 0.0, None
-        for ft in features:
-            sim = semantic_similarity(ft, desc)
-            if sim > best_sim:
-                best_sim, best_feature = sim, ft
-
-        ev["similarity"] = best_sim
-        ev["top_match_feature"] = best_feature
+        best_sim = ev.get("similarity", 0.0)
 
         if best_sim >= 0.6:
             matched.append(ev)
@@ -180,10 +212,18 @@ def verify_chart(user_id: str, chart_data: dict, life_data: dict):
     return result
 
 # ----------------------------------------------------------
-# 多命盘组合验证
+# 多命盘组合验证（并发优化版）
 # ----------------------------------------------------------
 def verify_multiple_charts(user_id: str, charts: list, life_data: dict):
-    combo_results = [verify_chart(user_id, ch, life_data) for ch in charts]
+    start_time = time.time()
+    
+    # ⚡ 并发验证：使用 ThreadPoolExecutor 并行处理多个命盘
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        combo_results = list(executor.map(
+            lambda ch: verify_chart(user_id, ch, life_data), 
+            charts
+        ))
+    
     combo_results.sort(key=lambda x: x["score"], reverse=True)
     best = combo_results[0]["chart_id"] if combo_results else None
 
@@ -196,6 +236,11 @@ def verify_multiple_charts(user_id: str, charts: list, life_data: dict):
 
     json.dump(output, open("./data/verified_birth_profiles.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
+    
+    # 性能统计
+    elapsed = time.time() - start_time
+    print(f"\n⚡ 批量验证完成，总耗时 {elapsed:.2f}s")
+    
     return output
 
 # ----------------------------------------------------------
