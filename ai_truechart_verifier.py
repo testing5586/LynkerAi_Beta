@@ -123,10 +123,20 @@ def verify_multiple_charts(user_id: str, charts: list, life_data: dict):
     return output
 
 # ----------------------------------------------------------
-# 手动测试
+# 主入口函数（供外部调用）
 # ----------------------------------------------------------
-if __name__ == "__main__":
+def run_truechart_verifier(user_id="u_demo", supabase_client=None):
+    """
+    真命盘验证主函数
+    参数：
+        user_id: 用户ID
+        supabase_client: Supabase 客户端（可选）
+    返回：
+        验证结果的 JSON 对象
+    """
     os.makedirs("./data", exist_ok=True)
+    
+    # 示例测试数据
     chart_A = {
         "chart_id": "c_A",
         "source": "wenmo",
@@ -159,5 +169,20 @@ if __name__ == "__main__":
             {"desc": "婚姻晚成，妻子年长八岁", "weight": 1.2}
         ]
     }
+    
     charts = [chart_A, chart_B, chart_C]
-    print(json.dumps(verify_multiple_charts("u_demo", charts, life_demo), ensure_ascii=False, indent=2))
+    
+    # 使用传入的 supabase 客户端或全局的 supabase
+    global supabase
+    if supabase_client:
+        supabase = supabase_client
+    
+    result = verify_multiple_charts(user_id, charts, life_demo)
+    return result
+
+# ----------------------------------------------------------
+# 手动测试
+# ----------------------------------------------------------
+if __name__ == "__main__":
+    result = run_truechart_verifier("u_demo")
+    print(json.dumps(result, ensure_ascii=False, indent=2))

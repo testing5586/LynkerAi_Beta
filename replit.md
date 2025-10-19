@@ -5,6 +5,22 @@ This is LynkerAI, an AI-powered task execution system that uses OpenAI's API to 
 # Recent Changes
 
 **October 19, 2025**
+- **Created Lynker Master AI Main Control Engine (`main.py`)**:
+  - Centralized entry point for all LynkerAI modules
+  - Integrates `supabase_init.py`, `ai_truechart_verifier.py`
+  - Unified logging system with `master_log.json`
+  - Modular architecture ready for future expansion (guru_apprentice, soulmate_matcher)
+- **Refactored Supabase Initialization Module (`supabase_init.py`)**:
+  - Created independent module for database connection management
+  - Auto-detection of `verified_charts` table
+  - Reusable across all modules
+- **Enhanced TrueChart Verifier (`ai_truechart_verifier.py` v3.2)**:
+  - Added `run_truechart_verifier()` function for external module calls
+  - Simplified main logic with `supabase_init` integration
+  - Fixed indentation errors and environment variable handling
+- **Integrated AI Rule Engine with Chart Verification**:
+  - Added `verify_chart()` check in `ai_rule_engine_v1.py`
+  - Multi-layer permission system: chart verification → user status → daily limits
 - **Unified LynkerAI Firewall Protection Across All AI Modules**:
   - Added `ai_guard_middleware` firewall checks to all major AI modules
   - Protected files: `on_user_login_ai.py`, `pattern_match_engine_v3.py`, `insert_birthchart.py`, `match_recommend.py`
@@ -50,12 +66,42 @@ The application follows a command-line interface (CLI) architecture with an AI-d
 
 ## Modular Architecture
 
-### Main Controller (`lynker_master_ai.py`)
-- **Purpose**: Orchestrates the entire workflow from task input to code generation
+### Main Control Engine (`main.py`)
+- **Purpose**: Centralized orchestration hub for all LynkerAI subsystems
+- **Key Functions**:
+  - `main()`: Initializes Supabase, runs all active modules in sequence
+  - `log_event()`: Unified JSON logging to `master_log.json`
+- **Module Integration**:
+  - `supabase_init.py` - Database connection
+  - `ai_truechart_verifier.py` - Birth chart validation
+  - (Future) `guru_apprentice.py`, `soulmate_matcher.py`
+- **Design Decision**: Single entry point enables coordinated execution and comprehensive logging
+
+### Code Generator (`lynker_master_ai.py`)
+- **Purpose**: AI-powered code generation from natural language tasks
 - **Key Functions**:
   - `check_environment()`: Validates required API credentials before execution
   - `instruct_and_execute()`: Processes task descriptions and coordinates with OpenAI API
 - **Design Decision**: Centralized control flow to maintain simplicity and transparency
+
+### Database Layer (`supabase_init.py`)
+- **Purpose**: Centralized Supabase connection management
+- **Key Function**:
+  - `init_supabase()`: Initializes client and checks/creates required tables
+- **Features**:
+  - Auto-detection of `verified_charts` table
+  - Environment variable configuration
+  - Graceful degradation for local-only operation
+- **Design Decision**: Single source of truth for database connections across all modules
+
+### TrueChart Verifier (`ai_truechart_verifier.py`)
+- **Purpose**: Semantic validation of birth charts against life events
+- **Key Functions**:
+  - `run_truechart_verifier()`: Main entry point for external calls
+  - `verify_chart()`: Single chart validation with semantic similarity
+  - `verify_multiple_charts()`: Multi-chart comparison
+- **AI Model**: shibing624/text2vec-base-chinese (free Chinese semantic model)
+- **Design Decision**: Uses sentence transformers for Chinese semantic understanding
 
 ### Bridge Module (`replit_bridge.py`)
 - **Purpose**: Abstracts file system and command execution operations
