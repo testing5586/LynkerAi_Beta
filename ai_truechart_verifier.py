@@ -70,9 +70,9 @@ def update_event_weights(supabase_client, unmatched_events):
                 "similarity": sim,
                 "updated_at": datetime.now().isoformat()
             }).execute()
-            print(f"📈 权重更新: {e['desc'][:20]}... → {new_weight:.2f}")
+            print(f"📈 权重更新：{e['desc']} → {new_weight:.2f}")
         except Exception as err:
-            print(f"⚠️ 权重保存失败: {e['desc'][:20]}... | {err}")
+            print(f"⚠️ 权重保存失败：{e['desc']} | {err}")
 
 def save_life_tags(supabase_client, user_id, life_tags):
     """保存或更新用户的 life_tags（人生标签）"""
