@@ -13,11 +13,11 @@ from supabase_init import init_supabase
 import os
 
 
-def check_and_setup_child_ai_insights():
-    """检查并设置 child_ai_insights 表"""
+def check_and_setup_table(table_name):
+    """检查并设置指定的表"""
     
     print("=" * 70)
-    print("🔍 Supabase Cloud 表检测：child_ai_insights")
+    print(f"🔍 Supabase Cloud 表检测：{table_name}")
     print("=" * 70)
     
     # 初始化Supabase
@@ -30,12 +30,12 @@ def check_and_setup_child_ai_insights():
     
     # 检测表是否存在
     try:
-        result = supabase.table("child_ai_insights").select("id").limit(1).execute()
-        print("\n✅ 表 'child_ai_insights' 已存在于Supabase云端！")
+        result = supabase.table(table_name).select("id").limit(1).execute()
+        print(f"\n✅ 表 '{table_name}' 已存在于Supabase云端！")
         print(f"📊 当前记录数：{len(result.data) if result.data else 0}")
         return True
     except Exception as e:
-        print("\n❌ 表 'child_ai_insights' 不存在于Supabase云端")
+        print(f"\n❌ 表 '{table_name}' 不存在于Supabase云端")
         print(f"📋 错误详情：{e}")
         
         # 生成创建SQL
@@ -137,14 +137,18 @@ def test_insert_and_read():
 
 
 if __name__ == "__main__":
-    print("\n🚀 启动 Supabase child_ai_insights 表自动设置工具\n")
+    print("\n🚀 启动 Supabase 表自动设置工具\n")
     
-    # 检查并设置表
-    table_exists = check_and_setup_child_ai_insights()
+    # 检查所有表
+    tables_to_check = ["child_ai_insights", "child_ai_memory"]
     
-    # 如果表存在，运行测试
-    if table_exists:
-        test_insert_and_read()
-    else:
-        print("\n⏸️ 请先在 Supabase Dashboard 创建表，然后重新运行本脚本")
-        print("💡 快捷命令：python supabase_auto_setup.py\n")
+    for table in tables_to_check:
+        table_exists = check_and_setup_table(table)
+        
+        # 如果是 child_ai_insights 表且存在，运行测试
+        if table == "child_ai_insights" and table_exists:
+            test_insert_and_read()
+        
+        print("\n")
+    
+    print("✅ 所有表检测完成！\n")
