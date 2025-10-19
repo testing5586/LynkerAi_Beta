@@ -42,6 +42,61 @@ def extract_features_from_chart(chart_text: str):
     return list(set(features))
 
 # ----------------------------------------------------------
+# 智能权重学习系统
+# ----------------------------------------------------------
+def update_event_weights(supabase_client, unmatched_events):
+    """动态调整人生事件权重，基于相似度进行智能学习"""
+    if supabase_client is None:
+        return
+    
+    for e in unmatched_events:
+        new_weight = e["weight"]
+        sim = e["similarity"]
+        
+        # 智能权重调整策略
+        if sim > 0.6:
+            # 相似度高但未匹配，增加权重
+            new_weight = min(e["weight"] + 0.1, 3.0)
+        elif sim < 0.3:
+            # 相似度极低，降低权重
+            new_weight = max(e["weight"] - 0.05, 0.5)
+        
+        e["weight"] = new_weight
+        
+        try:
+            supabase_client.table("life_event_weights").upsert({
+                "event_desc": e["desc"],
+                "weight": new_weight,
+                "similarity": sim,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+            print(f"📈 权重更新: {e['desc'][:20]}... → {new_weight:.2f}")
+        except Exception as err:
+            print(f"⚠️ 权重保存失败: {e['desc'][:20]}... | {err}")
+
+def save_life_tags(supabase_client, user_id, life_data):
+    """保存或更新用户的 life_tags（人生标签）"""
+    if supabase_client is None:
+        return
+    
+    life_tags = {
+        "career_type": life_data.get("career_type", ""),
+        "marriage_status": life_data.get("marriage_status", ""),
+        "children": life_data.get("children", 0),
+        "event_count": len(life_data.get("events", []))
+    }
+    
+    try:
+        supabase_client.table("user_life_tags").upsert({
+            "user_id": user_id,
+            **life_tags,
+            "updated_at": datetime.now().isoformat()
+        }).execute()
+        print(f"💾 已保存 life_tags → {user_id}")
+    except Exception as err:
+        print(f"⚠️ 保存 life_tags 失败: {err}")
+
+# ----------------------------------------------------------
 # 单命盘验证逻辑
 # ----------------------------------------------------------
 def verify_chart(user_id: str, chart_data: dict, life_data: dict):
@@ -86,7 +141,16 @@ def verify_chart(user_id: str, chart_data: dict, life_data: dict):
         "verified_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    # ✅ 写入 Supabase
+    # ✅ 智能权重学习：根据未匹配事件的相似度动态调整权重
+    if unmatched:
+        print(f"\n🧠 智能权重学习中... ({len(unmatched)} 个未匹配事件)")
+        update_event_weights(supabase, unmatched)
+    
+    # ✅ 保存用户 life_tags 到数据库
+    print(f"\n💾 保存用户人生标签...")
+    save_life_tags(supabase, user_id, life_data)
+
+    # ✅ 写入验证结果到 Supabase
     if supabase:
         try:
             supabase.table("verified_charts").insert({

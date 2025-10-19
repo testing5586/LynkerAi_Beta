@@ -5,6 +5,15 @@ This is LynkerAI, an AI-powered task execution system that uses OpenAI's API to 
 # Recent Changes
 
 **October 19, 2025**
+- **Added Intelligent Weight Learning System & Life Tags Storage (`ai_truechart_verifier.py` v3.3)**:
+  - Implemented `update_event_weights()`: Dynamic event weight adjustment based on similarity scores
+  - Implemented `save_life_tags()`: User life profile storage (career, marriage, children, event count)
+  - Integrated with Supabase tables: `life_event_weights`, `user_life_tags`
+  - Smart learning: Increases weight for high-similarity unmatched events, decreases for low-similarity
+  - Created SQL schema file: `supabase_tables_schema.sql` for easy database setup
+- **Upgraded Supabase Initialization Module (`supabase_init.py` v2.0)**:
+  - Extended table detection to include `life_event_weights` and `user_life_tags`
+  - Auto-checks all three required tables on initialization
 - **Created Lynker Master AI Main Control Engine (`main.py`)**:
   - Centralized entry point for all LynkerAI modules
   - Integrates `supabase_init.py`, `ai_truechart_verifier.py`
