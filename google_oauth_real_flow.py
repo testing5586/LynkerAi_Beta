@@ -103,11 +103,11 @@ def exchange_code_for_token(auth_code, config):
 
 
 def get_user_info(access_token):
-    """获取用户信息（邮箱）"""
+    """获取用户信息（邮箱）- 使用 v1 API"""
     
     try:
         response = requests.get(
-            'https://www.googleapis.com/oauth2/v2/userinfo',
+            'https://www.googleapis.com/oauth2/v1/userinfo?alt=json',
             headers={'Authorization': f'Bearer {access_token}'}
         )
         
@@ -134,12 +134,15 @@ def save_to_supabase(user_id, access_token, refresh_token, user_email):
         return {'success': False, 'error': 'Supabase 未连接'}
     
     try:
+        from datetime import datetime
+        
         # 更新用户的 Google Drive 绑定信息
         result = supabase.table('users').update({
             'drive_connected': True,
             'drive_access_token': access_token,
             'drive_refresh_token': refresh_token,
-            'drive_email': user_email
+            'drive_email': user_email,
+            'updated_at': datetime.now().isoformat()
         }).eq('name', user_id).execute()
         
         if result.data:
@@ -171,22 +174,13 @@ def run_oauth_flow(user_id=None):
     auth_url = generate_auth_url(config)
     print()
     print("=" * 60)
-    print("📌 请复制以下链接，在浏览器中打开完成授权：")
+    print("📌 请复制以下 URL 到浏览器打开并授权：")
     print("=" * 60)
     print()
     print(auth_url)
     print()
     print("=" * 60)
-    print()
-    
-    # 3. 等待用户授权
-    print("📝 授权步骤：")
-    print("   1. 在浏览器中打开上述链接")
-    print("   2. 选择您的 Google 账号")
-    print("   3. 点击'允许'授权访问 Google Drive")
-    print("   4. 授权后会重定向到：", config['redirect_uri'])
-    print("   5. 复制 URL 中的 code 参数值")
-    print()
+    print("完成后复制浏览器地址栏中的 code 参数，粘贴回控制台。")
     print("=" * 60)
     print()
     
@@ -232,11 +226,17 @@ def run_oauth_flow(user_id=None):
     
     # 7. 保存到 Supabase
     if user_id:
-        print(f"💾 Step 5: 保存到 Supabase (user_id: {user_id})...")
+        print(f"💾 Step 5: 保存到 Supabase.users...")
         save_result = save_to_supabase(user_id, access_token, refresh_token, user_email)
         
         if save_result['success']:
-            print(f"✅ 成功保存到 Supabase users 表！")
+            print()
+            print("=" * 60)
+            print("✅ 授权成功！")
+            print(f"📧 邮箱：{user_email}")
+            print(f"🔑 Token：{access_token[:10]}...")
+            print("💾 已保存到 Supabase.users")
+            print("=" * 60)
             print()
         else:
             print(f"⚠️ 保存失败：{save_result.get('error')}")
@@ -245,26 +245,21 @@ def run_oauth_flow(user_id=None):
         print("⚠️ 未提供 user_id，跳过保存到 Supabase")
         print()
         print("💡 如需保存，请运行：")
-        print(f'   python google_oauth_real_flow.py --user-id=YOUR_USER_ID')
+        print(f'   python google_oauth_real_flow.py --user-id=u_demo')
         print()
     
     # 8. 测试 Google Drive 连接
-    print("🧪 Step 6: 测试 Google Drive 连接...")
-    
-    from google_drive_sync import test_google_drive_connection
-    
-    if test_google_drive_connection(access_token):
-        print("✅ Google Drive 连接测试成功！")
-    else:
-        print("⚠️ Google Drive 连接测试失败")
-    
-    print()
-    print("=" * 60)
-    print("🎉 OAuth 授权流程完成！")
-    print("=" * 60)
-    print()
-    
     if user_id:
+        print("🧪 测试 Google Drive 连接...")
+        
+        from google_drive_sync import test_google_drive_connection
+        
+        if test_google_drive_connection(access_token):
+            print("✅ Google Drive 连接测试成功！")
+        else:
+            print("⚠️ Google Drive 连接测试失败")
+        
+        print()
         print("📊 下一步操作：")
         print("   1. 生成子AI记忆：python child_ai_memory.py")
         print("   2. 记忆会自动同步到 Google Drive")
