@@ -6,7 +6,7 @@
 - 自动导入到 Vault
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import os
 import subprocess
 import json
@@ -165,6 +165,12 @@ def search_memory():
         print(f"⚠️ 搜索错误: {traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/master-ai-memory")
+def master_ai_dashboard():
+    """Master AI Memory Dashboard - React 可视化界面"""
+    with open("static/master_ai_dashboard.html", "r", encoding="utf-8") as f:
+        return f.read()
+
 @app.route("/")
 def index():
     return """
@@ -189,6 +195,7 @@ def index():
             <li>📜 <a href="/api/master-ai/upload-history">查看上传历史</a></li>
             <li>🧠 <a href="/api/master-ai/memory?limit=10">查询子AI记忆</a></li>
             <li>🔍 <a href="/api/master-ai/memory/search?q=文档&limit=5">搜索记忆内容</a></li>
+            <li>📊 <a href="/master-ai-memory" style="color: #28a745; font-weight: bold;">Memory Dashboard（可视化界面）</a></li>
         </ul>
     </body>
     </html>

@@ -83,10 +83,11 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Intelligent Document Management System**: Automatically categorizes and indexes project documentation.
 -   **Auto-Classification**: Documents sorted into `project_docs`, `api_docs`, and `dev_brainstorm` based on filename keywords.
 -   **Import Tool** (`master_ai_importer.py`): CLI tool for importing, listing, and searching documents.
--   **Unified Upload API** (`master_ai_uploader_api.py`): 统一 Flask API，整合文件上传、记忆查询等功能，运行在端口 8008。
+-   **Unified Upload API** (`master_ai_uploader_api.py`): 统一 Flask API，整合文件上传、记忆查询、Dashboard 等功能，运行在端口 8008。
 -   **Upload Logger** (`upload_logger.py`): Self-learning logging system that records upload metadata (filename, category, uploader, timestamp, summary, import result) to `upload_log.json`.
 -   **YAML Index**: Human-readable index system tracking all imported documents.
 -   **Search Functionality**: Full-text search across document names and content.
+-   **Memory Dashboard** (`components/MasterAIMemoryDashboard.jsx`): React-based visual interface for memory exploration.
 -   **统一 API 端点** (端口 8008):
     - `POST /api/master-ai/upload` - Upload files with automatic logging
     - `GET /api/master-ai/context` - View Vault contents
@@ -95,6 +96,7 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
     - `GET /api/master-ai/memory` - Query child_ai_memory with filters (user_id, tag, limit)
     - `GET /api/master-ai/memory/search` - Search memories by keyword (q, limit)
     - `GET /upload` - Web-based file upload interface
+    - `GET /master-ai-memory` - React Dashboard for memory visualization
 -   **Current Status**: 11+ documents indexed (6 project docs, 3 API docs, 1 dev brainstorm, 1 memory).
 
 ### Domain Auto-Detection (`update_redirect_uri.py`)
