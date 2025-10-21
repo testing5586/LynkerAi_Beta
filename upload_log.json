@@ -22,5 +22,21 @@
     "timestamp": "2025-10-21T12:09:10.047776",
     "summary": "# AI 记忆系统测试 V2\n\n验证记忆桥接功能是否正常工作。\n\n## 测试内容\n1. 文件上传\n2. 日志记录\n3. 数据库同步",
     "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/memory_test_v2.md → project_docs/memory_test_v2.md"
+  },
+  {
+    "filename": "idempotency_test.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-21T12:14:21.342720",
+    "summary": "# 幂等性验证文档\n\n这是第4次上传，用于测试幂等性功能。\n\n## 预期结果\n- 只同步这个新文件\n- 不会重复同步之前的3个文件",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/idempotency_test.md → project_docs/idempotency_test.md"
+  },
+  {
+    "filename": "rotation_test.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-21T12:18:22.383379",
+    "summary": "# 轮换测试文档\n\n这个文档用于测试日志轮换后的幂等性。",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/rotation_test.md → project_docs/rotation_test.md"
   }
 ]

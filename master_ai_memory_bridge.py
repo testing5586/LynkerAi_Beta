@@ -11,10 +11,33 @@ from supabase_init import get_supabase
 
 LOG_FILE = "upload_log.json"
 LOCAL_BACKUP = "child_ai_memory_backup.json"
+SYNC_STATE_FILE = "memory_sync_state.json"
+
+def load_sync_state():
+    """读取同步状态，返回已同步的记录集合（仅依赖唯一标识符）"""
+    if not os.path.exists(SYNC_STATE_FILE):
+        return set()
+    
+    try:
+        with open(SYNC_STATE_FILE, 'r', encoding='utf-8') as f:
+            state = json.load(f)
+            return set(state.get("synced_entries", []))
+    except:
+        return set()
+
+def save_sync_state(synced_entries):
+    """保存同步状态（仅保存唯一标识符集合）"""
+    state = {
+        "synced_entries": list(synced_entries),
+        "total_synced": len(synced_entries),
+        "last_update": datetime.now().isoformat()
+    }
+    with open(SYNC_STATE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
 
 def bridge_new_uploads_to_memory(limit=3):
     """
-    将最新上传的文件同步到子AI记忆系统
+    将最新上传的文件同步到子AI记忆系统（幂等性保证）
     
     Args:
         limit: 同步最近N条记录（默认3条）
@@ -46,14 +69,26 @@ def bridge_new_uploads_to_memory(limit=3):
         print("⚠️ 没有可同步的日志记录")
         return {"success": False, "error": "No logs to sync"}
     
-    # 只同步最近N条记录
-    new_entries = logs[-limit:] if len(logs) > limit else logs
+    # 读取同步状态（已同步的唯一标识符集合）
+    synced_entries = load_sync_state()
+    
+    # 只处理未同步的新记录（仅依赖唯一标识符）
+    new_entries = []
+    for entry in logs:
+        # 创建唯一标识符（filename + timestamp）
+        entry_id = f"{entry.get('filename')}_{entry.get('timestamp')}"
+        if entry_id not in synced_entries:
+            new_entries.append((entry, entry_id))
+    
+    if not new_entries:
+        print("✅ 所有记录已同步，无需重复处理")
+        return {"success": True, "synced": 0, "failed": 0, "total": 0, "skipped": len(logs)}
     
     synced_count = 0
     failed_count = 0
     memories = []
     
-    for entry in new_entries:
+    for entry, entry_id in new_entries:
         filename = entry.get("filename", "unknown")
         summary = entry.get("summary", "")
         category = entry.get("category", "uncategorized")
@@ -77,6 +112,9 @@ def bridge_new_uploads_to_memory(limit=3):
             print(f"💾 已同步至子AI记忆: {filename}")
             synced_count += 1
             memories.append(memory)
+            
+            # 更新同步状态（添加到已同步集合）
+            synced_entries.add(entry_id)
             
         except Exception as e:
             print(f"⚠️ 同步失败 {filename}: {e}")
@@ -109,6 +147,9 @@ def bridge_new_uploads_to_memory(limit=3):
             
     except Exception as e:
         print(f"⚠️ 本地备份失败: {e}")
+    
+    # 保存同步状态（防止重复同步）- 即使有失败也要保存
+    save_sync_state(synced_entries)
     
     # 返回统计结果
     result = {
