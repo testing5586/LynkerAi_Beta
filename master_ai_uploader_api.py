@@ -98,4 +98,4 @@ if __name__ == "__main__":
     print("   POST /api/master-ai/upload   - 上传文件")
     print("   GET  /api/master-ai/context  - 查看 Vault")
     print("=" * 60)
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=8008)

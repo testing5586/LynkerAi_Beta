@@ -30,6 +30,10 @@ author = "agent"
 task = "workflow.run"
 args = "Flask API"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Upload API"
+
 [[workflows.workflow]]
 name = "Flask API"
 author = "agent"
@@ -42,6 +46,22 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Upload API"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python master_ai_uploader_api.py"
+waitForPort = 8008
+
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8008
+externalPort = 8008
