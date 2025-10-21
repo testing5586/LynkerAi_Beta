@@ -75,10 +75,18 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Intelligent Document Management System**: Automatically categorizes and indexes project documentation.
 -   **Auto-Classification**: Documents sorted into `project_docs`, `api_docs`, and `dev_brainstorm` based on filename keywords.
 -   **Import Tool** (`master_ai_importer.py`): CLI tool for importing, listing, and searching documents.
+-   **Upload API** (`master_ai_uploader_api.py`): RESTful API with web interface for file uploads, running on port 8008.
+-   **Upload Logger** (`upload_logger.py`): Self-learning logging system that records upload metadata (filename, category, uploader, timestamp, summary, import result) to `upload_log.json`.
 -   **Context API** (`master_ai_context_api.py`): RESTful API providing knowledge summaries for AI assistants.
 -   **YAML Index**: Human-readable index system tracking all imported documents.
 -   **Search Functionality**: Full-text search across document names and content.
--   **Current Status**: 8 documents indexed (4 project docs, 3 API docs, 1 dev brainstorm).
+-   **API Endpoints**:
+    - `POST /api/master-ai/upload` - Upload files with automatic logging
+    - `GET /api/master-ai/context` - View Vault contents
+    - `GET /api/master-ai/upload-history` - View upload history (supports filtering by category and limit)
+    - `GET /api/master-ai/upload-stats` - View upload statistics (total uploads, by category, by uploader)
+    - `GET /upload` - Web-based file upload interface
+-   **Current Status**: 11+ documents indexed (6 project docs, 3 API docs, 1 dev brainstorm, 1 memory).
 
 ### Domain Auto-Detection (`update_redirect_uri.py`)
 -   **Dynamic Domain Detection**: Automatically detects current Replit Sisko domain from environment variables.
