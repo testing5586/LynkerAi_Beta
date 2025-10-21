@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 from datetime import datetime
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
@@ -337,6 +338,66 @@ def login_refresh():
     return jsonify(result)
 
 
+@app.route("/api/master-ai/memory", methods=["GET"])
+def get_ai_memory():
+    """返回子AI记忆内容，可按 user_id 或 tags 过滤"""
+    try:
+        user_id = request.args.get("user_id")
+        tag = request.args.get("tag")
+        limit = int(request.args.get("limit", 20))
+        
+        print(f"🧠 Memory API 请求 → user_id={user_id}, tag={tag}, limit={limit}")
+
+        query = supabase.table("child_ai_memory").select("*").order("last_interaction", desc=True).limit(limit)
+        if user_id:
+            query = query.eq("user_id", user_id)
+        if tag:
+            query = query.filter("tags", "cs", json.dumps([tag]))
+
+        response = query.execute()
+        data = response.data if hasattr(response, "data") else response
+        
+        print(f"✅ 返回 {len(data)} 条记忆记录")
+        return jsonify({"status": "ok", "count": len(data), "memories": data})
+
+    except Exception as e:
+        print(f"⚠️ Memory API 错误: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/master-ai/memory/search", methods=["GET"])
+def search_memory():
+    """模糊搜索 summary 内容"""
+    keyword = request.args.get("q", "")
+    limit = int(request.args.get("limit", 20))
+    
+    if not keyword:
+        return jsonify({"status": "error", "message": "Missing query parameter 'q'"}), 400
+
+    try:
+        if not supabase:
+            return jsonify({"status": "error", "message": "Supabase not available"}), 500
+        
+        print(f"🔍 Memory 搜索 → 关键词='{keyword}', limit={limit}")
+        response = supabase.table("child_ai_memory").select("*").ilike("summary", f"%{keyword}%").order("last_interaction", desc=True).limit(limit).execute()
+        data = response.data if hasattr(response, "data") else []
+        
+        print(f"✅ 搜索返回 {len(data)} 条结果")
+        return jsonify({"status": "ok", "count": len(data), "results": data})
+        
+    except Exception as e:
+        import traceback
+        print(f"⚠️ 搜索错误: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/master-ai-memory")
+def master_ai_dashboard():
+    """Master AI Memory Dashboard - React 可视化界面"""
+    try:
+        with open("static/master_ai_dashboard.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return jsonify({"error": "Dashboard 文件未找到"}), 404
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """健康检查端点"""
@@ -345,7 +406,9 @@ def health_check():
         "service": "lynkerai_api",
         "endpoints": {
             "oauth_callback": ["/", "/callback", "/oauth2callback"],
-            "api": ["/login_refresh", "/health"]
+            "api": ["/login_refresh", "/health"],
+            "memory_api": ["/api/master-ai/memory", "/api/master-ai/memory/search"],
+            "dashboard": ["/master-ai-memory"]
         }
     }), 200
 
