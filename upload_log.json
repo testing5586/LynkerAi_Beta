@@ -1,0 +1,10 @@
+[
+  {
+    "filename": "test_upload_log.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-21T11:54:12.390613",
+    "summary": "# 测试文档 - AI 自学习记忆系统\n\n这是一个测试文档，用于验证 Lynker Master Vault 的自动日志记录功能。\n\n## 功能特性\n- 自动记录上传时间\n- 自动提取文件摘要\n- 自...",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/test_upload_log.md → project_docs/test_upload_log.md"
+  }
+]
