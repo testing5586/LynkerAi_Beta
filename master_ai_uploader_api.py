@@ -10,6 +10,7 @@ from flask import Flask, request, jsonify
 import os
 import subprocess
 from werkzeug.utils import secure_filename
+from upload_logger import log_upload, get_upload_stats, get_upload_history
 
 app = Flask(__name__)
 
@@ -51,10 +52,19 @@ def upload_file():
     # 调用导入器执行自动分类
     result = subprocess.getoutput(f"python master_ai_importer.py import {filepath}")
     
+    # 记录上传日志
+    log_entry = log_upload(
+        filename=safe_name,
+        import_result=result,
+        uploaded_by=request.headers.get("X-User-ID", "web_upload"),
+        filepath=filepath
+    )
+    
     return jsonify({
         "status": "✅ 文件上传并导入成功",
         "filename": safe_name,
-        "import_result": result
+        "import_result": result,
+        "log_entry": log_entry
     })
 
 @app.route("/api/master-ai/context", methods=["GET"])
@@ -73,6 +83,25 @@ def get_context():
     
     return jsonify(context)
 
+@app.route("/api/master-ai/upload-history", methods=["GET"])
+def upload_history():
+    """获取上传历史记录"""
+    limit = request.args.get("limit", type=int)
+    category = request.args.get("category", type=str)
+    
+    history = get_upload_history(limit=limit, category=category)
+    
+    return jsonify({
+        "total": len(history),
+        "history": history
+    })
+
+@app.route("/api/master-ai/upload-stats", methods=["GET"])
+def upload_stats():
+    """获取上传统计信息"""
+    stats = get_upload_stats()
+    return jsonify(stats)
+
 @app.route("/")
 def index():
     return """
@@ -84,9 +113,16 @@ def index():
         <ul>
             <li><code>POST /api/master-ai/upload</code> - 上传文件</li>
             <li><code>GET /api/master-ai/context</code> - 查看 Vault 状态</li>
+            <li><code>GET /api/master-ai/upload-history</code> - 上传历史记录</li>
+            <li><code>GET /api/master-ai/upload-stats</code> - 上传统计信息</li>
         </ul>
-        <p>📚 <a href="/api/master-ai/context">查看当前 Vault 内容</a></p>
-        <p>📤 <a href="/upload" style="color: #007bff; font-weight: bold;">手动上传文件测试</a></p>
+        <h3>🔗 快速访问</h3>
+        <ul>
+            <li>📤 <a href="/upload" style="color: #007bff; font-weight: bold;">手动上传文件测试</a></li>
+            <li>📚 <a href="/api/master-ai/context">查看 Vault 内容</a></li>
+            <li>📊 <a href="/api/master-ai/upload-stats">查看上传统计</a></li>
+            <li>📜 <a href="/api/master-ai/upload-history">查看上传历史</a></li>
+        </ul>
     </body>
     </html>
     """
