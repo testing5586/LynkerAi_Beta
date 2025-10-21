@@ -13,14 +13,22 @@ def get_ai_memory():
         tag = request.args.get("tag")
         limit = int(request.args.get("limit", 20))
 
-        query = supabase.table("child_ai_memory").select("*").order("last_interaction", desc=True).limit(limit)
+        query = supabase.table("child_ai_memory").select("*").order("last_interaction", desc=True)
         if user_id:
             query = query.eq("user_id", user_id)
+        
         if tag:
-            query = query.contains("tags", f'["{tag}"]')
+            query = query.limit(limit * 5)
+        else:
+            query = query.limit(limit)
 
         response = query.execute()
         data = response.data if hasattr(response, "data") else response
+        
+        if tag:
+            filtered_data = [item for item in data if tag in item.get("tags", [])]
+            data = filtered_data[:limit]
+        
         return jsonify({"status": "ok", "count": len(data), "memories": data})
 
     except Exception as e:
@@ -39,17 +47,13 @@ def search_memory():
         if not supabase:
             return jsonify({"status": "error", "message": "Supabase not available"}), 500
         
-        print(f"🔍 搜索关键词: '{keyword}', 限制: {limit}")
         response = supabase.table("child_ai_memory").select("*").ilike("summary", f"%{keyword}%").order("last_interaction", desc=True).limit(limit).execute()
-        print(f"📊 Response type: {type(response)}, has data: {hasattr(response, 'data')}")
         data = response.data if hasattr(response, "data") else []
-        print(f"✅ 查询返回 {len(data)} 条结果")
         return jsonify({"status": "ok", "count": len(data), "results": data})
     except Exception as e:
         import traceback
-        error_detail = traceback.format_exc()
-        print(f"搜索错误: {error_detail}")
-        return jsonify({"status": "error", "message": str(e), "detail": error_detail}), 500
+        print(f"搜索错误: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/")
