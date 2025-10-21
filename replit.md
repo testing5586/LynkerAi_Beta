@@ -71,6 +71,13 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Data Persistence**: Saves OAuth credentials to Supabase `users` table with `upsert` operation.
 -   **Success Page**: Displays beautiful HTML success page after authorization.
 
+### Master AI Memory API (`master_ai_memory_api.py`)
+-   **RESTful Memory Query Interface**: Flask API running on port 9000 providing Master AI access to synced child_ai_memory data.
+-   **GET /api/master-ai/memory**: Query memories with filters (user_id, tag, limit).
+-   **GET /api/master-ai/memory/search**: Full-text search across memory summaries using PostgreSQL ILIKE.
+-   **Server-side tag filtering**: Uses PostgREST `cs` operator with JSON encoding for accurate JSONB array filtering.
+-   **Use cases**: Chat interface context retrieval, memory growth analytics, cross-validation between upload logs and semantic indexes.
+
 ### Lynker Master Vault (`lynker_master_vault/`)
 -   **Intelligent Document Management System**: Automatically categorizes and indexes project documentation.
 -   **Auto-Classification**: Documents sorted into `project_docs`, `api_docs`, and `dev_brainstorm` based on filename keywords.

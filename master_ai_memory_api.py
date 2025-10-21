@@ -13,22 +13,14 @@ def get_ai_memory():
         tag = request.args.get("tag")
         limit = int(request.args.get("limit", 20))
 
-        query = supabase.table("child_ai_memory").select("*").order("last_interaction", desc=True)
+        query = supabase.table("child_ai_memory").select("*").order("last_interaction", desc=True).limit(limit)
         if user_id:
             query = query.eq("user_id", user_id)
-        
         if tag:
-            query = query.limit(limit * 5)
-        else:
-            query = query.limit(limit)
+            query = query.filter("tags", "cs", json.dumps([tag]))
 
         response = query.execute()
         data = response.data if hasattr(response, "data") else response
-        
-        if tag:
-            filtered_data = [item for item in data if tag in item.get("tags", [])]
-            data = filtered_data[:limit]
-        
         return jsonify({"status": "ok", "count": len(data), "memories": data})
 
     except Exception as e:
