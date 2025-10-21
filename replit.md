@@ -58,10 +58,18 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 ### Google Drive Sync (`google_drive_sync.py`)
 -   **Manual Integration** (Replit connector declined by user)
 -   Enables users to backup AI memories to their personal Google Drive.
--   Uses OAuth 2.0 for secure authorization (access_token managed by frontend).
+-   Uses OAuth 2.0 for secure authorization (access_token managed by backend).
 -   Automatically creates "LynkerAI_Memories" folder in user's Drive.
 -   Uploads memories as JSON files with timestamps.
--   Frontend component: `GoogleDriveSyncButton.jsx` handles OAuth flow and token storage.
+-   OAuth credentials stored in Supabase `users` table (`drive_access_token`, `drive_refresh_token`).
+
+### OAuth Authorization Flow (`google_oauth_real_flow.py`, Flask API)
+-   **Interactive Authorization Script**: Command-line tool for initiating Google OAuth flow.
+-   **Flask API Integration**: Handles OAuth callbacks at `/`, `/callback`, `/oauth2callback` routes.
+-   **Token Exchange**: Automatically exchanges authorization code for access_token and refresh_token.
+-   **User Info Retrieval**: Calls Google OAuth v1 API (`https://www.googleapis.com/oauth2/v1/userinfo?alt=json`) to get user email.
+-   **Data Persistence**: Saves OAuth credentials to Supabase `users` table with `upsert` operation.
+-   **Success Page**: Displays beautiful HTML success page after authorization.
 
 ### Bridge Module (`replit_bridge.py`)
 -   Abstracts file system operations (`write_file`) and command execution (`run_command`) for platform independence.
@@ -88,8 +96,9 @@ Includes environment validation, graceful degradation for optional services, and
 ## Optional Services
 
 ### Supabase
--   **Purpose**: Database and backend services (e.g., `verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`, `child_ai_memory` tables).
+-   **Purpose**: Database and backend services (e.g., `users`, `verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`, `child_ai_memory` tables).
 -   **Authentication**: `SUPABASE_URL` and `SUPABASE_KEY` environment variables.
+-   **Users Table**: Stores user profiles and Google Drive OAuth credentials (`name`, `email`, `drive_email`, `drive_access_token`, `drive_refresh_token`, `drive_connected`, `created_at`, `updated_at`).
 
 ### Google Drive API (Optional)
 -   **Purpose**: User data backup to personal cloud storage.
