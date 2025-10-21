@@ -7,6 +7,8 @@ project_docs:
   imported_at: '1760874912.0332892'
 - filename: replit.md
   imported_at: '1761041304.9782095'
+- filename: VAULT_UPLOADER_GUIDE.md
+  imported_at: '1761045210.765939'
 api_docs:
 - filename: GOOGLE_OAUTH_USAGE.md
   imported_at: '1760924357.922215'
