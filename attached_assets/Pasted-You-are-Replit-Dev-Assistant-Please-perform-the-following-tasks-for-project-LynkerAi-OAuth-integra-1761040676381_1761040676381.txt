@@ -1,0 +1,79 @@
+You are Replit Dev Assistant.
+Please perform the following tasks for project LynkerAi OAuth integration.
+
+========================================================
+🎯 Objective
+Fix the Google OAuth callback route and add an automatic domain detection + redirect URI updater for Replit dynamic URLs (Sisko domains).
+
+========================================================
+📁 Task 1 — Fix google_oauth_callback.py
+========================================================
+1️⃣ Create or overwrite `google_oauth_callback.py` with this logic:
+- Use Flask
+- Accept callbacks at `/`, `/callback`, and `/oauth2callback`
+- Exchange the `code` for tokens from Google
+- Retrieve user info (email)
+- Save to `public.users` table in Supabase (`drive_email`, `drive_access_token`, `drive_connected`)
+- Display a success HTML page on success
+
+Sample:
+
+```python
+from flask import Flask, request
+import requests, os
+from supabase_init import get_supabase
+
+app = Flask(__name__)
+supabase = get_supabase()
+
+def handle_google_callback(code):
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": os.getenv("VITE_GOOGLE_CLIENT_ID"),
+        "client_secret": os.getenv("VITE_GOOGLE_CLIENT_SECRET"),
+        "redirect_uri": os.getenv("VITE_GOOGLE_REDIRECT_URI"),
+        "grant_type": "authorization_code",
+    }
+
+    res = requests.post(token_url, data=data)
+    if res.status_code != 200:
+        return f"❌ Token exchange failed: {res.text}", 400
+
+    tokens = res.json()
+    access_token = tokens.get("access_token")
+
+    user_info = requests.get(
+        "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
+        headers={"Authorization": f"Bearer {access_token}"}
+    ).json()
+
+    email = user_info.get("email", "unknown")
+    user_id = email.split("@")[0]
+
+    supabase.table("users").upsert({
+        "name": user_id,
+        "email": email,
+        "drive_email": email,
+        "drive_access_token": access_token,
+        "drive_connected": True
+    }).execute()
+
+    return f"""
+    <h2>✅ Google Drive 绑定成功！</h2>
+    <p>📧 用户：{email}</p>
+    <p>🔑 Access Token: {access_token[:12]}...</p>
+    <p>💾 已保存到 Supabase.users 表。</p>
+    """
+
+@app.route("/", methods=["GET"])
+@app.route("/callback", methods=["GET"])
+@app.route("/oauth2callback", methods=["GET"])
+def google_callback():
+    code = request.args.get("code")
+    if not code:
+        return "⚠️ Missing authorization code", 400
+    return handle_google_callback(code)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)

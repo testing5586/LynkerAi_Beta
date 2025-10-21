@@ -1,4 +1,6 @@
 import os
+import requests
+from datetime import datetime
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
 from match_palace import calculate_match_score
@@ -61,8 +63,267 @@ def generate_recommendations(user_id, match_filter=None):
 
 
 # ===============================
+# Google OAuth 回调处理
+# ===============================
+def handle_google_callback(code):
+    """处理 Google OAuth 回调"""
+    
+    token_url = "https://oauth2.googleapis.com/token"
+    
+    data = {
+        "code": code,
+        "client_id": os.getenv("VITE_GOOGLE_CLIENT_ID"),
+        "client_secret": os.getenv("VITE_GOOGLE_CLIENT_SECRET"),
+        "redirect_uri": os.getenv("VITE_GOOGLE_REDIRECT_URI"),
+        "grant_type": "authorization_code",
+    }
+    
+    try:
+        res = requests.post(token_url, data=data)
+        
+        if res.status_code != 200:
+            return f"❌ Token 交换失败：{res.text}", 400
+        
+        tokens = res.json()
+        access_token = tokens.get("access_token")
+        refresh_token = tokens.get("refresh_token")
+        
+        if not access_token:
+            return "❌ 未获取到 access_token", 400
+        
+        user_info_res = requests.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        
+        if user_info_res.status_code != 200:
+            return f"❌ 获取用户信息失败：{user_info_res.text}", 400
+        
+        user_info = user_info_res.json()
+        email = user_info.get("email", "unknown")
+        user_name = user_info.get("name", email.split("@")[0])
+        user_id = email.split("@")[0]
+        
+        try:
+            result = supabase.table("users").upsert({
+                "name": user_id,
+                "email": email,
+                "drive_email": email,
+                "drive_access_token": access_token,
+                "drive_refresh_token": refresh_token,
+                "drive_connected": True,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+            
+            print(f"✅ 用户 {email} 授权成功，已保存到 Supabase")
+            
+        except Exception as e:
+            print(f"⚠️ Supabase 保存失败：{e}")
+            return f"⚠️ 数据保存失败：{str(e)}", 500
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive 绑定成功</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }}
+        .container {{
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }}
+        .success-icon {{
+            font-size: 64px;
+            margin-bottom: 20px;
+        }}
+        h2 {{
+            color: #10b981;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }}
+        .info {{
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }}
+        .info-item {{
+            margin: 10px 0;
+            font-size: 14px;
+            color: #374151;
+        }}
+        .info-item strong {{
+            color: #1f2937;
+        }}
+        .token {{
+            font-family: 'Courier New', monospace;
+            background: #e5e7eb;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }}
+        .close-btn {{
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }}
+        .close-btn:hover {{
+            background: #5568d3;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h2>Google Drive 绑定成功！</h2>
+        
+        <div class="info">
+            <div class="info-item">
+                <strong>📧 用户邮箱：</strong><br>
+                {email}
+            </div>
+            <div class="info-item">
+                <strong>👤 用户名称：</strong><br>
+                {user_name}
+            </div>
+            <div class="info-item">
+                <strong>🔑 Access Token：</strong><br>
+                <span class="token">{access_token[:12]}...</span>
+            </div>
+            <div class="info-item">
+                <strong>💾 存储状态：</strong><br>
+                已保存到 Supabase.users 表
+            </div>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+            🎉 您现在可以关闭此页面，返回应用继续操作。
+        </p>
+        
+        <button class="close-btn" onclick="window.close()">关闭窗口</button>
+    </div>
+    
+    <script>
+        setTimeout(() => {{
+            if (window.opener) {{
+                window.opener.postMessage({{
+                    type: 'GOOGLE_OAUTH_SUCCESS',
+                    email: '{email}',
+                    userId: '{user_id}'
+                }}, '*');
+            }}
+        }}, 500);
+    </script>
+</body>
+</html>
+        """, 200
+        
+    except Exception as e:
+        return f"""
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>授权失败</title>
+    <style>
+        body {{
+            font-family: sans-serif;
+            background: #fee;
+            padding: 40px;
+            text-align: center;
+        }}
+        .error {{
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 0 auto;
+        }}
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h2>❌ 授权失败</h2>
+        <p>错误信息：{str(e)}</p>
+        <p>请返回应用重试。</p>
+    </div>
+</body>
+</html>
+        """, 500
+
+
+# ===============================
 # Flask API 路由
 # ===============================
+@app.route("/", methods=["GET"])
+@app.route("/callback", methods=["GET"])
+@app.route("/oauth2callback", methods=["GET"])
+def google_callback():
+    """Google OAuth 回调端点（支持多个路由）"""
+    
+    code = request.args.get("code")
+    
+    if not code:
+        return """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>LynkerAI API</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f9fafb;
+            padding: 40px;
+            text-align: center;
+        }
+        .info {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h2>🔐 LynkerAI API</h2>
+        <p>此服务用于处理 Google OAuth 回调。</p>
+        <p>如需授权，请从应用开始 OAuth 流程。</p>
+    </div>
+</body>
+</html>
+        """, 200
+    
+    return handle_google_callback(code)
+
+
 @app.route("/login_refresh", methods=["POST"])
 def login_refresh():
     """当用户登入时触发匹配刷新"""
@@ -75,6 +336,19 @@ def login_refresh():
 
     result = generate_recommendations(user_id, match_filter)
     return jsonify(result)
+
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """健康检查端点"""
+    return jsonify({
+        "status": "healthy",
+        "service": "lynkerai_api",
+        "endpoints": {
+            "oauth_callback": ["/", "/callback", "/oauth2callback"],
+            "api": ["/login_refresh", "/health"]
+        }
+    }), 200
 
 
 # ===============================
