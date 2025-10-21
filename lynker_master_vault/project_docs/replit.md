@@ -71,22 +71,6 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Data Persistence**: Saves OAuth credentials to Supabase `users` table with `upsert` operation.
 -   **Success Page**: Displays beautiful HTML success page after authorization.
 
-### Lynker Master Vault (`lynker_master_vault/`)
--   **Intelligent Document Management System**: Automatically categorizes and indexes project documentation.
--   **Auto-Classification**: Documents sorted into `project_docs`, `api_docs`, and `dev_brainstorm` based on filename keywords.
--   **Import Tool** (`master_ai_importer.py`): CLI tool for importing, listing, and searching documents.
--   **Context API** (`master_ai_context_api.py`): RESTful API providing knowledge summaries for AI assistants.
--   **YAML Index**: Human-readable index system tracking all imported documents.
--   **Search Functionality**: Full-text search across document names and content.
--   **Current Status**: 8 documents indexed (4 project docs, 3 API docs, 1 dev brainstorm).
-
-### Domain Auto-Detection (`update_redirect_uri.py`)
--   **Dynamic Domain Detection**: Automatically detects current Replit Sisko domain from environment variables.
--   **Redirect URI Validation**: Compares current OAuth redirect URI configuration with detected domain.
--   **Interactive Guide**: Provides step-by-step instructions for updating Google OAuth redirect URIs.
--   **Multi-Method Detection**: Uses `REPLIT_DOMAINS`, `REPLIT_DEV_DOMAIN`, or constructs from `REPL_ID`.
--   **Accessibility Check**: Verifies domain accessibility before suggesting updates.
-
 ### Bridge Module (`replit_bridge.py`)
 -   Abstracts file system operations (`write_file`) and command execution (`run_command`) for platform independence.
 

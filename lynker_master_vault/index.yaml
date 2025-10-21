@@ -1,0 +1,19 @@
+project_docs:
+- filename: OAUTH_CALLBACK_GUIDE.md
+  imported_at: '1761040991.444229'
+- filename: UPDATE_REDIRECT_URI_GUIDE.md
+  imported_at: '1761041940.5081491'
+- filename: GDRIVE_MIGRATION_GUIDE.md
+  imported_at: '1760874912.0332892'
+- filename: replit.md
+  imported_at: '1761041304.9782095'
+api_docs:
+- filename: GOOGLE_OAUTH_USAGE.md
+  imported_at: '1760924357.922215'
+- filename: SUPABASE_SCHEMA_CACHE_FIX.md
+  imported_at: '1761041581.0321918'
+- filename: CHILD_AI_GDRIVE_SYNC.md
+  imported_at: '1760876242.7684784'
+dev_brainstorm:
+- filename: CHILD_AI_MEMORY_SETUP.md
+  imported_at: '1760867061.2429564'

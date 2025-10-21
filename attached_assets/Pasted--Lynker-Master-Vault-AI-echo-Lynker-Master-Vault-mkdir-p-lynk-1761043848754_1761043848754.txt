@@ -1,0 +1,97 @@
+# 🧠 初始化 Lynker Master Vault（灵客总AI知识仓库）
+
+echo "🚀 正在创建 Lynker Master Vault 结构..."
+
+mkdir -p lynker_master_vault/{project_docs,dev_brainstorm,api_docs,memory}
+touch lynker_master_vault/index.yaml
+echo "✅ 已创建知识金库目录结构"
+
+# ✨ 创建 master_ai_importer.py
+cat << 'PYCODE' > master_ai_importer.py
+import os, json, shutil
+from pathlib import Path
+import yaml
+
+BASE_DIR = Path("lynker_master_vault")
+INDEX_FILE = BASE_DIR / "index.yaml"
+
+def ensure_dirs():
+    (BASE_DIR / "project_docs").mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "dev_brainstorm").mkdir(exist_ok=True)
+    (BASE_DIR / "api_docs").mkdir(exist_ok=True)
+    (BASE_DIR / "memory").mkdir(exist_ok=True)
+
+def categorize_doc(filename):
+    """自动识别文档类别"""
+    lower = filename.lower()
+    if any(x in lower for x in ["ui", "design", "dashboard", "client"]):
+        return "project_docs"
+    if any(x in lower for x in ["api", "auth", "supabase", "drive", "oauth"]):
+        return "api_docs"
+    if any(x in lower for x in ["ai", "guru", "iron", "命理", "同命", "玄学", "太玄", "铁板"]):
+        return "dev_brainstorm"
+    return "project_docs"
+
+def import_doc(filepath):
+    ensure_dirs()
+    if not os.path.exists(filepath):
+        print(f"❌ 文件不存在：{filepath}")
+        return
+    category = categorize_doc(filepath)
+    target = BASE_DIR / category / os.path.basename(filepath)
+    shutil.copy(filepath, target)
+    update_index(os.path.basename(filepath), category)
+    print(f"✅ 已导入 {filepath} → {category}")
+
+def update_index(filename, category):
+    """更新全局索引"""
+    if INDEX_FILE.exists():
+        index = yaml.safe_load(INDEX_FILE.read_text()) or {}
+    else:
+        index = {}
+    index.setdefault(category, [])
+    if filename not in index[category]:
+        index[category].append(filename)
+    INDEX_FILE.write_text(yaml.safe_dump(index, allow_unicode=True))
+    print(f"📚 索引已更新 → {INDEX_FILE}")
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("📥 用法：python master_ai_importer.py <文件路径>")
+    else:
+        import_doc(sys.argv[1])
+PYCODE
+
+# ✨ 创建 master_ai_context_api.py
+cat << 'PYCODE' > master_ai_context_api.py
+from flask import Flask, jsonify
+from pathlib import Path
+
+app = Flask(__name__)
+
+@app.route("/api/master-ai/context", methods=["GET"])
+def get_master_context():
+    """返回 Lynker Vault 知识摘要"""
+    summaries = []
+    for category in ["project_docs", "dev_brainstorm", "api_docs"]:
+        path = Path(f"lynker_master_vault/{category}")
+        for file in path.glob("*.md"):
+            text = file.read_text(errors='ignore')[:500]
+            summaries.append({
+                "file": file.name,
+                "category": category,
+                "snippet": text
+            })
+    return jsonify(summaries)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+PYCODE
+
+echo "✅ master_ai_importer.py + context API 已创建完成"
+echo "🎯 使用方法："
+echo "  1️⃣ 上传任意 .md / .txt / .pdf 文件到项目根目录"
+echo "  2️⃣ 执行：python master_ai_importer.py <文件路径>"
+echo "  3️⃣ Flask API 运行后访问：/api/master-ai/context"
+echo "  4️⃣ 可与 master_ai_console.html 结合使用"
