@@ -11,6 +11,7 @@ import os
 import subprocess
 from werkzeug.utils import secure_filename
 from upload_logger import log_upload, get_upload_stats, get_upload_history
+from master_ai_memory_bridge import bridge_new_uploads_to_memory
 
 app = Flask(__name__)
 
@@ -59,6 +60,14 @@ def upload_file():
         uploaded_by=request.headers.get("X-User-ID", "web_upload"),
         filepath=filepath
     )
+    
+    # ⛓️ 触发AI记忆同步桥（自动同步到 child_ai_memory）
+    try:
+        memory_sync_result = bridge_new_uploads_to_memory(limit=1)
+        print(f"🧠 记忆同步: {memory_sync_result}")
+    except Exception as e:
+        print(f"⚠️ 记忆同步失败: {e}")
+        # 不影响主流程，继续返回成功
     
     return jsonify({
         "status": "✅ 文件上传并导入成功",
