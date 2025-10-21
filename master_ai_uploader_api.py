@@ -6,7 +6,7 @@
 - 自动导入到 Vault
 """
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 import os
 import subprocess
 import json
@@ -14,6 +14,14 @@ from werkzeug.utils import secure_filename
 from upload_logger import log_upload, get_upload_stats, get_upload_history
 from master_ai_memory_bridge import bridge_new_uploads_to_memory
 from supabase_init import get_supabase
+
+try:
+    from vector_search import search as rag_search
+    from vector_indexer import build_or_update as rag_reindex
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+    print("⚠️ RAG 模块未找到，Chat 功能将不可用")
 
 app = Flask(__name__)
 supabase = get_supabase()
@@ -70,7 +78,14 @@ def upload_file():
         print(f"🧠 记忆同步: {memory_sync_result}")
     except Exception as e:
         print(f"⚠️ 记忆同步失败: {e}")
-        # 不影响主流程，继续返回成功
+    
+    # 🔍 向量库增量更新（仅索引新文件）
+    if RAG_AVAILABLE:
+        try:
+            rag_reindex(rebuild=False)
+            print(f"✅ 向量库已增量更新")
+        except Exception as e:
+            print(f"⚠️ 向量库增量更新失败：{e}")
     
     return jsonify({
         "status": "✅ 文件上传并导入成功",
@@ -113,6 +128,69 @@ def upload_stats():
     """获取上传统计信息"""
     stats = get_upload_stats()
     return jsonify(stats)
+
+@app.route("/chat")
+def chat_page():
+    """RAG Chat 界面"""
+    try:
+        return send_file("static/chat.html")
+    except FileNotFoundError:
+        return jsonify({"error": "Chat 页面文件未找到"}), 404
+
+@app.route("/api/master-ai/chat", methods=["POST"])
+def master_ai_chat():
+    """RAG：从 Vault 中检索相关片段并生成简要回答"""
+    if not RAG_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "RAG 功能未启用，请先运行 python vector_indexer.py --rebuild"
+        }), 503
+    
+    try:
+        data = request.get_json(force=True)
+        query = (data.get("query") or "").strip()
+        topk  = int(data.get("topk") or 5)
+        
+        if not query:
+            return jsonify({"status": "error", "message": "缺少 query 参数"}), 400
+
+        print(f"💬 RAG Chat 查询: {query[:50]}...")
+        
+        hits = rag_search(query, topk=topk)
+        
+        if not hits:
+            return jsonify({
+                "status": "ok",
+                "answer": "没有在 Vault 中找到相关资料。",
+                "citations": []
+            })
+
+        bullets = []
+        for h in hits:
+            txt = h["text"].strip()
+            if len(txt) > 180:
+                txt = txt[:180] + "..."
+            bullets.append(f"• 来自《{h['file_id']}》：{txt}")
+        
+        answer = "基于知识库检索，我找到以下要点：\n" + "\n".join(bullets) + "\n\n（以上为自动检索摘要，详情请查看引用片段与原文档）"
+        
+        print(f"✅ 返回 {len(hits)} 条引用")
+        
+        return jsonify({
+            "status": "ok",
+            "answer": answer,
+            "citations": hits
+        })
+        
+    except FileNotFoundError as e:
+        return jsonify({
+            "status": "error",
+            "message": "向量索引未找到，请先运行：python vector_indexer.py --rebuild"
+        }), 404
+    except Exception as e:
+        import traceback
+        print(f"⚠️ RAG Chat 错误: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/master-ai/memory", methods=["GET"])
 def get_ai_memory():
@@ -184,11 +262,13 @@ def index():
             <li><code>GET /api/master-ai/context</code> - 查看 Vault 状态</li>
             <li><code>GET /api/master-ai/upload-history</code> - 上传历史记录</li>
             <li><code>GET /api/master-ai/upload-stats</code> - 上传统计信息</li>
+            <li><code>POST /api/master-ai/chat</code> - RAG 智能问答（基于向量检索）</li>
             <li><code>GET /api/master-ai/memory</code> - 查询子AI记忆（支持 user_id, tag, limit 参数）</li>
             <li><code>GET /api/master-ai/memory/search</code> - 搜索记忆内容（参数: q, limit）</li>
         </ul>
         <h3>🔗 快速访问</h3>
         <ul>
+            <li>💬 <a href="/chat" style="color: #6B46C1; font-weight: bold; font-size: 16px;">🤖 RAG Chat（智能问答）</a></li>
             <li>📤 <a href="/upload" style="color: #007bff; font-weight: bold;">手动上传文件测试</a></li>
             <li>📚 <a href="/api/master-ai/context">查看 Vault 内容</a></li>
             <li>📊 <a href="/api/master-ai/upload-stats">查看上传统计</a></li>
@@ -445,11 +525,20 @@ def upload_page():
     """
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🚀 Lynker Master Vault Upload API")
-    print("=" * 60)
-    print("📍 端点:")
-    print("   POST /api/master-ai/upload   - 上传文件")
-    print("   GET  /api/master-ai/context  - 查看 Vault")
-    print("=" * 60)
+    print("=" * 70)
+    print("🚀 Lynker Master Vault API + RAG Chat")
+    print("=" * 70)
+    print("📍 核心端点:")
+    print("   💬 /chat                         - RAG 智能问答界面")
+    print("   POST /api/master-ai/chat         - RAG API（向量检索）")
+    print("   POST /api/master-ai/upload       - 上传文件（自动向量索引）")
+    print("   GET  /api/master-ai/context      - 查看 Vault")
+    print("   GET  /api/master-ai/memory       - 查询子AI记忆")
+    print("   GET  /master-ai-memory           - Memory Dashboard")
+    print("=" * 70)
+    if RAG_AVAILABLE:
+        print("✅ RAG 向量检索功能已启用")
+    else:
+        print("⚠️ RAG 功能未启用，需运行: python vector_indexer.py --rebuild")
+    print("=" * 70)
     app.run(host="0.0.0.0", port=8008)
