@@ -1,0 +1,69 @@
+# 🧠 创建安全且简洁的 Master AI 文件上传 API
+cat << 'PYCODE' > master_ai_uploader_api.py
+from flask import Flask, request, jsonify
+import os, subprocess
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+
+UPLOAD_DIR = "uploaded_docs"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 允许的文件类型
+ALLOWED_EXT = {"md", "txt", "pdf", "docx"}
+MAX_SIZE_MB = 10
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
+
+@app.route("/api/master-ai/upload", methods=["POST"])
+def upload_file():
+    """上传文件并导入 Lynker Master Vault"""
+    if "file" not in request.files:
+        return jsonify({"error": "❌ 未检测到文件"}), 400
+
+    f = request.files["file"]
+    if f.filename == "":
+        return jsonify({"error": "❌ 文件名为空"}), 400
+
+    if not allowed_file(f.filename):
+        return jsonify({"error": f"❌ 不支持的文件类型: {f.filename}"}), 400
+
+    f.seek(0, os.SEEK_END)
+    size_mb = f.tell() / (1024 * 1024)
+    f.seek(0)
+    if size_mb > MAX_SIZE_MB:
+        return jsonify({"error": f"⚠️ 文件超过 {MAX_SIZE_MB}MB 限制"}), 400
+
+    safe_name = secure_filename(f.filename)
+    filepath = os.path.join(UPLOAD_DIR, safe_name)
+    f.save(filepath)
+
+    # 调用导入器执行自动分类
+    result = subprocess.getoutput(f"python master_ai_importer.py {filepath}")
+    return jsonify({
+        "status": "✅ 文件上传并导入成功",
+        "filename": safe_name,
+        "import_result": result
+    })
+
+@app.route("/api/master-ai/context", methods=["GET"])
+def get_context():
+    """查看 Vault 中的文件列表"""
+    context = {}
+    for root, dirs, files in os.walk("lynker_master_vault"):
+        rel_root = os.path.relpath(root, "lynker_master_vault")
+        context[rel_root] = files
+    return jsonify(context)
+
+@app.route("/")
+def index():
+    return "<h3>✅ Lynker Master Vault Upload API 正在运行</h3>"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+PYCODE
+
+echo "✅ 已创建 master_ai_uploader_api.py"
+echo "🎯 启动命令：python master_ai_uploader_api.py"
+echo "🌐 浏览器访问：/api/master-ai/context 查看 Vault 状态"
