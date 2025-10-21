@@ -1,0 +1,574 @@
+{
+  "items": [
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 🔐 Google OAuth 回调服务使用指南 ## ✅ 已完成集成 **Flask API 已集成 Google OAuth 回调功能！** --- ## 🚀 服务状态 - **服务地址：** https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/ - **监听端口：** 5000 - **状态：** ✅ 运行中 --- ## 📍 可用端点 ### OAuth 回调端点 支持以下路由（都指向同一个处理函数）： ``` GET / GET /callback GET /oauth2callback ``` **功能：** 1. 接收 Google OAuth 回调 2. 用授权码换取 access_token 3. 获取用户信息（邮箱） 4. 保存到 Supabase users 表 5. 显示成功页面 ### API 端点 ``` POST /login_refresh - 用户登入时触发匹配刷新 GET /health - 健康检查 ``` --- ## 🎯 OAuth 授权完整流程 ### Step 1: 生成授权 URL 使用 `google_oauth_real_flow.py` 脚本生成授权 URL： ```bash python google_oauth_rea"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "`` --- ## 🎯 OAuth 授权完整流程 ### Step 1: 生成授权 URL 使用 `google_oauth_real_flow.py` 脚本生成授权 URL： ```bash python google_oauth_real_flow.py --user-id=u_demo ``` **输出示例：** ``` ============================================================ 📌 请复制以下 URL 到浏览器打开并授权： ============================================================ https://accounts.google.com/o/oauth2/v2/auth? client_id=85639669324-260ej89uej6g4khcb2fj306vk5vgfl28.apps.googleusercontent.com& redirect_uri=https%3A%2F%2Ff7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev%2F& response_type=code& scope=...& access_type=offline& prompt="
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": "41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev%2F& response_type=code& scope=...& access_type=offline& prompt=consent ============================================================ 完成后复制浏览器地址栏中的 code 参数，粘贴回控制台。 ============================================================ ``` ### Step 2: 用户授权 1. 在浏览器中打开授权 URL 2. 选择 Google 账号 3. 点击\"允许\"授权访问 Google Drive 4. 授权后自动重定向到回调地址 ### Step 3: 自动处理回调 **重定向示例：** ``` https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/?code=4/0AVGzR1D-xxx... ``` Flask API 会自动： 1. 提取 `code` 参数 2. 用 code 换取 access_token 3. 调用 `https://www.googl"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "replit.dev/?code=4/0AVGzR1D-xxx... ``` Flask API 会自动： 1. 提取 `code` 参数 2. 用 code 换取 access_token 3. 调用 `https://www.googleapis.com/oauth2/v1/userinfo?alt=json` 获取邮箱 4. 保存到 Supabase users 表 ### Step 4: 显示成功页面 用户会看到一个漂亮的成功页面： ``` ✅ Google Drive 绑定成功！ 📧 用户邮箱：user@gmail.com 👤 用户名称：Demo User 🔑 Access Token：ya29.a0AeD... 💾 存储状态：已保存到 Supabase.users 表 🎉 您现在可以关闭此页面，返回应用继续操作。 ``` --- ## 💾 数据保存到 Supabase ### 保存的字段 ```sql UPDATE users SET name = 'user', -- 从邮箱提取的用户名 email = 'user@gmail.com', -- 完整邮箱地址 drive_email = 'user@gmail.com', -- Google Drive 绑定邮箱 drive_access_token = 'ya29.a0AeDClZD...', -- 访问令牌 dri"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": "m', -- 完整邮箱地址 drive_email = 'user@gmail.com', -- Google Drive 绑定邮箱 drive_access_token = 'ya29.a0AeDClZD...', -- 访问令牌 drive_refresh_token = '1//0gXj7vKZq...', -- 刷新令牌 drive_connected = TRUE, -- 绑定状态 updated_at = '2025-10-21T10:00:00.123456' -- 更新时间 WHERE name = 'user'; ``` --- ## 🧪 测试场景 ### 场景 1：访问主页（无 code 参数） ```bash curl https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/ ``` **响应：** ```html <!DOCTYPE html> <html lang=\"zh-CN\"> <head> <title>LynkerAI API</title> </head> <body> <div class=\"info\"> <h2>🔐 LynkerAI API</h2> <p>此服务用于处理 Google OAuth 回调。</p> <p>如需授权，请从应用开始"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "rAI API</title> </head> <body> <div class=\"info\"> <h2>🔐 LynkerAI API</h2> <p>此服务用于处理 Google OAuth 回调。</p> <p>如需授权，请从应用开始 OAuth 流程。</p> </div> </body> </html> ``` ### 场景 2：OAuth 回调（带 code 参数） 用户完成 Google 授权后，会被重定向到： ``` https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/?code=4/0AVGzR1D-xxx... ``` Flask API 自动处理： - ✅ 提取授权码 - ✅ 换取 access_token - ✅ 获取用户信息 - ✅ 保存到 Supabase - ✅ 显示成功页面 ### 场景 3：健康检查 ```bash curl https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/health ``` **响应：** ```json { \"status\": \"healthy\", \"service\": \"lynkerai_api\", \"endpo"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": "de-00-3h1iq9ru0v8kp.sisko.replit.dev/health ``` **响应：** ```json { \"status\": \"healthy\", \"service\": \"lynkerai_api\", \"endpoints\": { \"oauth_callback\": [\"/\", \"/callback\", \"/oauth2callback\"], \"api\": [\"/login_refresh\", \"/health\"] } } ``` --- ## 📋 从日志中查看授权记录 从之前的日志可以看到，用户已经尝试过多次授权： ``` 172.31.77.162 - - [21/Oct/2025 09:42:36] \"GET /?code=4/0AVGzR1Ci5s6RbOZtbmfdqL0WTYyQ9Vk8BGZCJu0LejeZ6KML6M5ICqG7Eudjw7RCv09mkQ... HTTP/1.1\" 404 - 172.31.77.162 - - [21/Oct/2025 09:49:23] \"GET /?code=4/0AVGzR1D-JRqdcYMn_oDLb8PRTJ3wnLkQckjM7Vgzt7M6d7t--gVegjhwvCpPCIqCTraVYw... HTTP/1.1\" 404 - 172.31.77.162 - - [21/Oct/202"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": "0AVGzR1D-JRqdcYMn_oDLb8PRTJ3wnLkQckjM7Vgzt7M6d7t--gVegjhwvCpPCIqCTraVYw... HTTP/1.1\" 404 - 172.31.77.162 - - [21/Oct/2025 09:52:08] \"GET /?code=4/0AVGzR1BPIuQGk3G0FOqMTXF4O1H5mqURL7a0D6yg7C8K9xgnM_4w0s1To1lvH9MgIv_TMw... HTTP/1.1\" 404 - 172.31.77.162 - - [21/Oct/2025 09:55:11] \"GET /?code=4/0AVGzR1BluNZwI-3ETUP84XcpYwTwB2whfbeM_vMs76dgdzsODLdQjhlSqmxqD86DiU_7PA... HTTP/1.1\" 404 - ``` 之前返回 404 是因为 Flask API 没有配置 OAuth 回调路由。 **现在已修复！** 新的授权请求会返回 200 并显示成功页面。 --- ## 🔄 工作流配置 ### 当前配置 ```yaml 工作流名称: Flask API 命令: python on_user_login_api.py 端口: 5000 输出类型: webview 状态: ✅ 运行中 ``` ### 已删除的工作流 - ❌ **OAu"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 8,
+      "text": "当前配置 ```yaml 工作流名称: Flask API 命令: python on_user_login_api.py 端口: 5000 输出类型: webview 状态: ✅ 运行中 ``` ### 已删除的工作流 - ❌ **OAuth Callback Server** - 已合并到 Flask API --- ## 📁 相关文件 ### 核心文件 - **`on_user_login_api.py`** - Flask API 主服务（含 OAuth 回调） - **`google_oauth_real_flow.py`** - 交互式授权脚本 - **`google_oauth_callback.py`** - 独立的 OAuth 回调服务（已弃用，功能已合并到 Flask API） ### 文档 - **`OAUTH_CALLBACK_GUIDE.md`** - 本文档 - **`OAUTH_TEST_GUIDE.md`** - 测试指南 - **`GOOGLE_OAUTH_USAGE.md`** - OAuth 使用说明 --- ## ⚡ 快速开始 ### 方式 1：使用交互式脚本（推荐） ```bash python google_oauth_real_flow.py --user-id=u_demo ``` ### 方式 2：直接访问授权 URL 1. 构建授"
+    },
+    {
+      "file_id": "project_docs/OAUTH_CALLBACK_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 9,
+      "text": " ## ⚡ 快速开始 ### 方式 1：使用交互式脚本（推荐） ```bash python google_oauth_real_flow.py --user-id=u_demo ``` ### 方式 2：直接访问授权 URL 1. 构建授权 URL（或使用脚本生成） 2. 在浏览器中打开 3. 完成授权 4. 自动重定向到 Flask API 5. 查看成功页面 --- ## 🎉 集成完成！ Flask API 现在支持： - ✅ Google OAuth 回调处理 - ✅ 用户登入匹配刷新 - ✅ 健康检查 - ✅ 自动保存到 Supabase - ✅ 美观的成功页面 - ✅ 单一服务器（5000 端口） **服务地址：** https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 🔄 自动检测域名并更新重定向 URI 指南 ## ✅ 脚本已创建 **文件：** `update_redirect_uri.py` --- ## 🚀 快速开始 ### 运行脚本 ```bash python update_redirect_uri.py ``` ### 预期输出 ``` ============================================================ 🔐 Replit OAuth 重定向 URI 自动更新工具 ============================================================ 🔍 Step 1: 检测 Replit 域名... ✅ 检测到域名：https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev 🔍 Step 2: 检查域名可访问性... ✅ 域名可访问 ============================================================ 🔍 域名检测结果 ============================================================ 📌 当前重定向 URI: https://f7ebbce"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "===================== 🔍 域名检测结果 ============================================================ 📌 当前重定向 URI: https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/ ✅ 建议的重定向 URI: https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/ ============================================================ 📝 更新步骤 ============================================================ ✅ 当前配置正确，无需更新！ ``` --- ## 🔧 核心功能 ### 1️⃣ 自动检测域名 脚本使用以下方法检测 Replit 域名（优先级从高到低）： ```python # 方法 1: REPLIT_DOMAINS 环境变量 REPLIT_DOMAINS = \"f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sis"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": "从高到低）： ```python # 方法 1: REPLIT_DOMAINS 环境变量 REPLIT_DOMAINS = \"f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev\" # 方法 2: REPLIT_DEV_DOMAIN 环境变量 REPLIT_DEV_DOMAIN = \"...\" # 方法 3: 从 REPL_ID 构建 Sisko 域名 REPL_ID = \"f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de\" → 构建为：https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de.sisko.replit.dev # 方法 4: 从 REPL_SLUG 和 REPL_OWNER 构建传统域名 REPL_SLUG = \"my-repl\" REPL_OWNER = \"username\" → 构建为：https://my-repl.username.repl.co ``` ### 2️⃣ 域名可访问性检查 脚本会尝试访问以下端点来验证域名： ```python # 首选：健康检查端点 GET https://{domain}/health # 备选：根路径 GET https://{domain}/ ``` ### 3️⃣ 对比当前"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "问性检查 脚本会尝试访问以下端点来验证域名： ```python # 首选：健康检查端点 GET https://{domain}/health # 备选：根路径 GET https://{domain}/ ``` ### 3️⃣ 对比当前配置 ```python current_uri = os.getenv('VITE_GOOGLE_REDIRECT_URI') suggested_uri = detect_domain() + \"/\" if current_uri == suggested_uri: print(\"✅ 配置正确，无需更新\") else: print(\"⚠️ 需要更新\") ``` --- ## 📋 使用场景 ### 场景 1：首次设置 **情况：** 首次配置 OAuth，需要设置重定向 URI **运行脚本：** ```bash python update_redirect_uri.py ``` **按照提示操作：** 1. 查看检测到的域名 2. 复制建议的重定向 URI 3. 在 Replit Secrets 中设置 4. 在 Google Cloud Console 中添加 ### 场景 2：域名变更 **情况：** Replit 分配了新的 Sisko 域名 **运行脚本：** ```bash python update_redirect_uri.py"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": ". 在 Google Cloud Console 中添加 ### 场景 2：域名变更 **情况：** Replit 分配了新的 Sisko 域名 **运行脚本：** ```bash python update_redirect_uri.py ``` **自动检测新域名：** - 脚本会自动检测新的 Sisko 域名 - 提示您更新配置 ### 场景 3：验证配置 **情况：** 想检查当前配置是否正确 **运行脚本：** ```bash python update_redirect_uri.py ``` **查看对比结果：** - 当前配置的 URI - 建议的 URI - 是否需要更新 --- ## 🎯 交互式选项 脚本运行后提供以下选项： ### 选项 A：手动更新（推荐） ``` 请选择 (A/B/C) 或按 Enter 退出：A ✅ 请按照上述步骤手动更新重定向 URI ``` **更新步骤：** 1. **更新 Replit Secrets** - 在 Replit 左侧菜单点击 'Secrets' (🔒) - 找到 `VITE_GOOGLE_REDIRECT_URI` - 更新为脚本建议的值 2. **更新 Google Cloud Console** - 访问：https://console.cloud.google.com/ - 进入 'APIs & Service"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "GLE_REDIRECT_URI` - 更新为脚本建议的值 2. **更新 Google Cloud Console** - 访问：https://console.cloud.google.com/ - 进入 'APIs & Services' → 'Credentials' - 点击您的 OAuth 2.0 客户端 ID - 在 'Authorized redirect URIs' 中添加新 URI 3. **重启服务** - 更新完成后，重启 Flask API workflow ### 选项 B：复制重定向 URI ``` 请选择 (A/B/C) 或按 Enter 退出：B ============================================================ 📋 请复制以下 URI： ============================================================ https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev/ ============================================================ ``` **方便复制粘贴**，避免手动输入错误。 ### 选"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": "iq9ru0v8kp.sisko.replit.dev/ ============================================================ ``` **方便复制粘贴**，避免手动输入错误。 ### 选项 C：查看环境变量详情 ``` 请选择 (A/B/C) 或按 Enter 退出：C ============================================================ 📊 环境变量详情 ============================================================ REPLIT_DOMAINS: f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev REPLIT_DEV_DOMAIN: NOT_SET REPL_ID: f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de REPL_SLUG: lynkerai REPL_OWNER: kynn75 VITE_GOOGLE_CLIENT_ID: 85639669324-260ej89u... VITE_GOOGLE_REDIRECT_URI: https://... ``` **调试用途**，查看所有相关环境变"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": "WNER: kynn75 VITE_GOOGLE_CLIENT_ID: 85639669324-260ej89u... VITE_GOOGLE_REDIRECT_URI: https://... ``` **调试用途**，查看所有相关环境变量。 --- ## 🔐 安全说明 ### 为什么不自动更新？ **1. 不修改 .env 文件** - .env 文件不应该被程序自动修改 - 可能导致版本控制冲突 - Replit Secrets 是推荐的方式 **2. 不自动调用 Google API** - 需要额外的服务账号凭证 - 存在安全风险 - 手动更新更安全、更可靠 ### 推荐做法 ✅ **使用 Replit Secrets** - 在 Replit UI 中手动管理 - 自动加密存储 - 不会提交到代码库 ✅ **手动更新 Google Cloud Console** - 直观的 Web 界面 - 可以查看历史记录 - 更安全的权限管理 --- ## 📊 检测逻辑流程图 ``` 开始 ↓ 读取 REPLIT_DOMAINS 环境变量 ↓ 存在? ──否→ 尝试读取 REPLIT_DEV_DOMAIN | ↓ 是 存在? ──否→ 从 REPL_ID 构建 ↓ | ↓ 使用此域名 ←─是 存在? ──否→ 从 REPL_SLUG + REPL_OWNER 构建 ↓ | ↓ 添加"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 8,
+      "text": "在? ──否→ 尝试读取 REPLIT_DEV_DOMAIN | ↓ 是 存在? ──否→ 从 REPL_ID 构建 ↓ | ↓ 使用此域名 ←─是 存在? ──否→ 从 REPL_SLUG + REPL_OWNER 构建 ↓ | ↓ 添加 https:// 前缀 ←─────是 存在? ──否→ 无法检测 ↓ | 添加 / 后缀 是 ↓ ↓ 建议的重定向 URI ←──────────────────┘ ↓ 与当前配置对比 ↓ 显示更新指南 ↓ 结束 ``` --- ## 🧪 测试场景 ### 测试 1：正常检测 ```bash $ python update_redirect_uri.py ✅ 检测到域名：https://xxx.sisko.replit.dev ✅ 域名可访问 ✅ 当前配置正确，无需更新！ ``` ### 测试 2：需要更新 ```bash $ python update_redirect_uri.py ✅ 检测到域名：https://new-domain.sisko.replit.dev ⚠️ 域名暂时无法访问 📌 当前重定向 URI: https://old-domain.sisko.replit.dev/ ✅ 建议的重定向 URI: https://new-domain.sisko.replit.dev/ 🔧 请按以下步骤更新重定向 URI... ```"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 9,
+      "text": "定向 URI: https://old-domain.sisko.replit.dev/ ✅ 建议的重定向 URI: https://new-domain.sisko.replit.dev/ 🔧 请按以下步骤更新重定向 URI... ``` ### 测试 3：查看环境变量 ```bash $ python update_redirect_uri.py # 选择 C 📊 环境变量详情 REPLIT_DOMAINS: xxx.sisko.replit.dev REPL_ID: xxx ... ``` --- ## 🔄 集成到工作流 ### 定期检查（可选） 创建一个简单的检查脚本： ```bash #!/bin/bash # check_redirect_uri.sh echo \"🔍 检查 OAuth 重定向 URI...\" python update_redirect_uri.py | grep \"当前配置正确\" if [ $? -eq 0 ]; then echo \"✅ 配置正确\" exit 0 else echo \"⚠️ 配置需要更新\" python update_redirect_uri.py exit 1 fi ``` ### 在部署前运行 ```bash # 部署前检查 python update_redirect_uri.py # 如果需要更新，先更新再部署 # 否则直接"
+    },
+    {
+      "file_id": "project_docs/UPDATE_REDIRECT_URI_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 10,
+      "text": "hon update_redirect_uri.py exit 1 fi ``` ### 在部署前运行 ```bash # 部署前检查 python update_redirect_uri.py # 如果需要更新，先更新再部署 # 否则直接部署 ``` --- ## 📚 相关文件 - **`update_redirect_uri.py`** - 主脚本 - **`on_user_login_api.py`** - Flask API（包含 OAuth 回调） - **`google_oauth_real_flow.py`** - 交互式授权脚本 - **`OAUTH_CALLBACK_GUIDE.md`** - OAuth 回调指南 --- ## 🎉 总结 **脚本功能：** - ✅ 自动检测 Replit 域名 - ✅ 验证域名可访问性 - ✅ 对比当前配置 - ✅ 提供详细更新指南 - ✅ 交互式操作选项 **安全考虑：** - ✅ 不自动修改文件 - ✅ 不自动调用 API - ✅ 推荐手动更新 **使用简单：** ```bash python update_redirect_uri.py ``` **🎯 准备就绪！运行脚本开始检测和更新重定向 URI！**"
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 🔄 Google Drive 绑定模块 - 表迁移指南 ## 📋 迁移概述 **迁移原因：** 从 `user_profiles` 表迁移到系统统一的 `public.users` 表 **修改范围：** - ✅ `google_drive_auth_flow.py` - 已更新 - ℹ️ `google_drive_sync.py` - 无需修改（不涉及数据库操作） --- ## 🔄 字段映射变更 ### 旧表：user_profiles ``` user_id → 用户标识 email → 用户邮箱 drive_connected → 绑定状态 drive_access_token → 访问令牌 ``` ### 新表：public.users ``` name → 用户标识（对应旧 user_id） email → 用户邮箱 drive_email → Google Drive 邮箱（新增） drive_connected → 绑定状态 drive_access_token → 访问令牌 ``` --- ## 📊 代码变更对比 ### 1️⃣ simulate_drive_auth() 函数 **修改前：** ```python data = { \"user_id\": user_id, \"email\": email, \"drive_connected\": True, \"dr"
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "️⃣ simulate_drive_auth() 函数 **修改前：** ```python data = { \"user_id\": user_id, \"email\": email, \"drive_connected\": True, \"drive_access_token\": fake_token, \"drive_connected_at\": datetime.now().isoformat() } result = supabase.table(\"user_profiles\").upsert(data).execute() ``` **修改后：** ```python data = { \"name\": user_id, # users 表使用 name 字段 \"email\": email, \"drive_connected\": True, \"drive_access_token\": fake_token, \"drive_email\": email # 专门存储 Google Drive 邮箱 } result = supabase.table(\"users\").upsert(data).execute() ``` --- ### 2️⃣ check_drive_status() 函数 **修改前：** ```python result = supabase.table(\"user"
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": "\"users\").upsert(data).execute() ``` --- ### 2️⃣ check_drive_status() 函数 **修改前：** ```python result = supabase.table(\"user_profiles\").select(\"*\").eq(\"user_id\", user_id).execute() print(f\" 邮箱：{profile.get('email')}\") ``` **修改后：** ```python result = supabase.table(\"users\").select(\"*\").eq(\"name\", user_id).execute() print(f\" 邮箱：{profile.get('drive_email') or profile.get('email')}\") ``` --- ### 3️⃣ unbind_drive() 函数 **修改前：** ```python data = { \"user_id\": user_id, \"drive_connected\": False, \"drive_access_token\": None, \"drive_refresh_token\": None } result = supabase.table(\"user_profiles\").upsert(data).e"
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "False, \"drive_access_token\": None, \"drive_refresh_token\": None } result = supabase.table(\"user_profiles\").upsert(data).execute() ``` **修改后：** ```python data = { \"name\": user_id, # 使用 name 字段 \"drive_connected\": False, \"drive_access_token\": None, \"drive_email\": None } result = supabase.table(\"users\").upsert(data).execute() ``` --- ### 4️⃣ get_all_connected_users() 函数 **修改前：** ```python result = supabase.table(\"user_profiles\").select(\"*\").eq(\"drive_connected\", True).execute() for user in result.data: print(f\" - {user['user_id']} ({user['email']})\") ``` **修改后：** ```python result = supabase.table(\""
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": "r user in result.data: print(f\" - {user['user_id']} ({user['email']})\") ``` **修改后：** ```python result = supabase.table(\"users\").select(\"*\").eq(\"drive_connected\", True).execute() for user in result.data: user_name = user.get('name', 'Unknown') user_email = user.get('drive_email') or user.get('email', 'N/A') print(f\" - {user_name} ({user_email})\") ``` --- ## 🗃️ 数据库表结构要求 在 **Supabase Dashboard → SQL Editor** 执行： ```sql -- 为 public.users 表添加 Google Drive 相关字段 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS drive_connected BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS drive_access_token TEXT, A"
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "sers ADD COLUMN IF NOT EXISTS drive_connected BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS drive_access_token TEXT, ADD COLUMN IF NOT EXISTS drive_email TEXT; -- 创建索引（可选，提升查询性能） CREATE INDEX IF NOT EXISTS idx_users_drive_connected ON public.users(drive_connected); CREATE INDEX IF NOT EXISTS idx_users_drive_email ON public.users(drive_email); ``` --- ## 🧪 测试验证 ### 执行测试脚本： ```bash python google_drive_auth_flow.py ``` ### 预期输出： ``` 🧪 测试 Google Drive 绑定流程模拟器 ============================================================ 1️⃣ 模拟用户绑定 Google Drive ====================================================="
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": "========================================== 1️⃣ 模拟用户绑定 Google Drive ============================================================ ✅ 模拟绑定成功：u_demo (demo@gmail.com) 🔑 Access Token: FAKE_TOKEN_u_demo_1739928341 ============================================================ 2️⃣ 检查绑定状态 ============================================================ ✅ u_demo 已绑定 Google Drive 邮箱：demo@gmail.com Token：FAKE_TOKEN_u_demo_1739928341... ============================================================ 3️⃣ 获取所有已绑定用户 ============================================================ 📊 已绑定 Google Drive 的用户数量：1 - u_demo (demo@g"
+    },
+    {
+      "file_id": "project_docs/GDRIVE_MIGRATION_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": "= 3️⃣ 获取所有已绑定用户 ============================================================ 📊 已绑定 Google Drive 的用户数量：1 - u_demo (demo@gmail.com) ✅ 测试完成！ ``` --- ## ⚠️ 重要提示 1. **表依赖性**：确保 `public.users` 表已经存在 2. **字段兼容**：新增的 `drive_email` 字段用于区分系统邮箱和 Google Drive 邮箱 3. **数据迁移**：如果之前有 `user_profiles` 表的数据，需要手动迁移到 `users` 表 --- ## 📁 修改的文件清单 - ✅ `google_drive_auth_flow.py` - 已更新所有数据库操作 - ℹ️ `google_drive_sync.py` - 无需修改（不涉及数据库） - 📝 `GDRIVE_MIGRATION_GUIDE.md` - 本文档 --- **🎉 迁移完成！现在 Google Drive 绑定功能使用统一的 users 表！**"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# Overview LynkerAI is an AI-powered task execution system designed to generate and execute code from natural language descriptions using OpenAI's API. It functions as an intelligent code generator, interpreting user requests to create and manage code files automatically. The project aims to provide a robust platform for semantic-based analysis, including birth chart verification and soulmate matching, by leveraging advanced AI models for deeper compatibility insights. # User Preferences Preferred communication style: Simple, everyday language. # System Architecture ## Core Design Pattern The "
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": " Preferences Preferred communication style: Simple, everyday language. # System Architecture ## Core Design Pattern The application utilizes a command-line interface (CLI) with an AI-driven code generation pipeline: 1. **Task Interpretation Layer**: Processes natural language task descriptions. 2. **AI Generation Layer**: Generates code using OpenAI's chat completion API. 3. **File Management Layer**: Manages file creation and command execution via a bridge module. ## Language & Runtime - **Language**: Python 3.x, chosen for rapid prototyping and AI/ML support. - **Execution Model**: Single-pr"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": "e & Runtime - **Language**: Python 3.x, chosen for rapid prototyping and AI/ML support. - **Execution Model**: Single-process, synchronous. ## Modular Architecture ### Main Control Engine (`main.py`) - Acts as the centralized orchestration hub, initializing Supabase and coordinating execution of all LynkerAI modules such as `supabase_init.py`, `ai_truechart_verifier.py`, `soulmate_matcher.py`, and `child_ai_insight.py`. - Includes a unified JSON logging system (`master_log.json`). ### Code Generator (`lynker_master_ai.py`) - Handles AI-powered code generation, processing task descriptions, and"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "on`). ### Code Generator (`lynker_master_ai.py`) - Handles AI-powered code generation, processing task descriptions, and interacting with the OpenAI API. - Includes environment validation before execution. ### Database Layer (`supabase_init.py`) - Manages Supabase connections, including client initialization and automatic creation/checking of required tables (`verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`). - Supports environment variable configuration and graceful degradation. ### TrueChart Verifier (`ai_truechart_verifier.py`) - Performs se"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": "nment variable configuration and graceful degradation. ### TrueChart Verifier (`ai_truechart_verifier.py`) - Performs semantic validation of birth charts against life events. - Includes functions for single and multi-chart verification, intelligent weight learning (`update_event_weights`), and user life profile storage (`save_life_tags`). - Uses the `shibing624/text2vec-base-chinese` model for semantic understanding. - Optimized for performance using batch vectorization and concurrency for faster verification. ### Soulmate Matcher (`soulmate_matcher.py`) - Identifies users with similar life ex"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "oncurrency for faster verification. ### Soulmate Matcher (`soulmate_matcher.py`) - Identifies users with similar life experiences using semantic matching of `life_tags`. - Calculates cosine similarity between user profiles encoded into semantic vectors using the `shibing624/text2vec-base-chinese` model. - Stores match results in the `soulmate_matches` table. ### Child AI Insight Generator (`child_ai_insight.py`) - Generates independent, rule-based insights for match results without consuming main AI tokens. - Utilizes templates to generate insights categorized by similarity levels. - Stores in"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": "ithout consuming main AI tokens. - Utilizes templates to generate insights categorized by similarity levels. - Stores insights in the Supabase `child_ai_insights` table with a local JSON file backup for redundancy. ### Child AI Memory Vault (`child_ai_memory.py`) - Manages user interaction history with matched partners, tracking memories and engagement. - Automatically generates memory summaries from insights and extracts meaningful tags. - Supports updating interaction counts and last interaction timestamps. - Provides data for the frontend React component `ChildAIMemoryVault.jsx`. - Stores d"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": "s and last interaction timestamps. - Provides data for the frontend React component `ChildAIMemoryVault.jsx`. - Stores data in Supabase `child_ai_memory` table with JSONB support for flexible tag storage. ### Google Drive Sync (`google_drive_sync.py`) - **Manual Integration** (Replit connector declined by user) - Enables users to backup AI memories to their personal Google Drive. - Uses OAuth 2.0 for secure authorization (access_token managed by backend). - Automatically creates \"LynkerAI_Memories\" folder in user's Drive. - Uploads memories as JSON files with timestamps. - OAuth credentials st"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 8,
+      "text": "tes \"LynkerAI_Memories\" folder in user's Drive. - Uploads memories as JSON files with timestamps. - OAuth credentials stored in Supabase `users` table (`drive_access_token`, `drive_refresh_token`). ### OAuth Authorization Flow (`google_oauth_real_flow.py`, Flask API) - **Interactive Authorization Script**: Command-line tool for initiating Google OAuth flow. - **Flask API Integration**: Handles OAuth callbacks at `/`, `/callback`, `/oauth2callback` routes. - **Token Exchange**: Automatically exchanges authorization code for access_token and refresh_token. - **User Info Retrieval**: Calls Google"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 9,
+      "text": ": Automatically exchanges authorization code for access_token and refresh_token. - **User Info Retrieval**: Calls Google OAuth v1 API (`https://www.googleapis.com/oauth2/v1/userinfo?alt=json`) to get user email. - **Data Persistence**: Saves OAuth credentials to Supabase `users` table with `upsert` operation. - **Success Page**: Displays beautiful HTML success page after authorization. ### Bridge Module (`replit_bridge.py`) - Abstracts file system operations (`write_file`) and command execution (`run_command`) for platform independence. ### Security Layer (`ai_guard_middleware.py`) - Provides "
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 10,
+      "text": "d command execution (`run_command`) for platform independence. ### Security Layer (`ai_guard_middleware.py`) - Provides centralized access control for all AI operations, checking user permissions, daily AI call limits, and global service suspension status. - Integrated across all major AI modules. ## Prompt Engineering Strategy Utilizes structured prompt templates to ensure predictable and parseable AI responses, specifying filename formats, markdown code blocks, and dependency installation instructions. ## Error Handling Includes environment validation, graceful degradation for optional servi"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 11,
+      "text": "cy installation instructions. ## Error Handling Includes environment validation, graceful degradation for optional services, and comprehensive output capture. # External Dependencies ## Required Services ### OpenAI API - **Purpose**: Core AI code generation. - **Authentication**: `OPENAI_API_KEY` environment variable. - **API Used**: Chat Completions API. ## Optional Services ### Supabase - **Purpose**: Database and backend services (e.g., `users`, `verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`, `child_ai_memory` tables). - **Authentication**"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 12,
+      "text": "ent_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`, `child_ai_memory` tables). - **Authentication**: `SUPABASE_URL` and `SUPABASE_KEY` environment variables. - **Users Table**: Stores user profiles and Google Drive OAuth credentials (`name`, `email`, `drive_email`, `drive_access_token`, `drive_refresh_token`, `drive_connected`, `created_at`, `updated_at`). ### Google Drive API (Optional) - **Purpose**: User data backup to personal cloud storage. - **Authentication**: OAuth 2.0 (user-provided access_token). - **Configuration**: `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_REDIR"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 13,
+      "text": "ntication**: OAuth 2.0 (user-provided access_token). - **Configuration**: `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_REDIRECT_URI` environment variables. - **Note**: Manual integration - user declined Replit's Google Drive connector. ## Python Package Dependencies - `openai`: OpenAI Python client. - `supabase`: Supabase Python client. - `requests`: HTTP library for Google Drive API calls. - `uv`: Replit's package manager for dependency installation. - `numpy`: Used for vectorized similarity computations. - `sentence-transformers`: For semantic model loading and embeddings. - `functools.lru_cache"
+    },
+    {
+      "file_id": "project_docs/replit.md",
+      "category": "project_docs",
+      "chunk_id": 14,
+      "text": "ed similarity computations. - `sentence-transformers`: For semantic model loading and embeddings. - `functools.lru_cache`: For model caching. - Standard libraries: `subprocess`, `os`, `sys`, `concurrent.futures`, `json`, `datetime`. ## Development Environment - **Platform**: Replit. - **Deployment Model**: Direct execution within the Replit environment."
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 📤 Master Vault 文件上传器使用指南 **在线文档管理系统 - 拖拽上传，自动分类** --- ## 🌐 访问上传器 ### 启动服务器 ```bash python master_ai_context_api.py ``` ### 访问 URL **本地测试：** ``` http://localhost:8080/ ``` **Replit 环境：** ``` https://f7ebbceb-eb1c-41fc-9cf7-dbfc578e05de-00-3h1iq9ru0v8kp.sisko.replit.dev:8080/ ``` --- ## 📋 功能特性 ### ✨ 核心功能 - ✅ **拖拽上传** - 直接拖拽文件到上传区域 - ✅ **点击上传** - 点击上传区域选择文件 - ✅ **批量上传** - 支持同时上传多个文件 - ✅ **自动分类** - 根据文件名智能分类 - ✅ **实时统计** - 显示当前 Vault 文档数量 - ✅ **进度反馈** - 上传过程实时显示 - ✅ **美观界面** - 现代化深色主题 ### 📁 支持的文件类型 - `.md` - Markdown 文档 - `.txt` - 文本文件 - `.pdf` - PDF 文档 - `.docx` - Word 文档 - `.doc` - 旧版 Word 文档 "
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "现代化深色主题 ### 📁 支持的文件类型 - `.md` - Markdown 文档 - `.txt` - 文本文件 - `.pdf` - PDF 文档 - `.docx` - Word 文档 - `.doc` - 旧版 Word 文档 **文件大小限制：** 16MB --- ## 🎯 使用步骤 ### 方式 1: 拖拽上传 1. 打开上传器页面 2. 将文件拖拽到上传区域 3. 点击\"🚀 上传并导入\"按钮 4. 查看上传结果和分类 ### 方式 2: 点击选择 1. 打开上传器页面 2. 点击上传区域 3. 在文件选择器中选择文件 4. 点击\"🚀 上传并导入\"按钮 5. 查看上传结果和分类 ### 方式 3: 批量上传 1. 选择多个文件（Ctrl+点击 或 Shift+点击） 2. 拖拽或点击上传 3. 系统会依次处理每个文件 4. 所有文件处理完成后显示结果 --- ## 🔧 自动分类规则 上传的文件会根据文件名自动分类： | 文件名包含 | 分类目录 | 示例 | |-----------|---------|------| | ui, design, dashboard, client | `project_docs` | `ui_design.md` | | api, auth, supabase, oauth | `api_docs` | `api_guide.m"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": ", design, dashboard, client | `project_docs` | `ui_design.md` | | api, auth, supabase, oauth | `api_docs` | `api_guide.md` | | ai, guru, 命理, 玄学 | `dev_brainstorm` | `ai_theory.txt` | | 其他 | `project_docs` | `notes.md` | --- ## 📊 界面说明 ### 统计卡片 顶部显示三个统计卡片： ``` ┌──────────────┬──────────────┬──────────────┐ │ 总文档数 │ API 文档 │ 项目文档 │ │ 8 │ 3 │ 4 │ └──────────────┴──────────────┴──────────────┘ ``` ### 上传区域 中间的拖拽上传区域： ``` ╔════════════════════════════════════════╗ ║ 📤 ║ ║ 点击或拖拽文件到此处 ║ ║ 支持 .md, .txt, .pdf, .docx ║ ╚════════════════════════════════════════╝ ``` ### 操作按钮 - **🚀 上传并导入** - 执行上传操作 - **🔄 刷"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "处 ║ ║ 支持 .md, .txt, .pdf, .docx ║ ╚════════════════════════════════════════╝ ``` ### 操作按钮 - **🚀 上传并导入** - 执行上传操作 - **🔄 刷新统计** - 更新文档统计数据 ### 输出区域 底部显示上传结果： ``` ✅ vision.md 分类: project_docs 路径: lynker_master_vault/project_docs/vision.md ✅ api_structure.md 分类: api_docs 路径: lynker_master_vault/api_docs/api_structure.md ``` --- ## 🌐 API 端点 上传器使用以下 API 端点： ### 1. 上传文件 ``` POST /api/master-ai/upload Content-Type: multipart/form-data 参数： - file: 文件对象 响应： { \"success\": true, \"filename\": \"vision.md\", \"category\": \"project_docs\", \"path\": \"lynker_master_vault/project_docs/vision.md\", \"message\": \"✅ 已导入 visi"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": "\": \"vision.md\", \"category\": \"project_docs\", \"path\": \"lynker_master_vault/project_docs/vision.md\", \"message\": \"✅ 已导入 vision.md → project_docs\" } ``` ### 2. 获取统计 ``` GET /api/master-ai/categories 响应： { \"project_docs\": 4, \"api_docs\": 3, \"dev_brainstorm\": 1, \"memory\": 0 } ``` --- ## 🔧 技术实现 ### 前端技术 - **HTML5** - 拖拽 API - **CSS3** - 现代化样式 - **Vanilla JavaScript** - 无框架依赖 - **Fetch API** - 异步上传 ### 后端技术 - **Flask** - Web 框架 - **Werkzeug** - 文件安全处理 - **subprocess** - 调用导入脚本 - **tempfile** - 临时文件管理 ### 工作流程 ``` 用户选择文件 ↓ 前端验证文件类型 ↓ FormData 上传到服务器 ↓ 后端保存到临时目录 ↓ 调用 master_ai_importer.py ↓ 自动分类并保存 ↓ 更新 Y"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "file** - 临时文件管理 ### 工作流程 ``` 用户选择文件 ↓ 前端验证文件类型 ↓ FormData 上传到服务器 ↓ 后端保存到临时目录 ↓ 调用 master_ai_importer.py ↓ 自动分类并保存 ↓ 更新 YAML 索引 ↓ 删除临时文件 ↓ 返回结果给前端 ``` --- ## 🧪 测试示例 ### 创建测试文件 ```bash # 创建测试文档 echo \"# 项目愿景\\n这是灵客AI的愿景文档...\" > vision.md echo \"# API 文档\\nOAuth 授权流程...\" > oauth_api.md echo \"# 师徒系统\\nGuru AI 设计...\" > guru_notes.txt ``` ### 上传测试文件 1. 启动服务器：`python master_ai_context_api.py` 2. 打开浏览器访问上传器 3. 拖拽上述 3 个文件 4. 点击上传 5. 查看结果 **预期结果：** ``` ✅ vision.md → project_docs ✅ oauth_api.md → api_docs ✅ guru_notes.txt → dev_brainstorm ``` --- ## 🔐 安全特性 ### 文件验证 - ✅ 文件类型白名单检查 - ✅ 文件名安全处理（`secure_filename`）"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": ".md → api_docs ✅ guru_notes.txt → dev_brainstorm ``` --- ## 🔐 安全特性 ### 文件验证 - ✅ 文件类型白名单检查 - ✅ 文件名安全处理（`secure_filename`） - ✅ 文件大小限制（16MB） - ✅ 超时保护（30秒） ### 临时文件管理 - ✅ 使用系统临时目录 - ✅ 上传后自动清理 - ✅ 独立的临时文件夹 --- ## 🎨 界面定制 ### 修改主题颜色 编辑 `master_vault_uploader.html`： ```css /* 修改主色调 */ button { background: #4f46e5; /* 改为你喜欢的颜色 */ } /* 修改背景色 */ body { background: #0f111a; /* 改为你喜欢的颜色 */ } ``` ### 修改上传大小限制 编辑 `master_ai_context_api.py`： ```python # 修改文件大小限制（默认 16MB） app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024 # 改为 32MB ``` --- ## 🐛 常见问题 ### 1. 上传失败 **原因：** 文件类型不支持 **解决：** 确保文件扩展名为 `.md`, `.txt`, "
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": "ENT_LENGTH'] = 32 * 1024 * 1024 # 改为 32MB ``` --- ## 🐛 常见问题 ### 1. 上传失败 **原因：** 文件类型不支持 **解决：** 确保文件扩展名为 `.md`, `.txt`, `.pdf`, `.docx` ### 2. 统计不更新 **原因：** 需要手动刷新 **解决：** 点击\"🔄 刷新统计\"按钮 ### 3. 页面无法访问 **原因：** 服务器未启动 **解决：** 运行 `python master_ai_context_api.py` ### 4. 分类不正确 **原因：** 文件名不包含关键词 **解决：** 重命名文件包含相关关键词，或手动移动到正确目录 --- ## 🚀 进阶用法 ### 与命令行结合 ```bash # 批量上传所有 .md 文件 for file in docs/*.md; do curl -F \"file=@$file\" http://localhost:8080/api/master-ai/upload done ``` ### 编程接口调用 ```python import requests # 上传单个文件 with open('vision.md', 'rb') as f: files = {'file': f} response = requests.post( 'h"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 8,
+      "text": "用 ```python import requests # 上传单个文件 with open('vision.md', 'rb') as f: files = {'file': f} response = requests.post( 'http://localhost:8080/api/master-ai/upload', files=files ) print(response.json()) # 批量上传 import os for filename in os.listdir('docs/'): if filename.endswith('.md'): with open(f'docs/{filename}', 'rb') as f: files = {'file': f} response = requests.post( 'http://localhost:8080/api/master-ai/upload', files=files ) print(f\"✅ {filename}: {response.json()['category']}\") ``` --- ## 📚 相关文档 - **VAULT_USAGE_GUIDE.md** - Vault 完整使用指南 - **MASTER_VAULT_QUICKSTART.md** - 快速开始 - **lynker_mas"
+    },
+    {
+      "file_id": "project_docs/VAULT_UPLOADER_GUIDE.md",
+      "category": "project_docs",
+      "chunk_id": 9,
+      "text": "']}\") ``` --- ## 📚 相关文档 - **VAULT_USAGE_GUIDE.md** - Vault 完整使用指南 - **MASTER_VAULT_QUICKSTART.md** - 快速开始 - **lynker_master_vault/README.md** - Vault 详细文档 --- ## 🎉 总结 **Master Vault 文件上传器特点：** ✅ **简单易用** - 拖拽即可上传 ✅ **自动分类** - 智能识别文档类型 ✅ **实时反馈** - 立即显示结果 ✅ **批量处理** - 支持多文件上传 ✅ **安全可靠** - 文件验证和大小限制 ✅ **美观现代** - 深色主题界面 **开始使用：** ```bash python master_ai_context_api.py # 访问 http://localhost:8080/ ``` 🚀 **享受便捷的文档管理体验！**"
+    },
+    {
+      "file_id": "project_docs/test_upload.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# Test Document This is a test."
+    },
+    {
+      "file_id": "project_docs/test_upload_log.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 测试文档 - AI 自学习记忆系统 这是一个测试文档，用于验证 Lynker Master Vault 的自动日志记录功能。 ## 功能特性 - 自动记录上传时间 - 自动提取文件摘要 - 自动分类文档类型 - 记录上传者信息"
+    },
+    {
+      "file_id": "project_docs/memory_bridge_test.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# Master AI 记忆桥测试文档 这是一个测试文档，用于验证 Master AI Memory Bridge 功能。 ## 功能验证 - 自动同步上传日志到 child_ai_memory 表 - 生成本地 JSON 备份 - 记录文档元数据"
+    },
+    {
+      "file_id": "project_docs/memory_test_v2.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# AI 记忆系统测试 V2 验证记忆桥接功能是否正常工作。 ## 测试内容 1. 文件上传 2. 日志记录 3. 数据库同步"
+    },
+    {
+      "file_id": "project_docs/idempotency_test.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 幂等性验证文档 这是第4次上传，用于测试幂等性功能。 ## 预期结果 - 只同步这个新文件 - 不会重复同步之前的3个文件"
+    },
+    {
+      "file_id": "project_docs/rotation_test.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 轮换测试文档 这个文档用于测试日志轮换后的幂等性。"
+    },
+    {
+      "file_id": "project_docs/after_rotation.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 轮换后测试 这是日志清空后的第一次上传，用于验证基于唯一标识符的幂等性。"
+    },
+    {
+      "file_id": "dev_brainstorm/CHILD_AI_MEMORY_SETUP.md",
+      "category": "dev_brainstorm",
+      "chunk_id": 0,
+      "text": "# 🧠 子AI记忆仓库模块 - 设置指南 ## 📋 概述 子AI记忆仓库（Child AI Memory Vault）是一个独立模块，用于记录和管理用户与匹配对象的互动历史，为前端 React 组件提供数据源。 --- ## 🛠️ 设置步骤 ### 1️⃣ 更新 Supabase 表结构 由于 `child_ai_memory` 表已存在但缺少必要的列，您需要执行以下SQL来更新表结构： **操作步骤：** 1. 登录 Supabase Dashboard 2. 进入 SQL Editor 3. 复制并执行 `update_child_ai_memory_table.sql` 中的SQL语句 **或者直接复制以下SQL：** ```sql -- 添加 interaction_count 列 ALTER TABLE public.child_ai_memory ADD COLUMN IF NOT EXISTS interaction_count INTEGER DEFAULT 1; -- 添加 last_interaction 列 ALTER TABLE public.child_ai_memory ADD COLUMN IF NOT EXISTS last_interaction TIMESTAMP DEFAULT NOW(); -- 添加 summary 列 ALTER TABL"
+    },
+    {
+      "file_id": "dev_brainstorm/CHILD_AI_MEMORY_SETUP.md",
+      "category": "dev_brainstorm",
+      "chunk_id": 1,
+      "text": "BLE public.child_ai_memory ADD COLUMN IF NOT EXISTS last_interaction TIMESTAMP DEFAULT NOW(); -- 添加 summary 列 ALTER TABLE public.child_ai_memory ADD COLUMN IF NOT EXISTS summary TEXT; -- 添加 tags 列 ALTER TABLE public.child_ai_memory ADD COLUMN IF NOT EXISTS tags TEXT[]; -- 添加 similarity 列 ALTER TABLE public.child_ai_memory ADD COLUMN IF NOT EXISTS similarity FLOAT; -- 创建索引 CREATE INDEX IF NOT EXISTS idx_child_ai_memory_last_interaction ON public.child_ai_memory(last_interaction DESC); ``` --- ### 2️⃣ 测试后端模块 执行SQL后，运行测试： ```bash python child_ai_memory.py ``` **预期输出：** ``` 🧪 测试子AI记忆仓库模块 ... ✅ Tab"
+    },
+    {
+      "file_id": "dev_brainstorm/CHILD_AI_MEMORY_SETUP.md",
+      "category": "dev_brainstorm",
+      "chunk_id": 2,
+      "text": "n DESC); ``` --- ### 2️⃣ 测试后端模块 执行SQL后，运行测试： ```bash python child_ai_memory.py ``` **预期输出：** ``` 🧪 测试子AI记忆仓库模块 ... ✅ Table 'child_ai_memory' already exists. 📊 正在为用户 u_demo 创建记忆... 💾 已保存新记忆：u_demo ↔ u_test1 💾 已保存新记忆：u_demo ↔ u_test2 ✅ 记忆同步完成：新建 2 条，更新 0 条 ``` --- ### 3️⃣ 集成到前端 React 组件已保存在 `components/ChildAIMemoryVault.jsx` **使用方法：** ```javascript import ChildAIMemoryVault from './components/ChildAIMemoryVault'; function App() { return ( <ChildAIMemoryVault userId=\"u_demo\" /> ); } ``` **环境变量设置（.env）：** ```env VITE_SUPABASE_URL=your_supabase_url VITE_SUPABASE_ANON_KEY=your_anon_key ``` --- ## 📊"
+    },
+    {
+      "file_id": "dev_brainstorm/CHILD_AI_MEMORY_SETUP.md",
+      "category": "dev_brainstorm",
+      "chunk_id": 3,
+      "text": " ); } ``` **环境变量设置（.env）：** ```env VITE_SUPABASE_URL=your_supabase_url VITE_SUPABASE_ANON_KEY=your_anon_key ``` --- ## 📊 数据流 ``` child_ai_insights (洞察表) ↓ child_ai_memory.py (Python后端) ↓ child_ai_memory (记忆表) ← Supabase ↓ ChildAIMemoryVault.jsx (React前端) ``` --- ## 🎯 功能特性 ### 后端模块 (`child_ai_memory.py`) - **自动生成摘要**：从洞察文本提取核心内容 - **标签提取**：从 shared_tags 生成可读标签列表 - **智能更新**：追踪互动次数和最后互动时间 - **批量创建**：从 child_ai_insights 批量同步记忆 ### 前端组件 (`ChildAIMemoryVault.jsx`) - **实时搜索**：按 partner_id 或关键词过滤 - **动画效果**：使用 framer-motion 流畅过渡 - **标签展示**：美观的紫色标签UI - **时间排序**：按创建时间倒序显示 --- ## 📁 项目文件 ``` LynkerAI/ ├──"
+    },
+    {
+      "file_id": "dev_brainstorm/CHILD_AI_MEMORY_SETUP.md",
+      "category": "dev_brainstorm",
+      "chunk_id": 4,
+      "text": "ner_id 或关键词过滤 - **动画效果**：使用 framer-motion 流畅过渡 - **标签展示**：美观的紫色标签UI - **时间排序**：按创建时间倒序显示 --- ## 📁 项目文件 ``` LynkerAI/ ├── child_ai_memory.py # 后端模块 ├── components/ │ └── ChildAIMemoryVault.jsx # React组件 ├── supabase_tables_schema.sql # 完整表结构 ├── update_child_ai_memory_table.sql # 更新脚本 └── CHILD_AI_MEMORY_SETUP.md # 本文档 ``` --- ## 🧪 测试验证 ```bash # 1. 更新表结构后测试 python child_ai_memory.py # 2. 验证Supabase数据 python supabase_auto_setup.py # 3. 检查记忆数量 python -c \"from child_ai_memory import *; s=init_supabase(); m=get_user_memories('u_demo',s); print(f'找到 {len(m)} 条记忆')\" ``` --- ## ✅ 验证清单 - [ ] 在 Supabas"
+    },
+    {
+      "file_id": "dev_brainstorm/CHILD_AI_MEMORY_SETUP.md",
+      "category": "dev_brainstorm",
+      "chunk_id": 5,
+      "text": "port *; s=init_supabase(); m=get_user_memories('u_demo',s); print(f'找到 {len(m)} 条记忆')\" ``` --- ## ✅ 验证清单 - [ ] 在 Supabase Dashboard 执行了 `update_child_ai_memory_table.sql` - [ ] `python child_ai_memory.py` 运行成功 - [ ] `child_ai_memory` 表包含测试数据 - [ ] React 组件可以读取数据 - [ ] 环境变量已配置 --- **🎉 完成设置后，子AI记忆仓库即可使用！**"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 0,
+      "text": "# 🔐 Google OAuth 真实授权使用指南 ## ✅ 文件说明 **`google_oauth_real_flow.py`** - Google OAuth 2.0 真实授权流程脚本 --- ## 🚀 快速开始 ### 方法 1：交互式授权（推荐） ```bash # 运行脚本并指定用户 ID python google_oauth_real_flow.py --user-id=u_demo ``` **执行步骤：** 1. **脚本会生成授权 URL** ``` ============================================================ 📌 请复制以下链接，在浏览器中打开完成授权： ============================================================ https://accounts.google.com/o/oauth2/v2/auth?client_id=... ``` 2. **在浏览器中打开链接** - 选择您的 Google 账号 - 点击\"允许\"授权访问 Google Drive - 授权后会重定向到：`https://lynkerai.replit.app?code=...` 3. **复制授权码** - 从重定向 URL 中复制 `code` 参数的值 - 例"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 1,
+      "text": " - 点击\"允许\"授权访问 Google Drive - 授权后会重定向到：`https://lynkerai.replit.app?code=...` 3. **复制授权码** - 从重定向 URL 中复制 `code` 参数的值 - 例如：`https://lynkerai.replit.app?code=4/0AeanS0ZP...` - 复制 `4/0AeanS0ZP...` 这部分 4. **粘贴授权码到终端** ``` 🔑 请输入授权码（code 参数的值）：4/0AeanS0ZP... ``` 5. **脚本自动完成** - ✅ 用授权码换取 access_token - ✅ 获取用户信息（邮箱） - ✅ 保存到 Supabase users 表 - ✅ 测试 Google Drive 连接 --- ## 📋 完整执行流程示例 ```bash $ python google_oauth_real_flow.py --user-id=u_demo ============================================================ 🔐 Google OAuth 2.0 真实授权流程 ============================================================ 📋 Step 1: 读取 OAu"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 2,
+      "text": "================ 🔐 Google OAuth 2.0 真实授权流程 ============================================================ 📋 Step 1: 读取 OAuth 配置... ✅ Client ID: 85639669324-260ej89u... ✅ Redirect URI: https://lynkerai.replit.app 🔗 Step 2: 生成授权 URL... ============================================================ 📌 请复制以下链接，在浏览器中打开完成授权： ============================================================ https://accounts.google.com/o/oauth2/v2/auth?client_id=85639669324-260ej89uej6g4khcb2fj306vk5vgfl28.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Flynkerai.replit.app&response_type=code&scope=https%3A%2F%2Fwww.google"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 3,
+      "text": "s.googleusercontent.com&redirect_uri=https%3A%2F%2Flynkerai.replit.app&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid&access_type=offline&prompt=consent ============================================================ 📝 授权步骤： 1. 在浏览器中打开上述链接 2. 选择您的 Google 账号 3. 点击'允许'授权访问 Google Drive 4. 授权后会重定向到： https://lynkerai.replit.app 5. 复制 URL 中的 code 参数值 ============================================================ 🔑 请输入授权码（code 参数的值）：[在这里粘贴授权码] 🔄 Step 3: 用授权码换取 access_token... ✅ Access Token: ya29.a0AeDClZDFxpZ."
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 4,
+      "text": "==================== 🔑 请输入授权码（code 参数的值）：[在这里粘贴授权码] 🔄 Step 3: 用授权码换取 access_token... ✅ Access Token: ya29.a0AeDClZDFxpZ... ✅ Refresh Token: 1//0gXj7vKZqT8... 👤 Step 4: 获取用户信息... ✅ 用户邮箱：user@gmail.com ✅ 用户名称：Demo User 💾 Step 5: 保存到 Supabase (user_id: u_demo)... ✅ 成功保存到 Supabase users 表！ 🧪 Step 6: 测试 Google Drive 连接... ✅ Google Drive 连接成功！用户：user@gmail.com ✅ Google Drive 连接测试成功！ ============================================================ 🎉 OAuth 授权流程完成！ ============================================================ 📊 下一步操作： 1. 生成子AI记忆：python child_ai_memory.py 2. 记忆会自动同步到 Google Drive ``` --- ## "
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 5,
+      "text": "===================================== 📊 下一步操作： 1. 生成子AI记忆：python child_ai_memory.py 2. 记忆会自动同步到 Google Drive ``` --- ## 🔧 命令参数 ### 基本语法 ```bash python google_oauth_real_flow.py [选项] ``` ### 参数说明 | 参数 | 说明 | 示例 | |------|------|------| | `--user-id` | 用户ID（保存到 Supabase） | `--user-id=u_demo` | ### 使用示例 ```bash # 为用户 u_demo 授权 python google_oauth_real_flow.py --user-id=u_demo # 为用户 u_alice 授权 python google_oauth_real_flow.py --user-id=u_alice # 仅测试授权流程（不保存） python google_oauth_real_flow.py ``` --- ## 📊 授权后的数据存储 **Supabase `users` 表会更新以下字段：** ```sql UPDATE users SET drive_connected = TRUE, drive_a"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 6,
+      "text": "eal_flow.py ``` --- ## 📊 授权后的数据存储 **Supabase `users` 表会更新以下字段：** ```sql UPDATE users SET drive_connected = TRUE, drive_access_token = 'ya29.a0AeDClZD...', drive_refresh_token = '1//0gXj7vKZq...', drive_email = 'user@gmail.com' WHERE name = 'u_demo'; ``` --- ## 🔐 授权范围说明 脚本请求以下 Google API 权限： | 权限范围 | 说明 | |---------|------| | `drive.file` | 访问应用创建的文件 | | `userinfo.email` | 读取用户邮箱地址 | | `openid` | 基础身份验证信息 | **安全说明：** - ✅ 只能访问应用自己创建的文件 - ✅ 无法访问用户其他 Google Drive 文件 - ✅ 符合最小权限原则 --- ## 🧪 测试场景 ### 场景 1：首次绑定 ```bash python google_oauth_real_flow.py --user-id=u_demo ``` **预期结果：** - ✅ 生成授权 URL - ✅ 用户完"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 7,
+      "text": "--- ## 🧪 测试场景 ### 场景 1：首次绑定 ```bash python google_oauth_real_flow.py --user-id=u_demo ``` **预期结果：** - ✅ 生成授权 URL - ✅ 用户完成授权 - ✅ 获取 access_token - ✅ 保存到 Supabase - ✅ drive_connected = TRUE ### 场景 2：重新授权 ```bash python google_oauth_real_flow.py --user-id=u_demo ``` **预期结果：** - ✅ 覆盖旧的 access_token - ✅ 更新 refresh_token - ✅ 保持 drive_connected = TRUE ### 场景 3：测试授权（不保存） ```bash python google_oauth_real_flow.py ``` **预期结果：** - ✅ 生成授权 URL - ✅ 获取 access_token - ✅ 测试 Google Drive 连接 - ⚠️ 不保存到 Supabase --- ## ⚠️ 常见问题 ### Q1: 授权后重定向到 404 页面？ **A:** 这是正常现象！重定向地址可能还没有对应的页面。 - 只需复制浏览器地址栏的 URL - 提取 `code` 参数值即"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 8,
+      "text": "️ 不保存到 Supabase --- ## ⚠️ 常见问题 ### Q1: 授权后重定向到 404 页面？ **A:** 这是正常现象！重定向地址可能还没有对应的页面。 - 只需复制浏览器地址栏的 URL - 提取 `code` 参数值即可 ### Q2: Token 交换失败？ **可能原因：** 1. 授权码已使用（每个 code 只能用一次） 2. 授权码已过期（10分钟有效期） 3. Client Secret 配置错误 **解决方法：** 1. 重新运行脚本生成新的授权 URL 2. 重新授权获取新的 code 3. 检查 Replit Secrets 中的配置 ### Q3: 保存到 Supabase 失败？ **可能原因：** 1. users 表不存在 drive_* 字段 2. user_id 在 users 表中不存在 **解决方法：** ```bash # 运行自动修复脚本 python fix_supabase_users_schema.py ``` --- ## 📈 授权完成后 ### 自动同步到 Google Drive ```bash # 生成子AI记忆（会自动同步） python child_ai_memory.py ``` **输出示例：** ``` ✅ 记忆同步完成：新建 5 条，更新 3 条 ☁️ 正在上传子AI记忆到 Google Driv"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 9,
+      "text": "ve ```bash # 生成子AI记忆（会自动同步） python child_ai_memory.py ``` **输出示例：** ``` ✅ 记忆同步完成：新建 5 条，更新 3 条 ☁️ 正在上传子AI记忆到 Google Drive ... ✅ 找到已存在的文件夹：LynkerAI_Memories ✅ 文件已上传到 Google Drive：lynker_ai_memories_u_demo_20251019.json ✅ Google Drive 同步成功！ ``` ### 手动同步到 Google Drive ```python from google_drive_sync import auto_sync_user_memories result = auto_sync_user_memories(\"u_demo\") ``` --- ## 🔄 Token 刷新机制 **Access Token 有效期：** 1 小时 **Refresh Token：** 长期有效（可用于获取新的 access_token） **未来优化建议：** - 实现自动 token 刷新 - 检测 token 过期并自动刷新 - 避免用户频繁重新授权 --- ## 📚 相关文件 - **`google_oauth_real_flow.py`** - 真实授权流程脚本 - **`google"
+    },
+    {
+      "file_id": "api_docs/GOOGLE_OAUTH_USAGE.md",
+      "category": "api_docs",
+      "chunk_id": 10,
+      "text": "* - 实现自动 token 刷新 - 检测 token 过期并自动刷新 - 避免用户频繁重新授权 --- ## 📚 相关文件 - **`google_oauth_real_flow.py`** - 真实授权流程脚本 - **`google_drive_sync.py`** - Google Drive 同步模块 - **`child_ai_memory.py`** - 子AI记忆模块（含自动同步） - **`fix_supabase_users_schema.py`** - 自动修复表结构 - **`verify_google_oauth_config.py`** - OAuth 配置验证 --- **🎉 现在可以使用真实的 Google OAuth 授权了！**"
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 0,
+      "text": "# 🔧 Supabase Schema Cache 问题修复指南 ## ❌ 问题描述 ``` 错误信息： Could not find the 'drive_refresh_token' column of 'users' in the schema cache 错误代码：PGRST204 ``` **原因：** Supabase 的 PostgREST API 使用 schema cache 来提高性能。当您在数据库中创建新表或添加新字段时，API 层的缓存不会自动更新，导致 Supabase 客户端无法识别新字段。 --- ## ✅ 临时解决方案（已应用） ### 修改内容 从保存操作中移除 `drive_refresh_token` 字段： ```python # 修改前（会报错） supabase.table(\"users\").upsert({ \"name\": user_id, \"email\": email, \"drive_email\": email, \"drive_access_token\": access_token, \"drive_refresh_token\": refresh_token, # ❌ 此字段导致错误 \"drive_connected\": True, \"updated_at\": datetime.now().isoformat() }).execute("
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 1,
+      "text": "refresh_token\": refresh_token, # ❌ 此字段导致错误 \"drive_connected\": True, \"updated_at\": datetime.now().isoformat() }).execute() # 修改后（可以正常工作） supabase.table(\"users\").upsert({ \"name\": user_id, \"email\": email, \"drive_email\": email, \"drive_access_token\": access_token, # ✅ 只保存 access_token \"drive_connected\": True, \"updated_at\": datetime.now().isoformat() }).execute() ``` ### 影响 - ✅ **OAuth 授权流程正常工作** - ✅ **Access Token 正常保存**（1小时有效期） - ⚠️ **Refresh Token 暂时不保存** **后果：** - Token 过期后需要重新授权 - 暂时无法实现自动 token 刷新 --- ## 🔄 永久解决方案 ### 方式 1: 刷新 Supabase Schema Cache（推荐） 1. **登录 Supabase 控制台** - 访问：https://supaba"
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 2,
+      "text": "授权 - 暂时无法实现自动 token 刷新 --- ## 🔄 永久解决方案 ### 方式 1: 刷新 Supabase Schema Cache（推荐） 1. **登录 Supabase 控制台** - 访问：https://supabase.com/dashboard - 选择您的项目 2. **刷新 Schema Cache** - 进入 `Database` → `Schema` - 找到 `public.users` 表 - 点击刷新/重载按钮 3. **恢复代码** ```python # 恢复 drive_refresh_token 字段 supabase.table(\"users\").upsert({ \"name\": user_id, \"email\": email, \"drive_email\": email, \"drive_access_token\": access_token, \"drive_refresh_token\": refresh_token, # ✅ 现在可以保存了 \"drive_connected\": True, \"updated_at\": datetime.now().isoformat() }).execute() ``` ### 方式 2: 使用原生 PostgreSQL 客户端 不使用 Supabase SDK，直接使用 `psycopg2` "
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 3,
+      "text": "updated_at\": datetime.now().isoformat() }).execute() ``` ### 方式 2: 使用原生 PostgreSQL 客户端 不使用 Supabase SDK，直接使用 `psycopg2` 连接数据库： ```python import psycopg2 import os def save_oauth_credentials_direct(user_id, email, access_token, refresh_token): \"\"\"使用原生 PostgreSQL 连接保存数据（绕过 PostgREST）\"\"\" conn = psycopg2.connect(os.getenv(\"DATABASE_URL\")) cursor = conn.cursor() cursor.execute(\"\"\" INSERT INTO public.users (name, email, drive_email, drive_access_token, drive_refresh_token, drive_connected, updated_at) VALUES (%s, %s, %s, %s, %s, %s, NOW()) ON CONFLICT (name) DO UPDATE SET email = EXCLUDED.email, dri"
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 4,
+      "text": "nnected, updated_at) VALUES (%s, %s, %s, %s, %s, %s, NOW()) ON CONFLICT (name) DO UPDATE SET email = EXCLUDED.email, drive_email = EXCLUDED.drive_email, drive_access_token = EXCLUDED.drive_access_token, drive_refresh_token = EXCLUDED.drive_refresh_token, drive_connected = EXCLUDED.drive_connected, updated_at = NOW() \"\"\", (user_id, email, email, access_token, refresh_token, True)) conn.commit() cursor.close() conn.close() ``` **优点：** - 绕过 PostgREST API - 不受 schema cache 影响 - 立即生效 **缺点：** - 需要额外的依赖（psycopg2） - 失去 Supabase SDK 的便利性 ### 方式 3: 等待自动刷新 Supabase 的 schema cache 会定期自动刷新（通常几分钟到几小时）。您可以： "
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 5,
+      "text": "即生效 **缺点：** - 需要额外的依赖（psycopg2） - 失去 Supabase SDK 的便利性 ### 方式 3: 等待自动刷新 Supabase 的 schema cache 会定期自动刷新（通常几分钟到几小时）。您可以： 1. 等待一段时间 2. 重启 Supabase 项目 3. 然后恢复代码 --- ## 📊 当前状态 ### 保存的字段（✅ 正常工作） ```sql name TEXT -- 用户 ID email TEXT -- 用户邮箱 drive_email TEXT -- Google Drive 邮箱 drive_access_token TEXT -- 访问令牌（1小时有效） drive_connected BOOLEAN -- 绑定状态 updated_at TIMESTAMP -- 更新时间 ``` ### 未保存的字段（⚠️ 暂时跳过） ```sql drive_refresh_token TEXT -- 刷新令牌（长期有效） ``` --- ## 🧪 测试验证 ### 1. 测试当前 OAuth 流程 ```bash # 重新授权（应该成功） # 在浏览器中打开之前的授权 URL # 完成授权后查看成功页面 ``` ### 2. 验证数据保存 ```sql -- 查询数据库 SELECT name, email, drive_email,"
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 6,
+      "text": "```bash # 重新授权（应该成功） # 在浏览器中打开之前的授权 URL # 完成授权后查看成功页面 ``` ### 2. 验证数据保存 ```sql -- 查询数据库 SELECT name, email, drive_email, drive_access_token, drive_connected FROM public.users WHERE name = 'your_user_id'; ``` ### 3. 测试 Google Drive 连接 ```python from google_drive_sync import test_google_drive_connection # 使用保存的 access_token 测试 test_google_drive_connection(access_token) ``` --- ## 📝 下一步操作 1. **立即测试**：重新进行 Google OAuth 授权，应该可以成功 2. **长期方案**：选择上述永久解决方案之一 3. **添加 Token 刷新**：实现自动刷新 access_token 的功能 --- ## ⚡ 快速命令 ```bash # 测试 OAuth 授权 python google_oauth_real_flow.py --user-id=u_demo # 查看 Flask API 日志"
+    },
+    {
+      "file_id": "api_docs/SUPABASE_SCHEMA_CACHE_FIX.md",
+      "category": "api_docs",
+      "chunk_id": 7,
+      "text": "access_token 的功能 --- ## ⚡ 快速命令 ```bash # 测试 OAuth 授权 python google_oauth_real_flow.py --user-id=u_demo # 查看 Flask API 日志 # 在 Replit 控制台查看 \"Flask API\" workflow # 验证数据保存 # 在 Supabase 控制台查看 public.users 表 ``` --- **✅ 当前状态：OAuth 授权流程可以正常工作，只是暂时不保存 refresh_token。** **🔄 建议：稍后在 Supabase 控制台刷新 schema cache，然后恢复 refresh_token 的保存。**"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 0,
+      "text": "# ✅ 子AI记忆自动同步到 Google Drive - 功能说明 ## 📋 功能概述 现在 `child_ai_memory.py` 模块在生成子AI记忆后，会**自动同步**到用户的 Google Drive 云端。 --- ## 🔄 工作流程 ``` 1. 生成子AI记忆 batch_create_memories_from_insights(user_id) ↓ 2. 保存到 Supabase child_ai_memory 表 ✅ 记忆同步完成：新建 X 条，更新 Y 条 ↓ 3. 自动同步到 Google Drive ☁️ 正在上传子AI记忆到 Google Drive ... ↓ 4. 读取用户的 access_token（从 users 表） ↓ 5. 读取用户的记忆数据（从 child_ai_memory 表） ↓ 6. 上传到 Google Drive \"LynkerAI_Memories\" 文件夹 ✅ Google Drive 同步成功！ ``` --- ## 📝 代码修改详情 ### 1️⃣ `child_ai_memory.py` 的修改 **新增导入：** ```python from google_drive_sync import auto_sync_user_memories ``` **在 `batch_create_memories_from"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 1,
+      "text": "ry.py` 的修改 **新增导入：** ```python from google_drive_sync import auto_sync_user_memories ``` **在 `batch_create_memories_from_insights()` 函数结尾添加：** ```python # 自动同步到 Google Drive try: print(\"☁️ 正在上传子AI记忆到 Google Drive ...\") sync_result = auto_sync_user_memories(user_id) if sync_result.get(\"success\"): print(\"✅ Google Drive 同步成功！\") elif sync_result.get(\"skipped\"): print(f\"⚠️ Google Drive 同步跳过：{sync_result.get('error')}\") else: print(f\"⚠️ Google Drive 同步失败: {sync_result.get('error')}\") except Exception as e: print(f\"⚠️ Google Drive 同步失败: {e}\") ``` --- ### 2️⃣ `google_drive_sync.py` 新增函数 **新增 `auto_syn"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 2,
+      "text": "\") except Exception as e: print(f\"⚠️ Google Drive 同步失败: {e}\") ``` --- ### 2️⃣ `google_drive_sync.py` 新增函数 **新增 `auto_sync_user_memories(user_id)` 函数：** ```python def auto_sync_user_memories(user_id): \"\"\" 自动同步用户的子AI记忆到 Google Drive（一站式函数） 功能： 1. 从 Supabase users 表读取用户的 access_token 2. 从 child_ai_memory 表读取用户的记忆数据 3. 自动上传到 Google Drive 参数: user_id: 用户ID 返回: 同步结果字典 \"\"\" ``` **该函数自动处理：** - ✅ 检查用户是否绑定 Google Drive - ✅ 读取 access_token - ✅ 读取记忆数据 - ✅ 调用 Google Drive API 上传 --- ## 🧪 测试结果 ```bash $ python child_ai_memory.py ✅ 记忆同步完成：新建 0 条，更新 8 条 ☁️ 正在上传子AI记忆到 Google Drive ... ⚠️ Google Drive 同步失败: 无法创建"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 3,
+      "text": "试结果 ```bash $ python child_ai_memory.py ✅ 记忆同步完成：新建 0 条，更新 8 条 ☁️ 正在上传子AI记忆到 Google Drive ... ⚠️ Google Drive 同步失败: 无法创建文件夹 ``` **失败原因：** - 用户使用的是 `FAKE_TOKEN_*`（模拟 token） - 该 token 无法通过 Google API 验证 - **这是预期行为** ✅ **真实环境下：** - 用户完成真实 OAuth 授权 - 获得真实的 `access_token` - 同步将会成功 ✅ --- ## 📊 同步条件 ### ✅ 会同步的情况： 1. 用户已绑定 Google Drive（`drive_connected = TRUE`） 2. 用户有有效的 `access_token` 3. 用户有记忆数据（`child_ai_memory` 表不为空） ### ⚠️ 会跳过的情况： 1. 用户未绑定 Google Drive 2. 用户的 `access_token` 为空 3. 用户暂无记忆数据 ### ❌ 会失败的情况： 1. `access_token` 过期或无效 2. Google Drive API 连接异常 3. 网络问题 --- ## 📁 上传的文件格式 **文件名：** `lynker_ai_mem"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 4,
+      "text": "用户暂无记忆数据 ### ❌ 会失败的情况： 1. `access_token` 过期或无效 2. Google Drive API 连接异常 3. 网络问题 --- ## 📁 上传的文件格式 **文件名：** `lynker_ai_memories_{user_id}_{timestamp}.json` **示例：** `lynker_ai_memories_u_demo_20251019_121625.json` **文件内容：** ```json { \"user_id\": \"u_demo\", \"timestamp\": \"20251019_121625\", \"memories_count\": 8, \"data\": [ { \"id\": 1, \"user_id\": \"u_demo\", \"partner_id\": \"u_test1\", \"summary\": \"命格高度共振，彼此能深刻理解。\", \"tags\": [\"设计行业\", \"晚婚\"], \"similarity\": 0.911, \"interaction_count\": 3, \"last_interaction\": \"2025-10-19T12:16:24\", \"created_at\": \"2025-10-18T10:30:00\" }, ... ] } ``` --- ## 🔐 安全说明 1. **Token 保护** - `ac"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 5,
+      "text": "eraction\": \"2025-10-19T12:16:24\", \"created_at\": \"2025-10-18T10:30:00\" }, ... ] } ``` --- ## 🔐 安全说明 1. **Token 保护** - `access_token` 存储在 Supabase `users` 表 - 仅用于服务器端操作 - 不会暴露给前端 2. **权限范围** - 仅请求 `drive.file` 权限 - 只能访问应用自己创建的文件 3. **错误处理** - 同步失败不会影响记忆保存 - 使用 try-except 捕获异常 - 失败时显示友好的错误信息 --- ## 🚀 使用方法 ### 方法 1：自动同步（推荐） ```python from child_ai_memory import batch_create_memories_from_insights # 生成记忆并自动同步到 Google Drive count = batch_create_memories_from_insights(\"u_demo\", supabase) ``` ### 方法 2：手动同步 ```python from google_drive_sync import auto_sync_user_memories # 仅同步到 Google Drive（不生成新记忆） resu"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 6,
+      "text": "base) ``` ### 方法 2：手动同步 ```python from google_drive_sync import auto_sync_user_memories # 仅同步到 Google Drive（不生成新记忆） result = auto_sync_user_memories(\"u_demo\") ``` --- ## 📈 执行日志示例 ### ✅ 成功情况（真实 token） ``` ✅ 记忆同步完成：新建 5 条，更新 3 条 ☁️ 正在上传子AI记忆到 Google Drive ... ✅ 找到已存在的文件夹：LynkerAI_Memories ✅ 文件已上传到 Google Drive：lynker_ai_memories_u_demo_20251019_121625.json ✅ Google Drive 同步成功！ ``` ### ⚠️ 跳过情况（未绑定） ``` ✅ 记忆同步完成：新建 5 条，更新 3 条 ☁️ 正在上传子AI记忆到 Google Drive ... ⚠️ Google Drive 同步跳过：用户未绑定 Google Drive ``` ### ❌ 失败情况（token 无效） ``` ✅ 记忆同步完成：新建 5 条，更新 3 条 ☁️ 正在上传子AI记忆到 Google Drive ... ❌ 创建文件夹失败：Invalid Cr"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 7,
+      "text": "未绑定 Google Drive ``` ### ❌ 失败情况（token 无效） ``` ✅ 记忆同步完成：新建 5 条，更新 3 条 ☁️ 正在上传子AI记忆到 Google Drive ... ❌ 创建文件夹失败：Invalid Credentials ⚠️ Google Drive 同步失败: 无法创建文件夹 ``` --- ## 🎯 后续优化建议 1. **Token 刷新机制** - 实现 `refresh_token` 自动刷新 - 避免 token 过期导致同步失败 2. **增量同步** - 只上传新增或更新的记忆 - 避免重复上传相同数据 3. **后台任务** - 将同步改为异步任务 - 避免阻塞主流程 4. **同步状态记录** - 在 `child_ai_memory` 表添加 `synced_to_drive` 字段 - 记录最后同步时间 --- ## 📁 相关文件 - **`child_ai_memory.py`** - 子AI记忆模块（已修改） - **`google_drive_sync.py`** - Google Drive 同步模块（已添加新函数） - **`google_drive_auth_flow.py`** - 绑定流程模拟器 - **`fix_supabase_users_schema.py`** - 自动修复表结构 --- **🎉"
+    },
+    {
+      "file_id": "api_docs/CHILD_AI_GDRIVE_SYNC.md",
+      "category": "api_docs",
+      "chunk_id": 8,
+      "text": "le Drive 同步模块（已添加新函数） - **`google_drive_auth_flow.py`** - 绑定流程模拟器 - **`fix_supabase_users_schema.py`** - 自动修复表结构 --- **🎉 功能已完成！子AI记忆现在会自动同步到用户的 Google Drive 云端！**"
+    }
+  ]
+}
