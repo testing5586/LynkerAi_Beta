@@ -9,11 +9,14 @@
 from flask import Flask, request, jsonify
 import os
 import subprocess
+import json
 from werkzeug.utils import secure_filename
 from upload_logger import log_upload, get_upload_stats, get_upload_history
 from master_ai_memory_bridge import bridge_new_uploads_to_memory
+from supabase_init import get_supabase
 
 app = Flask(__name__)
+supabase = get_supabase()
 
 UPLOAD_DIR = "uploaded_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -111,6 +114,57 @@ def upload_stats():
     stats = get_upload_stats()
     return jsonify(stats)
 
+@app.route("/api/master-ai/memory", methods=["GET"])
+def get_ai_memory():
+    """返回子AI记忆内容，可按 user_id 或 tags 过滤"""
+    try:
+        user_id = request.args.get("user_id")
+        tag = request.args.get("tag")
+        limit = int(request.args.get("limit", 20))
+        
+        print(f"🧠 Memory API 请求 → user_id={user_id}, tag={tag}, limit={limit}")
+
+        query = supabase.table("child_ai_memory").select("*").order("last_interaction", desc=True).limit(limit)
+        if user_id:
+            query = query.eq("user_id", user_id)
+        if tag:
+            query = query.filter("tags", "cs", json.dumps([tag]))
+
+        response = query.execute()
+        data = response.data if hasattr(response, "data") else response
+        
+        print(f"✅ 返回 {len(data)} 条记忆记录")
+        return jsonify({"status": "ok", "count": len(data), "memories": data})
+
+    except Exception as e:
+        print(f"⚠️ Memory API 错误: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/master-ai/memory/search", methods=["GET"])
+def search_memory():
+    """模糊搜索 summary 内容"""
+    keyword = request.args.get("q", "")
+    limit = int(request.args.get("limit", 20))
+    
+    if not keyword:
+        return jsonify({"status": "error", "message": "Missing query parameter 'q'"}), 400
+
+    try:
+        if not supabase:
+            return jsonify({"status": "error", "message": "Supabase not available"}), 500
+        
+        print(f"🔍 Memory 搜索 → 关键词='{keyword}', limit={limit}")
+        response = supabase.table("child_ai_memory").select("*").ilike("summary", f"%{keyword}%").order("last_interaction", desc=True).limit(limit).execute()
+        data = response.data if hasattr(response, "data") else []
+        
+        print(f"✅ 搜索返回 {len(data)} 条结果")
+        return jsonify({"status": "ok", "count": len(data), "results": data})
+        
+    except Exception as e:
+        import traceback
+        print(f"⚠️ 搜索错误: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/")
 def index():
     return """
@@ -124,6 +178,8 @@ def index():
             <li><code>GET /api/master-ai/context</code> - 查看 Vault 状态</li>
             <li><code>GET /api/master-ai/upload-history</code> - 上传历史记录</li>
             <li><code>GET /api/master-ai/upload-stats</code> - 上传统计信息</li>
+            <li><code>GET /api/master-ai/memory</code> - 查询子AI记忆（支持 user_id, tag, limit 参数）</li>
+            <li><code>GET /api/master-ai/memory/search</code> - 搜索记忆内容（参数: q, limit）</li>
         </ul>
         <h3>🔗 快速访问</h3>
         <ul>
@@ -131,6 +187,8 @@ def index():
             <li>📚 <a href="/api/master-ai/context">查看 Vault 内容</a></li>
             <li>📊 <a href="/api/master-ai/upload-stats">查看上传统计</a></li>
             <li>📜 <a href="/api/master-ai/upload-history">查看上传历史</a></li>
+            <li>🧠 <a href="/api/master-ai/memory?limit=10">查询子AI记忆</a></li>
+            <li>🔍 <a href="/api/master-ai/memory/search?q=文档&limit=5">搜索记忆内容</a></li>
         </ul>
     </body>
     </html>

@@ -34,10 +34,6 @@ args = "Flask API"
 task = "workflow.run"
 args = "Upload API"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Memory API"
-
 [[workflows.workflow]]
 name = "Flask API"
 author = "agent"
@@ -61,18 +57,6 @@ outputType = "console"
 task = "shell.exec"
 args = "python master_ai_uploader_api.py"
 waitForPort = 8008
-
-[[workflows.workflow]]
-name = "Memory API"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python master_ai_memory_api.py"
-waitForPort = 9000
 
 [[ports]]
 localPort = 5000
