@@ -110,7 +110,6 @@ def handle_google_callback(code):
                 "email": email,
                 "drive_email": email,
                 "drive_access_token": access_token,
-                "drive_refresh_token": refresh_token,
                 "drive_connected": True,
                 "updated_at": datetime.now().isoformat()
             }).execute()
