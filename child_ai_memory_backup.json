@@ -1,0 +1,58 @@
+{
+  "last_sync": "2025-10-21T12:10:03.201988",
+  "total_synced": 3,
+  "memories": [
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_memory_test_v2.md",
+      "summary": "# AI 记忆系统测试 V2\n\n验证记忆桥接功能是否正常工作。\n\n## 测试内容\n1. 文件上传\n2. 日志记录\n3. 数据库同步",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-21T12:09:10.047776"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_test_upload_log.md",
+      "summary": "# 测试文档 - AI 自学习记忆系统\n\n这是一个测试文档，用于验证 Lynker Master Vault 的自动日志记录功能。\n\n## 功能特性\n- 自动记录上传时间\n- 自动提取文件摘要\n- 自...",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-21T11:54:12.390613"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_memory_bridge_test.md",
+      "summary": "# Master AI 记忆桥测试文档\n\n这是一个测试文档，用于验证 Master AI Memory Bridge 功能。\n\n## 功能验证\n- 自动同步上传日志到 child_ai_memory ...",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-21T12:08:07.074515"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_memory_test_v2.md",
+      "summary": "# AI 记忆系统测试 V2\n\n验证记忆桥接功能是否正常工作。\n\n## 测试内容\n1. 文件上传\n2. 日志记录\n3. 数据库同步",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-21T12:09:10.047776"
+    }
+  ]
+}

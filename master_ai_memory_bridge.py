@@ -60,7 +60,7 @@ def bridge_new_uploads_to_memory(limit=3):
         uploaded_by = entry.get("uploaded_by", "unknown")
         timestamp = entry.get("timestamp", datetime.now().isoformat())
         
-        # 构建记忆记录
+        # 构建记忆记录（避免 Supabase schema cache 问题）
         memory = {
             "user_id": uploaded_by,
             "partner_id": f"doc_{filename}",  # 以文件名作记忆对象标识
@@ -68,9 +68,7 @@ def bridge_new_uploads_to_memory(limit=3):
             "tags": [category, "document", "vault"],
             "similarity": 0.95,  # 文档上传默认高相似度
             "interaction_count": 1,
-            "last_interaction": timestamp,
-            "created_at": timestamp,
-            "updated_at": timestamp
+            "last_interaction": timestamp
         }
         
         try:

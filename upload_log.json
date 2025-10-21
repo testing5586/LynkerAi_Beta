@@ -6,5 +6,21 @@
     "timestamp": "2025-10-21T11:54:12.390613",
     "summary": "# 测试文档 - AI 自学习记忆系统\n\n这是一个测试文档，用于验证 Lynker Master Vault 的自动日志记录功能。\n\n## 功能特性\n- 自动记录上传时间\n- 自动提取文件摘要\n- 自...",
     "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/test_upload_log.md → project_docs/test_upload_log.md"
+  },
+  {
+    "filename": "memory_bridge_test.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-21T12:08:07.074515",
+    "summary": "# Master AI 记忆桥测试文档\n\n这是一个测试文档，用于验证 Master AI Memory Bridge 功能。\n\n## 功能验证\n- 自动同步上传日志到 child_ai_memory ...",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/memory_bridge_test.md → project_docs/memory_bridge_test.md"
+  },
+  {
+    "filename": "memory_test_v2.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-21T12:09:10.047776",
+    "summary": "# AI 记忆系统测试 V2\n\n验证记忆桥接功能是否正常工作。\n\n## 测试内容\n1. 文件上传\n2. 日志记录\n3. 数据库同步",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/memory_test_v2.md → project_docs/memory_test_v2.md"
   }
 ]
