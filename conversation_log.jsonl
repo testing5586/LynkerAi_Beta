@@ -2,3 +2,10 @@
 {"event": "send", "from": "user", "to": "master", "type": "message", "text": "我想了解我的八字分析", "ts": "2025-10-22 13:43:19"}
 {"event": "callback", "task_id": "t_1761140597992", "child_id": "child_bazi", "status": "done", "result": {"summary": "命盘验证完成", "score": 0.85}, "ts": "2025-10-22 13:43:31"}
 {"event": "ack", "task_id": "t_1761140597992", "ack_by": "master", "ts": "2025-10-22 13:43:33"}
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "verify_chart", "payload": {"user_id": "u456", "chart_data": "测试数据"}, "text": "请验证新命盘", "task_id": "t_1761141014541", "ts": "2025-10-22 13:50:14"}
+{"event": "callback", "task_id": "t_1761141014541", "child_id": "child_bazi", "status": "done", "result": {"summary": "命盘验证完成（可靠版）", "score": 0.92}, "ts": "2025-10-22 13:50:30"}
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_4", "payload": {"test": 4}, "task_id": "t_1761141243040", "ts": "2025-10-22 13:54:03"}
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_5", "payload": {"test": 5}, "task_id": "t_1761141243054", "ts": "2025-10-22 13:54:03"}
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_3", "payload": {"test": 3}, "task_id": "t_1761141243064", "ts": "2025-10-22 13:54:03"}
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_2", "payload": {"test": 2}, "task_id": "t_1761141243066", "ts": "2025-10-22 13:54:03"}
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_1", "payload": {"test": 1}, "task_id": "t_1761141243083", "ts": "2025-10-22 13:54:03"}
