@@ -1,0 +1,126 @@
+echo "⚙️ 创建 Lynker Master 三方全屏聊天界面..."
+
+cat > tri_chat_full.jsx <<'JSX'
+import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { MessageCircle, Brain, Bot, User } from "lucide-react";
+import { Card } from "@/components/ui/card";
+
+export default function TriChatFull() {
+  const [logs, setLogs] = useState([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const containerRef = useRef(null);
+
+  const fetchLogs = async () => {
+    const res = await fetch("/api/relay/logs?limit=100");
+    const data = await res.json();
+    setLogs(data.logs || []);
+  };
+
+  useEffect(() => {
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const sendMsg = async () => {
+    if (!input.trim()) return;
+    setSending(true);
+    await fetch("/api/relay/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Relay-API-Key": "lynker_relay_secret_2025",
+      },
+      body: JSON.stringify({
+        from: "user",
+        to: "master",
+        type: "message",
+        text: input.trim(),
+      }),
+    });
+    setInput("");
+    setSending(false);
+    setTimeout(fetchLogs, 1500);
+  };
+
+  const formatTime = (ts) => (ts ? ts.split(" ")[1] : "");
+
+  const getRole = (r) => {
+    if (r === "master") return { label: "Master AI", icon: <Brain size={16} />, color: "bg-purple-500" };
+    if (r === "child") return { label: "Child AI", icon: <Bot size={16} />, color: "bg-emerald-500" };
+    if (r === "user") return { label: "You", icon: <User size={16} />, color: "bg-blue-500" };
+    return { label: "System", icon: <MessageCircle size={16} />, color: "bg-gray-500" };
+  };
+
+  return (
+    <div className="w-screen h-screen flex flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4" ref={containerRef}>
+        {logs.map((log, i) => {
+          const role = getRole(log.from || log.child_id ? "child" : log.from || "system");
+          const align = log.from === "user" ? "items-end text-right" : "items-start";
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`flex flex-col ${align} group`}
+            >
+              <div className="flex items-center gap-2 opacity-80 text-xs mb-1">
+                <div className={`rounded-full px-2 py-0.5 ${role.color} text-white text-[10px] flex items-center gap-1`}>
+                  {role.icon} {role.label}
+                </div>
+                <span>{formatTime(log.ts)}</span>
+              </div>
+
+              <Card
+                className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed backdrop-blur-md bg-white/10 border border-white/10 hover:scale-[1.02] transition-transform cursor-zoom-in hover:cursor-grab overflow-x-auto`}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                  e.currentTarget.style.zIndex = "10";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.zIndex = "0";
+                }}
+              >
+                <pre className="whitespace-pre-wrap break-words">{JSON.stringify(log.text || log.result || log, null, 2)}</pre>
+              </Card>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* 输入框 */}
+      <div className="p-4 border-t border-white/10 flex items-center gap-3 bg-slate-900/80 backdrop-blur-md">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMsg()}
+          placeholder="输入问题给 Master AI..."
+          className="flex-1 bg-slate-800 text-white rounded-xl px-4 py-2 outline-none border border-white/10 focus:border-purple-400"
+        />
+        <button
+          onClick={sendMsg}
+          disabled={sending}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-xl transition disabled:opacity-50"
+        >
+          {sending ? "发送中…" : "发送"}
+        </button>
+      </div>
+    </div>
+  );
+}
+JSX
+
+echo "✅ tri_chat_full.jsx 已创建。"
+
+# 启动指引
+echo "
+🎯 使用方法：
+1️⃣ 把 tri_chat_full.jsx 加入你的前端（或在 Replit HTML Embed 模式预览）
+2️⃣ 确保 Flask API 正在运行在端口 8008
+3️⃣ 访问： https://YOUR_REPL_URL:8008/tri-chat （稍后我可以帮你加个 /tri-chat 路由）
+"

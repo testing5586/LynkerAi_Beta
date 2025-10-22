@@ -9,3 +9,4 @@
 {"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_3", "payload": {"test": 3}, "task_id": "t_1761141243064", "ts": "2025-10-22 13:54:03"}
 {"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_2", "payload": {"test": 2}, "task_id": "t_1761141243066", "ts": "2025-10-22 13:54:03"}
 {"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_1", "payload": {"test": 1}, "task_id": "t_1761141243083", "ts": "2025-10-22 13:54:03"}
+{"event": "send", "from": "user", "to": "master", "type": "message", "text": "你好，这是来自三方聊天界面的测试消息！", "ts": "2025-10-22 14:16:58"}

@@ -251,6 +251,14 @@ def master_ai_dashboard():
     with open("static/master_ai_dashboard.html", "r", encoding="utf-8") as f:
         return f.read()
 
+@app.route("/tri-chat")
+def tri_chat():
+    """三方协作聊天界面 - Master ↔ Child ↔ User"""
+    try:
+        return send_file("static/tri_chat.html")
+    except FileNotFoundError:
+        return jsonify({"error": "三方聊天界面文件未找到"}), 404
+
 @app.route("/")
 def index():
     return """
@@ -275,6 +283,7 @@ def index():
         <h3>🔗 快速访问</h3>
         <ul>
             <li>💬 <a href="/chat" style="color: #6B46C1; font-weight: bold; font-size: 16px;">🤖 RAG Chat（智能问答）</a></li>
+            <li>🔀 <a href="/tri-chat" style="color: #8B5CF6; font-weight: bold; font-size: 16px;">💬 三方协作聊天（Master ↔ Child ↔ User）</a></li>
             <li>📤 <a href="/upload" style="color: #007bff; font-weight: bold;">手动上传文件测试</a></li>
             <li>📚 <a href="/api/master-ai/context">查看 Vault 内容</a></li>
             <li>📊 <a href="/api/master-ai/upload-stats">查看上传统计</a></li>
