@@ -1,0 +1,4 @@
+{"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "verify_chart", "payload": {"user_id": "u123", "chart_data": "八字数据"}, "text": "请验证此命盘", "task_id": "t_1761140597992", "ts": "2025-10-22 13:43:17"}
+{"event": "send", "from": "user", "to": "master", "type": "message", "text": "我想了解我的八字分析", "ts": "2025-10-22 13:43:19"}
+{"event": "callback", "task_id": "t_1761140597992", "child_id": "child_bazi", "status": "done", "result": {"summary": "命盘验证完成", "score": 0.85}, "ts": "2025-10-22 13:43:31"}
+{"event": "ack", "task_id": "t_1761140597992", "ack_by": "master", "ts": "2025-10-22 13:43:33"}
