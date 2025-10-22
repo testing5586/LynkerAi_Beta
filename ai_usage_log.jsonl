@@ -1,0 +1,2 @@
+{"timestamp": "2025-10-22 13:15:03", "provider": "chatgpt", "query_preview": "你是 Lynker Master AI，擅长命理、八字、紫微斗数与铁板神数。\n\n我从知识库中检索到以下相关资料：\n\n【p...", "query_length": 1096, "token_usage": {}, "latency": 5.654, "success": true, "error": null, "fallback_used": false}
+{"timestamp": "2025-10-22 13:15:44", "provider": "test", "query_preview": "test prompt", "query_length": 11, "token_usage": 100, "latency": 1.5, "success": true, "error": null, "fallback_used": false}

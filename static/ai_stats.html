@@ -317,26 +317,39 @@
         }
 
         function renderDashboard(stats) {
+            const totalSuccessful = Object.values(stats.by_provider).reduce((sum, p) => sum + p.success_count, 0);
+            const totalCalls = stats.total_calls || 0;
+            const successRate = totalCalls > 0 ? ((totalSuccessful / totalCalls) * 100).toFixed(1) : 0;
+            
+            const allLatencies = Object.values(stats.by_provider)
+                .map(p => p.avg_latency)
+                .filter(l => l !== null);
+            const avgLatency = allLatencies.length > 0 
+                ? (allLatencies.reduce((sum, l) => sum + l, 0) / allLatencies.length).toFixed(3)
+                : 'N/A';
+            
+            const totalTokens = Object.values(stats.by_provider).reduce((sum, p) => sum + (p.total_tokens || 0), 0);
+            
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = `
                 <div class="card">
                     <h3><span class="icon">📞</span>总调用次数</h3>
-                    <div class="stat-value">${stats.total_calls}</div>
+                    <div class="stat-value">${totalCalls}</div>
                     <div class="stat-label">累计 API 调用</div>
                 </div>
                 <div class="card">
                     <h3><span class="icon">✅</span>成功率</h3>
-                    <div class="stat-value success-rate">${stats.success_rate}%</div>
-                    <div class="stat-label">${stats.successful_calls} / ${stats.total_calls}</div>
+                    <div class="stat-value success-rate">${successRate}%</div>
+                    <div class="stat-label">${totalSuccessful} / ${totalCalls}</div>
                 </div>
                 <div class="card">
                     <h3><span class="icon">⚡</span>平均延迟</h3>
-                    <div class="stat-value">${stats.avg_latency}s</div>
+                    <div class="stat-value">${avgLatency}${avgLatency !== 'N/A' ? 's' : ''}</div>
                     <div class="stat-label">响应时间</div>
                 </div>
                 <div class="card">
                     <h3><span class="icon">🪙</span>总 Token 消耗</h3>
-                    <div class="stat-value">${stats.total_tokens || 0}</div>
+                    <div class="stat-value">${totalTokens}</div>
                     <div class="stat-label">Token 使用量</div>
                 </div>
             `;
@@ -380,13 +393,13 @@
                             ${log.success ? '✅ 成功' : '❌ 失败'}
                         </span>
                     </td>
-                    <td>${log.latency.toFixed(3)}s</td>
-                    <td>${log.tokens_used || 'N/A'}</td>
+                    <td>${log.latency ? log.latency.toFixed(3) : 'N/A'}s</td>
+                    <td>${log.token_usage && typeof log.token_usage === 'object' ? JSON.stringify(log.token_usage) : (log.token_usage || 'N/A')}</td>
                     <td>
-                        ${log.is_fallback ? '<span class="badge badge-fallback">🔄 Fallback</span>' : '-'}
+                        ${log.fallback_used ? '<span class="badge badge-fallback">🔄 Fallback</span>' : '-'}
                     </td>
                     <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        ${log.prompt.substring(0, 50)}...
+                        ${log.query_preview || 'N/A'}
                     </td>
                 </tr>
             `).join('');
