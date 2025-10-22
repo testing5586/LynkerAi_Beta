@@ -2,9 +2,16 @@ import os
 import requests
 import json
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from supabase import create_client, Client
 from match_palace import calculate_match_score
+
+try:
+    from vector_search import search as rag_search
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+    print("⚠️ RAG 模块未找到，Chat 功能将不可用")
 
 # ===============================
 # 初始化
@@ -338,6 +345,69 @@ def login_refresh():
     return jsonify(result)
 
 
+@app.route("/chat")
+def chat_page():
+    """RAG Chat 界面"""
+    try:
+        return send_file("static/chat.html")
+    except FileNotFoundError:
+        return jsonify({"error": "Chat 页面文件未找到"}), 404
+
+@app.route("/api/master-ai/chat", methods=["POST"])
+def master_ai_chat():
+    """RAG：从 Vault 中检索相关片段并生成简要回答"""
+    if not RAG_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "RAG 功能未启用，请先运行 python vector_indexer.py --rebuild"
+        }), 503
+    
+    try:
+        data = request.get_json(force=True)
+        query = (data.get("query") or "").strip()
+        topk  = int(data.get("topk") or 5)
+        
+        if not query:
+            return jsonify({"status": "error", "message": "缺少 query 参数"}), 400
+
+        print(f"💬 RAG Chat 查询: {query[:50]}...")
+        
+        hits = rag_search(query, topk=topk)
+        
+        if not hits:
+            return jsonify({
+                "status": "ok",
+                "answer": "没有在 Vault 中找到相关资料。",
+                "citations": []
+            })
+
+        bullets = []
+        for h in hits:
+            txt = h["text"].strip()
+            if len(txt) > 180:
+                txt = txt[:180] + "..."
+            bullets.append(f"• 来自《{h['file_id']}》：{txt}")
+        
+        answer = "基于知识库检索，我找到以下要点：\n" + "\n".join(bullets) + "\n\n（以上为自动检索摘要，详情请查看引用片段与原文档）"
+        
+        print(f"✅ 返回 {len(hits)} 条引用")
+        
+        return jsonify({
+            "status": "ok",
+            "answer": answer,
+            "citations": hits
+        })
+        
+    except FileNotFoundError as e:
+        return jsonify({
+            "status": "error",
+            "message": "向量索引未找到，请先运行：python vector_indexer.py --rebuild"
+        }), 404
+    except Exception as e:
+        import traceback
+        print(f"⚠️ RAG Chat 错误: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/master-ai/memory", methods=["GET"])
 def get_ai_memory():
     """返回子AI记忆内容，可按 user_id 或 tags 过滤"""
@@ -407,6 +477,7 @@ def health_check():
         "endpoints": {
             "oauth_callback": ["/", "/callback", "/oauth2callback"],
             "api": ["/login_refresh", "/health"],
+            "rag_chat": ["/chat", "/api/master-ai/chat"],
             "memory_api": ["/api/master-ai/memory", "/api/master-ai/memory/search"],
             "dashboard": ["/master-ai-memory"]
         }
