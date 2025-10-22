@@ -2,12 +2,21 @@
 多模型 AI 调用模块
 支持 ChatGPT、Gemini、ChatGLM、DeepSeek 等多个 AI 提供商
 自动 fallback 机制确保高可用性
+集成性能监控和使用统计
 """
 
 import os
 import json
+import time
 import httpx
 from typing import Optional, List, Dict, Tuple
+
+try:
+    from ai_usage_logger import log_ai_usage
+    LOGGER_AVAILABLE = True
+except ImportError:
+    LOGGER_AVAILABLE = False
+    print("⚠️ ai_usage_logger 未找到，性能监控将不可用")
 
 try:
     from openai import OpenAI
@@ -181,7 +190,7 @@ class MultiModelAI:
     @classmethod
     def call(cls, provider: str, prompt: str, system_prompt: str = None, enable_fallback: bool = True) -> Dict:
         """
-        统一的多模型调用接口
+        统一的多模型调用接口（集成性能监控）
         
         Args:
             provider: 模型提供商 (chatgpt/gemini/glm/deepseek)
@@ -195,7 +204,8 @@ class MultiModelAI:
                 "provider": str,
                 "answer": str,
                 "error": str,
-                "fallback_used": bool
+                "fallback_used": bool,
+                "latency": float
             }
         """
         provider = (provider or "chatgpt").lower()
@@ -218,16 +228,25 @@ class MultiModelAI:
         if provider not in provider_map:
             normalized_provider = "chatgpt"
         
+        start_time = time.time()
         answer, error = provider_map[normalized_provider](prompt, system_prompt)
+        latency = time.time() - start_time
         
         if answer:
+            if LOGGER_AVAILABLE:
+                log_ai_usage(normalized_provider, prompt, None, latency, True, None, False)
+            
             return {
                 "success": True,
                 "provider": normalized_provider,
                 "answer": answer,
                 "error": None,
-                "fallback_used": False
+                "fallback_used": False,
+                "latency": round(latency, 3)
             }
+        
+        if LOGGER_AVAILABLE:
+            log_ai_usage(normalized_provider, prompt, None, latency, False, error, False)
         
         if not enable_fallback:
             return {
@@ -235,7 +254,8 @@ class MultiModelAI:
                 "provider": normalized_provider,
                 "answer": None,
                 "error": error,
-                "fallback_used": False
+                "fallback_used": False,
+                "latency": round(latency, 3)
             }
         
         print(f"🔄 {normalized_provider} 失败，尝试 fallback...")
@@ -245,23 +265,36 @@ class MultiModelAI:
                 continue
             
             if fallback_provider in provider_map:
+                start_time = time.time()
                 answer, error = provider_map[fallback_provider](prompt, system_prompt)
+                fallback_latency = time.time() - start_time
+                
                 if answer:
                     print(f"✅ Fallback 成功，使用 {fallback_provider}")
+                    
+                    if LOGGER_AVAILABLE:
+                        log_ai_usage(fallback_provider, prompt, None, fallback_latency, True, None, True)
+                    
                     return {
                         "success": True,
                         "provider": fallback_provider,
                         "answer": answer,
                         "error": None,
-                        "fallback_used": True
+                        "fallback_used": True,
+                        "latency": round(fallback_latency, 3)
                     }
+                else:
+                    if LOGGER_AVAILABLE:
+                        log_ai_usage(fallback_provider, prompt, None, fallback_latency, False, error, True)
         
+        total_latency = time.time() - start_time
         return {
             "success": False,
             "provider": normalized_provider,
             "answer": None,
             "error": "所有模型均未响应",
-            "fallback_used": True
+            "fallback_used": True,
+            "latency": round(total_latency, 3)
         }
     
     @classmethod
