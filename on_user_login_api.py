@@ -20,6 +20,13 @@ except ImportError:
     MULTI_MODEL_AVAILABLE = False
     print("⚠️ 多模型 AI 模块未找到，将使用基础 RAG")
 
+try:
+    from ai_usage_logger import summarize_ai_stats, get_ai_usage_logs, get_hourly_stats
+    AI_LOGGER_AVAILABLE = True
+except ImportError:
+    AI_LOGGER_AVAILABLE = False
+    print("⚠️ AI 日志模块未找到，性能监控将不可用")
+
 # ===============================
 # 初始化
 # ===============================
@@ -374,6 +381,61 @@ def get_ai_providers():
         "status": "ok",
         "providers": providers
     })
+
+@app.route("/api/master-ai/usage-stats", methods=["GET"])
+def get_usage_stats():
+    """获取 AI Provider 使用统计"""
+    if not AI_LOGGER_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "性能监控功能未启用"
+        }), 503
+    
+    stats = summarize_ai_stats()
+    return jsonify({
+        "status": "ok",
+        "stats": stats
+    })
+
+@app.route("/api/master-ai/usage-logs", methods=["GET"])
+def get_usage_logs():
+    """获取最近的 AI 使用日志"""
+    if not AI_LOGGER_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "性能监控功能未启用"
+        }), 503
+    
+    limit = int(request.args.get("limit", 50))
+    logs = get_ai_usage_logs(limit)
+    return jsonify({
+        "status": "ok",
+        "logs": logs
+    })
+
+@app.route("/api/master-ai/usage-hourly", methods=["GET"])
+def get_usage_hourly():
+    """获取按小时分组的使用统计"""
+    if not AI_LOGGER_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "性能监控功能未启用"
+        }), 503
+    
+    hours = int(request.args.get("hours", 24))
+    hourly_stats = get_hourly_stats(hours)
+    return jsonify({
+        "status": "ok",
+        "hourly_stats": hourly_stats
+    })
+
+@app.route("/ai-stats")
+def ai_stats_page():
+    """AI 性能监控面板页面"""
+    try:
+        return send_file("static/ai_stats.html")
+    except FileNotFoundError:
+        return jsonify({"error": "AI 统计页面文件未找到"}), 404
 
 @app.route("/api/master-ai/chat", methods=["POST"])
 def master_ai_chat():
