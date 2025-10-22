@@ -1,0 +1,185 @@
+echo "⚙️ Installing bus & logs for Master–Child–User collaboration..."
+
+# 0) 依赖（仅用到 Flask 已有；这里保证 httpx 在）
+pip install httpx > /dev/null 2>&1 || true
+
+# 1) 三方消息/对话日志：conversation_bus.py
+cat > conversation_bus.py <<'PY'
+"""
+Master–Child–User 三方协作的最小实现：
+- JSONL 作为事件总线（简洁可靠）
+- /api/relay/send    -> Master 指派任务给 Child（或直接消息）
+- /api/relay/callback-> Child 执行完成回传结果
+- /api/relay/logs    -> 拉取最近 N 条对话/事件
+- /api/relay/ack     -> （可选）对消息进行确认
+- 全部写入 conversation_log.jsonl，面向审计与回放
+"""
+import os, json, time, threading
+from typing import Dict, Any, List
+from flask import Blueprint, request, jsonify
+
+bp = Blueprint("relay", __name__)
+LOG_FILE = "conversation_log.jsonl"
+_lock = threading.Lock()
+
+def _append_log(record: Dict[str, Any]):
+    record.setdefault("ts", time.strftime("%Y-%m-%d %H:%M:%S"))
+    with _lock:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+def _read_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    if not os.path.exists(LOG_FILE): return []
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        lines = f.readlines()[-limit:]
+    return [json.loads(x) for x in lines]
+
+@bp.route("/api/relay/send", methods=["POST"])
+def relay_send():
+    """
+    Master -> Child 或 User -> Master 的通用发送接口
+    body:
+    {
+      "from": "master" | "user",
+      "to":   "child" | "master",
+      "type": "task" | "message",
+      "task_id": "t_xxx",        # type=task 时可选/自动生成
+      "cmd": "generate_report",  # 任务命令（可选）
+      "payload": {...},          # 任务参数
+      "text": "自然语言"          # 自由文本
+    }
+    """
+    data = request.get_json(force=True)
+    if not data or not data.get("from") or not data.get("to"):
+        return jsonify({"status":"error","msg":"missing from/to"}), 400
+
+    # 简单自动 task_id
+    if data.get("type") == "task" and not data.get("task_id"):
+        data["task_id"] = f"t_{int(time.time()*1000)}"
+
+    _append_log({"event":"send", **data})
+    return jsonify({"status":"ok", "task_id": data.get("task_id")})
+
+@bp.route("/api/relay/callback", methods=["POST"])
+def relay_callback():
+    """
+    Child -> Master 任务回调
+    body:
+    {
+      "task_id":"t_xxx",
+      "child_id": "child_bazi",
+      "status": "done" | "failed",
+      "result": {...} | "文本"
+    }
+    """
+    data = request.get_json(force=True)
+    if not data or not data.get("task_id"):
+        return jsonify({"status":"error","msg":"missing task_id"}), 400
+    _append_log({"event":"callback", **data})
+    return jsonify({"status":"ok"})
+
+@bp.route("/api/relay/logs", methods=["GET"])
+def relay_logs():
+    limit = int(request.args.get("limit", 100))
+    return jsonify({"status":"ok","logs":_read_logs(limit)})
+
+@bp.route("/api/relay/ack", methods=["POST"])
+def relay_ack():
+    """
+    （可选）对消息确认
+    body: { "task_id":"t_xxx", "ack_by":"master|child" }
+    """
+    data = request.get_json(force=True)
+    if not data or not data.get("task_id"):
+        return jsonify({"status":"error","msg":"missing task_id"}), 400
+    _append_log({"event":"ack", **data})
+    return jsonify({"status":"ok"})
+PY
+
+# 2) 简易 child ai 执行器：child_worker_mock.py
+cat > child_worker_mock.py <<'PY'
+"""
+Child AI 伪执行器（本地模拟）：
+- 拉取 conversation_log.jsonl 里的 task 事件（to=child）
+- 根据 cmd 简单处理后，向 /api/relay/callback 回传结果
+实际部署时，你可以把这个文件独立运行在子 AI 的容器/函数里。
+"""
+import json, time, os, requests
+
+API_BASE = os.getenv("LYNKER_API_BASE", "http://127.0.0.1:8008")  # 你的 Flask 服务地址
+LOG_FILE = "conversation_log.jsonl"
+SEEN = set()
+
+def iter_tasks():
+    if not os.path.exists(LOG_FILE): return []
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            try:
+                r = json.loads(line)
+                if r.get("event")=="send" and r.get("to")=="child" and r.get("type")=="task":
+                    yield r
+            except: 
+                continue
+
+def handle_task(task):
+    cmd = task.get("cmd")
+    payload = task.get("payload", {})
+    # 这里写你的子 AI 具体逻辑（命理分析/报告/验证等）
+    if cmd == "verify_chart":
+        result = {"summary":"已根据 Vault 规则初检命盘轨迹一致性","score":0.72}
+    elif cmd == "generate_brief":
+        result = {"brief": f"根据资料，{payload.get('topic','主题')} 初步要点已生成。"}
+    else:
+        result = {"echo": payload}
+    return result
+
+def main():
+    print("🧒 Child Worker mock running...")
+    while True:
+        for t in iter_tasks():
+            tid = t.get("task_id")
+            if tid in SEEN: 
+                continue
+            SEEN.add(tid)
+            res = handle_task(t)
+            # 回调
+            requests.post(f"{API_BASE}/api/relay/callback", json={
+                "task_id": tid,
+                "child_id": "child_bazi",
+                "status": "done",
+                "result": res
+            })
+        time.sleep(2)
+
+if __name__ == "__main__":
+    main()
+PY
+
+# 3) 将 bus 蓝图接入到主 API：master_ai_uploader_api.py
+python - <<'PY'
+import re, io, sys
+
+p = "master_ai_uploader_api.py"
+src = open(p, "r", encoding="utf-8").read()
+
+if "from conversation_bus import bp as relay_bp" in src:
+    print("✅ relay bus 已挂载过，跳过。")
+    sys.exit(0)
+
+# 在文件顶部 imports 后注入
+src = src.replace("from flask import Flask, request, jsonify",
+                  "from flask import Flask, request, jsonify\nfrom conversation_bus import bp as relay_bp")
+
+# 在 app 创建位置之后挂载蓝图
+src = src.replace("app = Flask(__name__)",
+                  "app = Flask(__name__)\n# 挂载三方协作蓝图（Master–Child–User）\napp.register_blueprint(relay_bp)")
+
+open(p, "w", encoding="utf-8").write(src)
+print("✅ 已将 relay bus 蓝图挂载到主 API")
+PY
+
+echo "🎉 Done. Endpoints added:"
+echo "  • POST /api/relay/send        # 发送任务/消息"
+echo "  • POST /api/relay/callback    # 子AI回调"
+echo "  • GET  /api/relay/logs?limit=50"
+echo "  • POST /api/relay/ack"
