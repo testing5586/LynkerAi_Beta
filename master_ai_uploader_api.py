@@ -7,6 +7,7 @@
 """
 
 from flask import Flask, request, jsonify, render_template, send_file
+from conversation_bus import bp as relay_bp
 import os
 import subprocess
 import json
@@ -24,6 +25,7 @@ except ImportError:
     print("⚠️ RAG 模块未找到，Chat 功能将不可用")
 
 app = Flask(__name__)
+app.register_blueprint(relay_bp)
 supabase = get_supabase()
 
 UPLOAD_DIR = "uploaded_docs"
@@ -265,6 +267,10 @@ def index():
             <li><code>POST /api/master-ai/chat</code> - RAG 智能问答（基于向量检索）</li>
             <li><code>GET /api/master-ai/memory</code> - 查询子AI记忆（支持 user_id, tag, limit 参数）</li>
             <li><code>GET /api/master-ai/memory/search</code> - 搜索记忆内容（参数: q, limit）</li>
+            <li><code>POST /api/relay/send</code> - 三方协作：发送任务/消息（Master→Child 或 User→Master）</li>
+            <li><code>POST /api/relay/callback</code> - 三方协作：Child AI 任务回调</li>
+            <li><code>GET /api/relay/logs</code> - 三方协作：查询对话日志（参数: limit）</li>
+            <li><code>POST /api/relay/ack</code> - 三方协作：确认消息</li>
         </ul>
         <h3>🔗 快速访问</h3>
         <ul>
