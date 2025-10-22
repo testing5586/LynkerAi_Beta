@@ -1,0 +1,176 @@
+echo "🧠 正在为 Lynker Master AI 添加多模型智能回答层..."
+
+# ======================================================
+# 1️⃣ 安装必要依赖
+# ======================================================
+pip install openai google-generativeai zhipuai httpx > /dev/null 2>&1 || true
+
+# ======================================================
+# 2️⃣ 修改 master_ai_uploader_api.py
+# ======================================================
+python - <<'PY'
+import io, os, re, sys
+
+p = "master_ai_uploader_api.py"
+src = open(p, "r", encoding="utf-8").read()
+
+# 防止重复注入
+if "def call_llm_provider" in src:
+    print("ℹ️ 已存在多模型逻辑，跳过修改。")
+    sys.exit(0)
+
+injection = r'''
+# === 🔮 多模型理解层（ChatGPT / Gemini / ChatGLM / DeepSeek） ===
+import openai, google.generativeai as genai, httpx, json
+from flask import jsonify
+
+# ✅ 从 Replit Secrets 中读取所有 Provider 的密钥
+OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY")
+GLM_API_KEY      = os.getenv("GLM_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+
+# === 通用 LLM 调用函数 ===
+def call_llm_provider(provider, prompt, sys_prompt="你是 Lynker Master AI，擅长命理、八字、紫微斗数与铁板神数。"):
+    provider = (provider or "chatgpt").lower()
+    try:
+        # === OpenAI GPT (ChatGPT / GPT-5) ===
+        if provider in ["chatgpt", "gpt", "gpt5", "gpt-5"]:
+            if not OPENAI_API_KEY:
+                raise ValueError("缺少 OPENAI_API_KEY")
+            openai.api_key = OPENAI_API_KEY
+            resp = openai.ChatCompletion.create(
+                model="gpt-5",
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.6,
+            )
+            return resp.choices[0].message.content.strip()
+
+        # === Google Gemini 1.5 Pro ===
+        elif provider in ["gemini", "google"]:
+            if not GEMINI_API_KEY:
+                raise ValueError("缺少 GEMINI_API_KEY")
+            genai.configure(api_key=GEMINI_API_KEY)
+            model = genai.GenerativeModel("gemini-1.5-pro")
+            resp = model.generate_content(prompt)
+            return resp.text.strip()
+
+        # === ChatGLM (智谱AI / zhipuai) ===
+        elif provider in ["glm", "chatglm", "zhipu"]:
+            if not GLM_API_KEY:
+                raise ValueError("缺少 GLM_API_KEY")
+            headers = {"Authorization": f"Bearer {GLM_API_KEY}", "Content-Type": "application/json"}
+            payload = {
+                "model": "glm-4",
+                "messages": [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+            }
+            r = httpx.post("https://open.bigmodel.cn/api/paas/v4/chat/completions", headers=headers, json=payload, timeout=60)
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"].strip()
+            else:
+                raise RuntimeError(r.text)
+
+        # === DeepSeek (智谱香港版) ===
+        elif provider in ["deepseek", "ds"]:
+            if not DEEPSEEK_API_KEY:
+                raise ValueError("缺少 DEEPSEEK_API_KEY")
+            headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+            }
+            r = httpx.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"].strip()
+            else:
+                raise RuntimeError(r.text)
+
+        else:
+            raise ValueError(f"未知 provider：{provider}")
+
+    except Exception as e:
+        print(f"⚠️ {provider} 调用失败：{e}")
+        return None
+
+
+# === 修改 Chat 路由，添加 LLM 理解层 ===
+@app.route("/api/master-ai/chat", methods=["POST"])
+def master_ai_chat():
+    """RAG + LLM：从 Vault 检索相关片段 → 用选定模型生成回答"""
+    try:
+        data = request.get_json(force=True)
+        query = (data.get("query") or "").strip()
+        topk = int(data.get("topk") or 5)
+        provider = data.get("provider") or "chatgpt"
+        if not query:
+            return jsonify({"status":"error","message":"缺少 query"}), 400
+
+        # 向量检索
+        hits = rag_search(query, topk=topk)
+        context = "\n\n".join([f"【{h['file_id']}】{h['text']}" for h in hits])
+
+        # 构造 Prompt
+        prompt = f"""
+以下是 Lynker Master Vault 中检索到的相关资料，请基于这些内容回答问题：
+问题：{query}
+
+相关资料：
+{context}
+
+请用中文输出简洁且具备命理逻辑的回答。
+若内容不足，请明确指出“Vault 暂无相关信息”。
+"""
+
+        answer = call_llm_provider(provider, prompt)
+        if not answer:
+            # fallback 顺序
+            for alt in ["chatgpt", "gemini", "glm", "deepseek"]:
+                if alt != provider:
+                    answer = call_llm_provider(alt, prompt)
+                    if answer:
+                        provider = alt
+                        break
+        if not answer:
+            answer = "⚠️ 所有模型均未响应，请检查 API Key 或网络。"
+
+        return jsonify({"status":"ok","provider":provider,"answer":answer,"citations":hits})
+
+    except Exception as e:
+        return jsonify({"status":"error","message":str(e)}), 500
+'''
+
+open(p, "a", encoding="utf-8").write("\n\n" + injection)
+print("✅ 已注入多模型 AI 选择功能到 master_ai_uploader_api.py")
+PY
+
+echo "✅ 代码注入完成！"
+
+# ======================================================
+# 3️⃣ 提示设置 API Keys（Replit Secrets）
+# ======================================================
+echo "
+请在 Replit Secrets 中设置以下密钥（按需添加）：
+
+🔑 OPENAI_API_KEY      → ChatGPT / GPT-5
+🔑 GEMINI_API_KEY      → Google Gemini 1.5 Pro
+🔑 GLM_API_KEY         → 智谱 ChatGLM (https://open.bigmodel.cn)
+🔑 DEEPSEEK_API_KEY    → DeepSeek Chat API
+
+添加方式：点击左侧 🔒 Secrets 图标 → Add new secret
+"
+
+# ======================================================
+# 4️⃣ 重启服务
+# ======================================================
+echo "🚀 完成！重启后，你可以在前端 /chat 页面的 JSON 请求中加上："
+echo '{ "query": "什么是喜用神？", "provider": "gemini" }'
+echo "或在界面上选择模型下拉菜单（稍后我可帮你加）。"
