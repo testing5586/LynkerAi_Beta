@@ -410,17 +410,23 @@ def master_ai_chat():
         if use_ai and MULTI_MODEL_AVAILABLE:
             context = "\n\n".join([f"【{h['file_id']}】{h['text']}" for h in hits])
             
-            prompt = f"""以下是 Lynker Master Vault 中检索到的相关资料，请基于这些内容回答问题：
+            prompt = f"""你是 Lynker Master AI，擅长命理、八字、紫微斗数与铁板神数。
 
-问题：{query}
+我从知识库中检索到以下相关资料：
 
-相关资料：
 {context}
 
-请用中文输出简洁且具备命理逻辑的回答。如果内容不足以完整回答问题，请明确指出"Vault 中的信息不足以完整回答此问题"。
+用户问题：{query}
+
+请按以下方式回答：
+1. 如果知识库资料中包含相关信息，请优先基于这些资料回答，并在回答开头说明"根据知识库资料："
+2. 如果知识库资料不够完整，可以补充你的专业知识，但要在回答中明确区分哪些来自知识库，哪些是补充说明
+3. 如果知识库完全没有相关信息，可以直接用你的专业知识回答，但要说明"知识库中暂无此内容，以下是通用知识："
+
+请用中文输出专业、准确且易懂的回答。
 """
             
-            system_prompt = "你是 Lynker Master AI，擅长命理、八字、紫微斗数与铁板神数。基于提供的知识库资料，给出准确、专业且简洁的中文回答。"
+            system_prompt = "你是 Lynker Master AI，命理专家，擅长八字、紫微斗数与铁板神数。你的回答应该专业、准确且易于理解。"
             
             result = MultiModelAI.call(provider, prompt, system_prompt, enable_fallback=True)
             
