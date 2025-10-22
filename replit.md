@@ -99,6 +99,23 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
     - `GET /master-ai-memory` - React Dashboard for memory visualization
 -   **Current Status**: 11+ documents indexed (6 project docs, 3 API docs, 1 dev brainstorm, 1 memory).
 
+### Multi-Model AI Chat (`multi_model_ai.py`, Flask API integration)
+-   **Unified Multi-Provider Interface**: Supports ChatGPT (OpenAI), Gemini (Google), ChatGLM (智谱AI), and DeepSeek through a single API.
+-   **Automatic Fallback Mechanism**: When primary model fails, automatically switches to alternative available models in priority order.
+-   **RAG Integration**: Combines vector search results with AI models to generate intelligent, context-aware answers.
+-   **API Key Management**: Reads credentials from Replit Secrets (OPENAI_API_KEY, GEMINI_API_KEY, GLM_API_KEY, DEEPSEEK_API_KEY).
+-   **Flask API Endpoints** (port 5000):
+    - `GET /chat` - Interactive chat interface with model selector
+    - `POST /api/master-ai/chat` - RAG + AI chat endpoint (supports `provider`, `use_ai`, `topk` parameters)
+    - `GET /api/master-ai/providers` - Returns list of available AI models with status
+-   **Frontend Features** (`static/chat.html`):
+    - AI model dropdown selector (ChatGPT, Gemini, ChatGLM, DeepSeek, Basic RAG)
+    - Real-time model availability status (✅ Available / ❌ Not configured)
+    - Displays used model and fallback status in responses
+    - Automatic provider detection on page load
+-   **Graceful Degradation**: Falls back to basic RAG mode (vector search only) when AI models unavailable.
+-   **Current Status**: Integrated with existing RAG system, tested with all modes, ChatGPT operational.
+
 ### Domain Auto-Detection (`update_redirect_uri.py`)
 -   **Dynamic Domain Detection**: Automatically detects current Replit Sisko domain from environment variables.
 -   **Redirect URI Validation**: Compares current OAuth redirect URI configuration with detected domain.
