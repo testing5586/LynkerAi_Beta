@@ -13,6 +13,13 @@ except ImportError:
     RAG_AVAILABLE = False
     print("⚠️ RAG 模块未找到，Chat 功能将不可用")
 
+try:
+    from multi_model_ai import MultiModelAI
+    MULTI_MODEL_AVAILABLE = True
+except ImportError:
+    MULTI_MODEL_AVAILABLE = False
+    print("⚠️ 多模型 AI 模块未找到，将使用基础 RAG")
+
 # ===============================
 # 初始化
 # ===============================
@@ -353,9 +360,24 @@ def chat_page():
     except FileNotFoundError:
         return jsonify({"error": "Chat 页面文件未找到"}), 404
 
+@app.route("/api/master-ai/providers", methods=["GET"])
+def get_ai_providers():
+    """获取所有可用的 AI 模型提供商"""
+    if not MULTI_MODEL_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "多模型功能未启用"
+        }), 503
+    
+    providers = MultiModelAI.get_available_providers()
+    return jsonify({
+        "status": "ok",
+        "providers": providers
+    })
+
 @app.route("/api/master-ai/chat", methods=["POST"])
 def master_ai_chat():
-    """RAG：从 Vault 中检索相关片段并生成简要回答"""
+    """RAG + AI：从 Vault 检索相关片段 → 使用多模型 AI 生成智能回答"""
     if not RAG_AVAILABLE:
         return jsonify({
             "status": "error",
@@ -365,22 +387,55 @@ def master_ai_chat():
     try:
         data = request.get_json(force=True)
         query = (data.get("query") or "").strip()
-        topk  = int(data.get("topk") or 5)
+        topk = int(data.get("topk") or 5)
+        provider = data.get("provider") or "chatgpt"
+        use_ai = data.get("use_ai", True)
         
         if not query:
             return jsonify({"status": "error", "message": "缺少 query 参数"}), 400
 
-        print(f"💬 RAG Chat 查询: {query[:50]}...")
+        print(f"💬 RAG Chat 查询: {query[:50]}... (模型: {provider})")
         
         hits = rag_search(query, topk=topk)
         
         if not hits:
             return jsonify({
                 "status": "ok",
+                "provider": "none",
                 "answer": "没有在 Vault 中找到相关资料。",
-                "citations": []
+                "citations": [],
+                "fallback_used": False
             })
 
+        if use_ai and MULTI_MODEL_AVAILABLE:
+            context = "\n\n".join([f"【{h['file_id']}】{h['text']}" for h in hits])
+            
+            prompt = f"""以下是 Lynker Master Vault 中检索到的相关资料，请基于这些内容回答问题：
+
+问题：{query}
+
+相关资料：
+{context}
+
+请用中文输出简洁且具备命理逻辑的回答。如果内容不足以完整回答问题，请明确指出"Vault 中的信息不足以完整回答此问题"。
+"""
+            
+            system_prompt = "你是 Lynker Master AI，擅长命理、八字、紫微斗数与铁板神数。基于提供的知识库资料，给出准确、专业且简洁的中文回答。"
+            
+            result = MultiModelAI.call(provider, prompt, system_prompt, enable_fallback=True)
+            
+            if result["success"]:
+                print(f"✅ AI 回答成功 (模型: {result['provider']}, Fallback: {result['fallback_used']})")
+                return jsonify({
+                    "status": "ok",
+                    "provider": result["provider"],
+                    "answer": result["answer"],
+                    "citations": hits,
+                    "fallback_used": result["fallback_used"]
+                })
+            else:
+                print(f"⚠️ AI 调用失败，使用基础 RAG: {result['error']}")
+        
         bullets = []
         for h in hits:
             txt = h["text"].strip()
@@ -390,12 +445,14 @@ def master_ai_chat():
         
         answer = "基于知识库检索，我找到以下要点：\n" + "\n".join(bullets) + "\n\n（以上为自动检索摘要，详情请查看引用片段与原文档）"
         
-        print(f"✅ 返回 {len(hits)} 条引用")
+        print(f"✅ 返回基础 RAG 结果 ({len(hits)} 条引用)")
         
         return jsonify({
             "status": "ok",
+            "provider": "basic_rag",
             "answer": answer,
-            "citations": hits
+            "citations": hits,
+            "fallback_used": False
         })
         
     except FileNotFoundError as e:
