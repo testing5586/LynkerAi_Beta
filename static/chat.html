@@ -240,6 +240,17 @@
     </div>
 
     <div class="box">
+      <div style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
+        <label style="font-size: 13px; color: #a8b3cf;">AI 模型：</label>
+        <select id="provider" style="flex: 1; background: rgba(42, 46, 69, 0.5); border: 1px solid #2a2e45; color: #e5e5e5; padding: 8px 12px; border-radius: 8px; font-size: 13px;">
+          <option value="chatgpt">ChatGPT (OpenAI)</option>
+          <option value="gemini">Gemini (Google)</option>
+          <option value="glm">ChatGLM (智谱AI)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="basic_rag">基础 RAG (不使用 AI)</option>
+        </select>
+        <div id="provider-status" style="font-size: 12px; color: #a8b3cf;"></div>
+      </div>
       <div class="input-area">
         <textarea id="q" placeholder="例如：请根据Vault说明，帮我描述'真命盘验证'的核心流程" onkeydown="handleEnter(event)"></textarea>
         <button class="btn" onclick="ask()">发送</button>
@@ -250,6 +261,7 @@
 <script>
 const chat = document.getElementById('chat');
 let hasMessages = false;
+let availableProviders = [];
 
 function clearEmptyState() {
   if (!hasMessages) {
@@ -279,20 +291,62 @@ function askExample(query) {
   ask();
 }
 
+async function loadProviders() {
+  try {
+    const res = await fetch('/api/master-ai/providers');
+    const data = await res.json();
+    if (data.status === 'ok') {
+      availableProviders = data.providers;
+      updateProviderStatus();
+    }
+  } catch (err) {
+    console.log('无法加载模型列表:', err.message);
+  }
+}
+
+function updateProviderStatus() {
+  const select = document.getElementById('provider');
+  const currentProvider = select.value;
+  const provider = availableProviders.find(p => p.id === currentProvider);
+  const statusEl = document.getElementById('provider-status');
+  
+  if (provider && provider.available) {
+    statusEl.innerHTML = '✅ 可用';
+    statusEl.style.color = '#48bb78';
+  } else if (provider && !provider.available) {
+    statusEl.innerHTML = '❌ 未配置 API Key';
+    statusEl.style.color = '#f56565';
+  } else if (currentProvider === 'basic_rag') {
+    statusEl.innerHTML = '✅ 可用';
+    statusEl.style.color = '#48bb78';
+  } else {
+    statusEl.innerHTML = '';
+  }
+}
+
 async function ask() {
   const q = document.getElementById('q').value.trim();
   if (!q) return;
   
+  const provider = document.getElementById('provider').value;
+  const useAI = provider !== 'basic_rag';
+  
   push('user', '🧑‍💻 ' + q);
   document.getElementById('q').value = '';
   
-  push('ai', '⏳ 正在检索知识库...');
+  const loadingMsg = useAI ? '⏳ 正在检索知识库并生成智能回答...' : '⏳ 正在检索知识库...';
+  push('ai', loadingMsg);
   
   try {
     const res = await fetch('/api/master-ai/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({query: q, topk: 5})
+      body: JSON.stringify({
+        query: q, 
+        topk: 5,
+        provider: provider,
+        use_ai: useAI
+      })
     });
     
     const data = await res.json();
@@ -300,7 +354,19 @@ async function ask() {
     chat.lastChild.remove();
     
     if (data.status === 'ok') {
-      let s = '🤖 ' + data.answer.replace(/\n/g, '<br>');
+      let modelInfo = '';
+      if (data.provider && data.provider !== 'basic_rag' && data.provider !== 'none') {
+        const providerNames = {
+          'chatgpt': 'ChatGPT',
+          'gemini': 'Gemini',
+          'glm': 'ChatGLM',
+          'deepseek': 'DeepSeek'
+        };
+        const modelName = providerNames[data.provider] || data.provider;
+        modelInfo = `<div style="font-size: 11px; color: #9F7AEA; margin-bottom: 8px;">🤖 ${modelName} ${data.fallback_used ? '(Fallback)' : ''}</div>`;
+      }
+      
+      let s = modelInfo + '🤖 ' + data.answer.replace(/\n/g, '<br>');
       if (data.citations && data.citations.length) {
         s += '<div class="sources">📚 参考片段：<ul>';
         for (const c of data.citations) {
@@ -317,6 +383,9 @@ async function ask() {
     push('ai', '❌ 请求失败: ' + err.message);
   }
 }
+
+document.getElementById('provider').addEventListener('change', updateProviderStatus);
+window.addEventListener('DOMContentLoaded', loadProviders);
 </script>
 </body>
 </html>
