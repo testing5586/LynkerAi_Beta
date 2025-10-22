@@ -44,12 +44,12 @@ class MultiModelAI:
     FALLBACK_ORDER = ["chatgpt", "gemini", "glm", "deepseek"]
     
     @staticmethod
-    def call_openai(prompt: str, system_prompt: str = None, model: str = "gpt-4o") -> Tuple[Optional[str], Optional[str]]:
+    def call_openai(prompt: str, system_prompt: str = None, model: str = "gpt-4o") -> Tuple[Optional[str], Optional[str], Optional[Dict]]:
         """调用 OpenAI ChatGPT API"""
         if not OPENAI_AVAILABLE:
-            return None, "OpenAI 库未安装"
+            return None, "OpenAI 库未安装", None
         if not OPENAI_API_KEY:
-            return None, "缺少 OPENAI_API_KEY"
+            return None, "缺少 OPENAI_API_KEY", None
         
         try:
             client = OpenAI(api_key=OPENAI_API_KEY)
@@ -66,20 +66,27 @@ class MultiModelAI:
             )
             
             answer = response.choices[0].message.content.strip()
-            return answer, None
+            
+            token_usage = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+            
+            return answer, None, token_usage
             
         except Exception as e:
             error_msg = f"OpenAI 调用失败: {str(e)}"
             print(f"⚠️ {error_msg}")
-            return None, error_msg
+            return None, error_msg, None
     
     @staticmethod
-    def call_gemini(prompt: str, system_prompt: str = None, model: str = "gemini-1.5-pro") -> Tuple[Optional[str], Optional[str]]:
+    def call_gemini(prompt: str, system_prompt: str = None, model: str = "gemini-1.5-pro") -> Tuple[Optional[str], Optional[str], Optional[Dict]]:
         """调用 Google Gemini API"""
         if not GEMINI_AVAILABLE:
-            return None, "Gemini 库未安装"
+            return None, "Gemini 库未安装", None
         if not GEMINI_API_KEY:
-            return None, "缺少 GEMINI_API_KEY"
+            return None, "缺少 GEMINI_API_KEY", None
         
         try:
             genai.configure(api_key=GEMINI_API_KEY)
@@ -92,18 +99,27 @@ class MultiModelAI:
             response = model_instance.generate_content(full_prompt)
             
             answer = response.text.strip()
-            return answer, None
+            
+            token_usage = None
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                token_usage = {
+                    "prompt_tokens": response.usage_metadata.prompt_token_count,
+                    "completion_tokens": response.usage_metadata.candidates_token_count,
+                    "total_tokens": response.usage_metadata.total_token_count
+                }
+            
+            return answer, None, token_usage
             
         except Exception as e:
             error_msg = f"Gemini 调用失败: {str(e)}"
             print(f"⚠️ {error_msg}")
-            return None, error_msg
+            return None, error_msg, None
     
     @staticmethod
-    def call_glm(prompt: str, system_prompt: str = None, model: str = "glm-4") -> Tuple[Optional[str], Optional[str]]:
+    def call_glm(prompt: str, system_prompt: str = None, model: str = "glm-4") -> Tuple[Optional[str], Optional[str], Optional[Dict]]:
         """调用智谱 ChatGLM API"""
         if not GLM_API_KEY:
-            return None, "缺少 GLM_API_KEY"
+            return None, "缺少 GLM_API_KEY", None
         
         try:
             headers = {
@@ -132,22 +148,31 @@ class MultiModelAI:
             if response.status_code == 200:
                 data = response.json()
                 answer = data["choices"][0]["message"]["content"].strip()
-                return answer, None
+                
+                token_usage = None
+                if "usage" in data:
+                    token_usage = {
+                        "prompt_tokens": data["usage"].get("prompt_tokens"),
+                        "completion_tokens": data["usage"].get("completion_tokens"),
+                        "total_tokens": data["usage"].get("total_tokens")
+                    }
+                
+                return answer, None, token_usage
             else:
                 error_msg = f"GLM API 返回错误: {response.status_code} - {response.text}"
                 print(f"⚠️ {error_msg}")
-                return None, error_msg
+                return None, error_msg, None
                 
         except Exception as e:
             error_msg = f"GLM 调用失败: {str(e)}"
             print(f"⚠️ {error_msg}")
-            return None, error_msg
+            return None, error_msg, None
     
     @staticmethod
-    def call_deepseek(prompt: str, system_prompt: str = None, model: str = "deepseek-chat") -> Tuple[Optional[str], Optional[str]]:
+    def call_deepseek(prompt: str, system_prompt: str = None, model: str = "deepseek-chat") -> Tuple[Optional[str], Optional[str], Optional[Dict]]:
         """调用 DeepSeek API"""
         if not DEEPSEEK_API_KEY:
-            return None, "缺少 DEEPSEEK_API_KEY"
+            return None, "缺少 DEEPSEEK_API_KEY", None
         
         try:
             headers = {
@@ -176,16 +201,25 @@ class MultiModelAI:
             if response.status_code == 200:
                 data = response.json()
                 answer = data["choices"][0]["message"]["content"].strip()
-                return answer, None
+                
+                token_usage = None
+                if "usage" in data:
+                    token_usage = {
+                        "prompt_tokens": data["usage"].get("prompt_tokens"),
+                        "completion_tokens": data["usage"].get("completion_tokens"),
+                        "total_tokens": data["usage"].get("total_tokens")
+                    }
+                
+                return answer, None, token_usage
             else:
                 error_msg = f"DeepSeek API 返回错误: {response.status_code} - {response.text}"
                 print(f"⚠️ {error_msg}")
-                return None, error_msg
+                return None, error_msg, None
                 
         except Exception as e:
             error_msg = f"DeepSeek 调用失败: {str(e)}"
             print(f"⚠️ {error_msg}")
-            return None, error_msg
+            return None, error_msg, None
     
     @classmethod
     def call(cls, provider: str, prompt: str, system_prompt: str = None, enable_fallback: bool = True) -> Dict:
@@ -229,12 +263,12 @@ class MultiModelAI:
             normalized_provider = "chatgpt"
         
         start_time = time.time()
-        answer, error = provider_map[normalized_provider](prompt, system_prompt)
+        answer, error, token_usage = provider_map[normalized_provider](prompt, system_prompt)
         latency = time.time() - start_time
         
         if answer:
             if LOGGER_AVAILABLE:
-                log_ai_usage(normalized_provider, prompt, None, latency, True, None, False)
+                log_ai_usage(normalized_provider, prompt, token_usage, latency, True, None, False)
             
             return {
                 "success": True,
@@ -246,7 +280,7 @@ class MultiModelAI:
             }
         
         if LOGGER_AVAILABLE:
-            log_ai_usage(normalized_provider, prompt, None, latency, False, error, False)
+            log_ai_usage(normalized_provider, prompt, token_usage, latency, False, error, False)
         
         if not enable_fallback:
             return {
@@ -266,14 +300,14 @@ class MultiModelAI:
             
             if fallback_provider in provider_map:
                 start_time = time.time()
-                answer, error = provider_map[fallback_provider](prompt, system_prompt)
+                answer, error, token_usage = provider_map[fallback_provider](prompt, system_prompt)
                 fallback_latency = time.time() - start_time
                 
                 if answer:
                     print(f"✅ Fallback 成功，使用 {fallback_provider}")
                     
                     if LOGGER_AVAILABLE:
-                        log_ai_usage(fallback_provider, prompt, None, fallback_latency, True, None, True)
+                        log_ai_usage(fallback_provider, prompt, token_usage, fallback_latency, True, None, True)
                     
                     return {
                         "success": True,
@@ -285,7 +319,7 @@ class MultiModelAI:
                     }
                 else:
                     if LOGGER_AVAILABLE:
-                        log_ai_usage(fallback_provider, prompt, None, fallback_latency, False, error, True)
+                        log_ai_usage(fallback_provider, prompt, token_usage, fallback_latency, False, error, True)
         
         total_latency = time.time() - start_time
         return {
