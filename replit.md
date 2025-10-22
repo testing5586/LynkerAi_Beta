@@ -104,17 +104,32 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Automatic Fallback Mechanism**: When primary model fails, automatically switches to alternative available models in priority order.
 -   **RAG Integration**: Combines vector search results with AI models to generate intelligent, context-aware answers.
 -   **API Key Management**: Reads credentials from Replit Secrets (OPENAI_API_KEY, GEMINI_API_KEY, GLM_API_KEY, DEEPSEEK_API_KEY).
+-   **Performance Monitoring** (`ai_usage_logger.py`):
+    - Real-time tracking of response time, token usage, success/failure rates for each provider
+    - JSONL logging format with timestamps and query metadata
+    - Statistical aggregation: total calls, success rate, average latency, fallback frequency
+    - Hourly usage analytics for trend analysis
 -   **Flask API Endpoints** (port 5000):
     - `GET /chat` - Interactive chat interface with model selector
     - `POST /api/master-ai/chat` - RAG + AI chat endpoint (supports `provider`, `use_ai`, `topk` parameters)
     - `GET /api/master-ai/providers` - Returns list of available AI models with status
+    - `GET /api/master-ai/usage-stats` - Provider performance statistics and aggregated metrics
+    - `GET /api/master-ai/usage-logs` - Recent AI call logs with filters (limit parameter)
+    - `GET /api/master-ai/usage-hourly` - Hourly usage statistics (hours parameter)
+    - `GET /ai-stats` - Visual performance monitoring dashboard
 -   **Frontend Features** (`static/chat.html`):
     - AI model dropdown selector (ChatGPT, Gemini, ChatGLM, DeepSeek, Basic RAG)
     - Real-time model availability status (✅ Available / ❌ Not configured)
     - Displays used model and fallback status in responses
     - Automatic provider detection on page load
+-   **Performance Dashboard** (`static/ai_stats.html`):
+    - Real-time visualization of provider performance metrics
+    - Aggregate statistics: total calls, success rate, average latency, token consumption
+    - Per-provider detailed breakdown with color-coded cards
+    - Recent call logs table with filtering and status badges
+    - Auto-refresh every 30 seconds for live monitoring
 -   **Graceful Degradation**: Falls back to basic RAG mode (vector search only) when AI models unavailable.
--   **Current Status**: Integrated with existing RAG system, tested with all modes, ChatGPT operational.
+-   **Current Status**: Integrated with existing RAG system, performance monitoring active, tested with all modes, ChatGPT operational.
 
 ### Domain Auto-Detection (`update_redirect_uri.py`)
 -   **Dynamic Domain Detection**: Automatically detects current Replit Sisko domain from environment variables.
