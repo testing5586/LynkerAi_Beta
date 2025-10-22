@@ -1,0 +1,128 @@
+echo "⚙️ 正在为 Lynker Master AI 添加 Provider 性能统计面板..."
+
+# ======================================================
+# 1️⃣ 新建监控模块 ai_usage_logger.py
+# ======================================================
+cat <<'PY' > ai_usage_logger.py
+import os, json, time, threading
+
+LOG_FILE = "ai_usage_log.jsonl"
+_lock = threading.Lock()
+
+def log_ai_usage(provider, query, token_usage=None, latency=None, success=True, error=None):
+    """记录 AI Provider 的调用统计"""
+    record = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "provider": provider,
+        "query": query[:60] + "..." if len(query) > 60 else query,
+        "token_usage": token_usage or {},
+        "latency": round(latency, 2) if latency else None,
+        "success": success,
+        "error": str(error) if error else None,
+    }
+    with _lock:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+def get_ai_stats(limit=100):
+    """读取最近统计数据"""
+    if not os.path.exists(LOG_FILE): return []
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        lines = f.readlines()[-limit:]
+    return [json.loads(x) for x in lines]
+
+def summarize_ai_stats():
+    """生成统计汇总"""
+    data = get_ai_stats(1000)
+    stats = {}
+    for r in data:
+        p = r["provider"]
+        stats.setdefault(p, {"count": 0, "success": 0, "avg_latency": []})
+        stats[p]["count"] += 1
+        if r["success"]: stats[p]["success"] += 1
+        if r["latency"]: stats[p]["avg_latency"].append(r["latency"])
+    for p, s in stats.items():
+        if s["avg_latency"]:
+            s["avg_latency"] = round(sum(s["avg_latency"]) / len(s["avg_latency"]), 2)
+    return stats
+PY
+
+# ======================================================
+# 2️⃣ 修改 master_ai_uploader_api.py 注入统计调用
+# ======================================================
+python - <<'PY'
+import io, os, re, sys, time
+
+p = "master_ai_uploader_api.py"
+src = open(p, "r", encoding="utf-8").read()
+
+if "from ai_usage_logger import log_ai_usage" in src:
+    print("✅ Provider 性能统计已存在，跳过修改。")
+    sys.exit(0)
+
+inject = r'''
+# === 🔍 Provider 性能统计 ===
+from ai_usage_logger import log_ai_usage, summarize_ai_stats
+import time
+
+@app.route("/api/master-ai/usage-stats", methods=["GET"])
+def master_ai_usage_stats():
+    return jsonify(summarize_ai_stats())
+
+# 🔄 改写 LLM 调用函数，加入日志记录
+def call_llm_provider(provider, prompt, sys_prompt="你是 Lynker Master AI，擅长命理分析。"):
+    provider = (provider or "chatgpt").lower()
+    start = time.time()
+    token_usage = {}
+    try:
+        # === 原逻辑复用 ===
+        answer = None
+        # ChatGPT
+        if provider in ["chatgpt", "gpt", "gpt5", "gpt-5"]:
+            openai.api_key = os.getenv("OPENAI_API_KEY")
+            resp = openai.ChatCompletion.create(
+                model="gpt-5",
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.6,
+            )
+            answer = resp.choices[0].message.content.strip()
+            token_usage = resp.usage if hasattr(resp, "usage") else {}
+
+        # Gemini
+        elif provider in ["gemini", "google"]:
+            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+            model = genai.GenerativeModel("gemini-1.5-pro")
+            resp = model.generate_content(prompt)
+            answer = resp.text.strip()
+            token_usage = {"input_tokens": len(prompt)//4, "output_tokens": len(answer)//4}
+
+        elif provider in ["glm", "chatglm", "zhipu"]:
+            headers = {"Authorization": f"Bearer {os.getenv('GLM_API_KEY')}", "Content-Type": "application/json"}
+            payload = {"model":"glm-4","messages":[{"role":"system","content":sys_prompt},{"role":"user","content":prompt}]}
+            r = httpx.post("https://open.bigmodel.cn/api/paas/v4/chat/completions", headers=headers, json=payload)
+            answer = r.json()["choices"][0]["message"]["content"].strip()
+
+        elif provider in ["deepseek", "ds"]:
+            headers = {"Authorization": f"Bearer {os.getenv('DEEPSEEK_API_KEY')}", "Content-Type": "application/json"}
+            payload = {"model":"deepseek-chat","messages":[{"role":"system","content":sys_prompt},{"role":"user","content":prompt}]}
+            r = httpx.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload)
+            answer = r.json()["choices"][0]["message"]["content"].strip()
+
+        latency = time.time() - start
+        log_ai_usage(provider, prompt, token_usage, latency, success=True)
+        return answer
+
+    except Exception as e:
+        latency = time.time() - start
+        log_ai_usage(provider, prompt, token_usage, latency, success=False, error=e)
+        return None
+'''
+open(p, "a", encoding="utf-8").write(inject)
+print("✅ 已添加 Provider 性能统计与日志记录接口。")
+PY
+
+echo "🎯 你现在可以访问以下接口查看统计："
+echo "👉 /api/master-ai/usage-stats"
