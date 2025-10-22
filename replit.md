@@ -1,9 +1,7 @@
 # Overview
-
-LynkerAI is an AI-powered task execution system designed to generate and execute code from natural language descriptions using OpenAI's API. It functions as an intelligent code generator, interpreting user requests to create and manage code files automatically. The project aims to provide a robust platform for semantic-based analysis, including birth chart verification and soulmate matching, by leveraging advanced AI models for deeper compatibility insights.
+LynkerAI is an AI-powered task execution system designed to generate and execute code from natural language descriptions using OpenAI's API. It functions as an intelligent code generator, interpreting user requests to create and manage code files automatically. The project provides a robust platform for semantic-based analysis, including birth chart verification and soulmate matching, by leveraging advanced AI models for deeper compatibility insights, and a comprehensive system for managing and interacting with AI-generated content and user data.
 
 # User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 # System Architecture
@@ -14,174 +12,50 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 2.  **AI Generation Layer**: Generates code using OpenAI's chat completion API.
 3.  **File Management Layer**: Manages file creation and command execution via a bridge module.
 
+## Modular Architecture
+-   **Main Control Engine (`main.py`)**: Centralized orchestration hub, coordinating all LynkerAI modules and managing a unified JSON logging system.
+-   **Code Generator (`lynker_master_ai.py`)**: Handles AI-powered code generation, processes task descriptions, and interacts with the OpenAI API.
+-   **Database Layer (`supabase_init.py`)**: Manages Supabase connections, including client initialization and automatic table creation for various features.
+-   **TrueChart Verifier (`ai_truechart_verifier.py`)**: Performs semantic validation of birth charts against life events, supporting single and multi-chart verification, intelligent weight learning, and user life profile storage.
+-   **Soulmate Matcher (`soulmate_matcher.py`)**: Identifies users with similar life experiences using semantic matching of `life_tags` and cosine similarity.
+-   **Child AI Insight Generator (`child_ai_insight.py`)**: Generates independent, rule-based insights for match results using templates, with local JSON backup.
+-   **Child AI Memory Vault (`child_ai_memory.py`)**: Manages user interaction history with matched partners, tracks memories and engagement, and provides data for a React frontend component.
+-   **Google Drive Sync (`google_drive_sync.py`)**: Enables users to back up AI memories to their personal Google Drive via OAuth 2.0.
+-   **OAuth Authorization Flow (`google_oauth_real_flow.py`, Flask API)**: Handles Google OAuth for token exchange, user info retrieval, and persistence of credentials to Supabase.
+-   **Lynker Master Vault (`lynker_master_vault/`)**: An intelligent document management system for categorizing, indexing, and searching project documentation. Includes a CLI import tool, a unified Flask API for uploads and queries, and a React-based memory dashboard.
+-   **Multi-Model AI Chat (`multi_model_ai.py`, Flask API integration)**: Provides a unified interface for multiple AI providers (ChatGPT, Gemini, ChatGLM, DeepSeek) with an automatic fallback mechanism and RAG integration. Includes performance monitoring and a visual dashboard.
+-   **Message Hub / Conversation Bus (`conversation_bus.py`, Flask API integration)**: An event-driven, three-party collaboration system (Master AI ↔ Child AI ↔ User) for task delegation, conversation tracking, and async execution with callbacks.
+-   **Domain Auto-Detection (`update_redirect_uri.py`)**: Dynamically detects Replit Sisko domain and provides guidance for updating Google OAuth redirect URIs.
+-   **Bridge Module (`replit_bridge.py`)**: Abstracts file system operations and command execution for platform independence.
+-   **Security Layer (`ai_guard_middleware.py`)**: Centralized access control for AI operations, checking user permissions, call limits, and service status.
+
 ## Language & Runtime
--   **Language**: Python 3.x, chosen for rapid prototyping and AI/ML support.
+-   **Language**: Python 3.x
 -   **Execution Model**: Single-process, synchronous.
 
-## Modular Architecture
-
-### Main Control Engine (`main.py`)
--   Acts as the centralized orchestration hub, initializing Supabase and coordinating execution of all LynkerAI modules such as `supabase_init.py`, `ai_truechart_verifier.py`, `soulmate_matcher.py`, and `child_ai_insight.py`.
--   Includes a unified JSON logging system (`master_log.json`).
-
-### Code Generator (`lynker_master_ai.py`)
--   Handles AI-powered code generation, processing task descriptions, and interacting with the OpenAI API.
--   Includes environment validation before execution.
-
-### Database Layer (`supabase_init.py`)
--   Manages Supabase connections, including client initialization and automatic creation/checking of required tables (`verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`).
--   Supports environment variable configuration and graceful degradation.
-
-### TrueChart Verifier (`ai_truechart_verifier.py`)
--   Performs semantic validation of birth charts against life events.
--   Includes functions for single and multi-chart verification, intelligent weight learning (`update_event_weights`), and user life profile storage (`save_life_tags`).
--   Uses the `shibing624/text2vec-base-chinese` model for semantic understanding.
--   Optimized for performance using batch vectorization and concurrency for faster verification.
-
-### Soulmate Matcher (`soulmate_matcher.py`)
--   Identifies users with similar life experiences using semantic matching of `life_tags`.
--   Calculates cosine similarity between user profiles encoded into semantic vectors using the `shibing624/text2vec-base-chinese` model.
--   Stores match results in the `soulmate_matches` table.
-
-### Child AI Insight Generator (`child_ai_insight.py`)
--   Generates independent, rule-based insights for match results without consuming main AI tokens.
--   Utilizes templates to generate insights categorized by similarity levels.
--   Stores insights in the Supabase `child_ai_insights` table with a local JSON file backup for redundancy.
-
-### Child AI Memory Vault (`child_ai_memory.py`)
--   Manages user interaction history with matched partners, tracking memories and engagement.
--   Automatically generates memory summaries from insights and extracts meaningful tags.
--   Supports updating interaction counts and last interaction timestamps.
--   Provides data for the frontend React component `ChildAIMemoryVault.jsx`.
--   Stores data in Supabase `child_ai_memory` table with JSONB support for flexible tag storage.
-
-### Google Drive Sync (`google_drive_sync.py`)
--   **Manual Integration** (Replit connector declined by user)
--   Enables users to backup AI memories to their personal Google Drive.
--   Uses OAuth 2.0 for secure authorization (access_token managed by backend).
--   Automatically creates "LynkerAI_Memories" folder in user's Drive.
--   Uploads memories as JSON files with timestamps.
--   OAuth credentials stored in Supabase `users` table (`drive_access_token`, `drive_refresh_token`).
-
-### OAuth Authorization Flow (`google_oauth_real_flow.py`, Flask API)
--   **Interactive Authorization Script**: Command-line tool for initiating Google OAuth flow.
--   **Flask API Integration**: Handles OAuth callbacks at `/`, `/callback`, `/oauth2callback` routes.
--   **Token Exchange**: Automatically exchanges authorization code for access_token and refresh_token.
--   **User Info Retrieval**: Calls Google OAuth v1 API (`https://www.googleapis.com/oauth2/v1/userinfo?alt=json`) to get user email.
--   **Data Persistence**: Saves OAuth credentials to Supabase `users` table with `upsert` operation.
--   **Success Page**: Displays beautiful HTML success page after authorization.
-
-### Master AI Memory API (集成至 `master_ai_uploader_api.py`)
--   **RESTful Memory Query Interface**: 集成至主 Flask API，统一运行在端口 8008。
--   **GET /api/master-ai/memory**: Query memories with filters (user_id, tag, limit).
--   **GET /api/master-ai/memory/search**: Full-text search across memory summaries using PostgreSQL ILIKE.
--   **Server-side tag filtering**: Uses PostgREST `cs` operator with JSON encoding for accurate JSONB array filtering.
--   **Logging**: 统一日志格式，带 🧠/🔍/✅/⚠️ 图标。
--   **Use cases**: Chat interface context retrieval, memory growth analytics, cross-validation between upload logs and semantic indexes.
-
-### Lynker Master Vault (`lynker_master_vault/`)
--   **Intelligent Document Management System**: Automatically categorizes and indexes project documentation.
--   **Auto-Classification**: Documents sorted into `project_docs`, `api_docs`, and `dev_brainstorm` based on filename keywords.
--   **Import Tool** (`master_ai_importer.py`): CLI tool for importing, listing, and searching documents.
--   **Unified Upload API** (`master_ai_uploader_api.py`): 统一 Flask API，整合文件上传、记忆查询、Dashboard 等功能，运行在端口 8008。
--   **Upload Logger** (`upload_logger.py`): Self-learning logging system that records upload metadata (filename, category, uploader, timestamp, summary, import result) to `upload_log.json`.
--   **YAML Index**: Human-readable index system tracking all imported documents.
--   **Search Functionality**: Full-text search across document names and content.
--   **Memory Dashboard** (`components/MasterAIMemoryDashboard.jsx`): React-based visual interface for memory exploration.
--   **统一 API 端点** (端口 8008):
-    - `POST /api/master-ai/upload` - Upload files with automatic logging
-    - `GET /api/master-ai/context` - View Vault contents
-    - `GET /api/master-ai/upload-history` - View upload history (supports filtering by category and limit)
-    - `GET /api/master-ai/upload-stats` - View upload statistics (total uploads, by category, by uploader)
-    - `GET /api/master-ai/memory` - Query child_ai_memory with filters (user_id, tag, limit)
-    - `GET /api/master-ai/memory/search` - Search memories by keyword (q, limit)
-    - `GET /upload` - Web-based file upload interface
-    - `GET /master-ai-memory` - React Dashboard for memory visualization
--   **Current Status**: 11+ documents indexed (6 project docs, 3 API docs, 1 dev brainstorm, 1 memory).
-
-### Multi-Model AI Chat (`multi_model_ai.py`, Flask API integration)
--   **Unified Multi-Provider Interface**: Supports ChatGPT (OpenAI), Gemini (Google), ChatGLM (智谱AI), and DeepSeek through a single API.
--   **Automatic Fallback Mechanism**: When primary model fails, automatically switches to alternative available models in priority order.
--   **RAG Integration**: Combines vector search results with AI models to generate intelligent, context-aware answers.
--   **API Key Management**: Reads credentials from Replit Secrets (OPENAI_API_KEY, GEMINI_API_KEY, GLM_API_KEY, DEEPSEEK_API_KEY).
--   **Performance Monitoring** (`ai_usage_logger.py`):
-    - Real-time tracking of response time, token usage, success/failure rates for each provider
-    - JSONL logging format with timestamps and query metadata
-    - Statistical aggregation: total calls, success rate, average latency, fallback frequency
-    - Hourly usage analytics for trend analysis
--   **Flask API Endpoints** (port 5000):
-    - `GET /chat` - Interactive chat interface with model selector
-    - `POST /api/master-ai/chat` - RAG + AI chat endpoint (supports `provider`, `use_ai`, `topk` parameters)
-    - `GET /api/master-ai/providers` - Returns list of available AI models with status
-    - `GET /api/master-ai/usage-stats` - Provider performance statistics and aggregated metrics
-    - `GET /api/master-ai/usage-logs` - Recent AI call logs with filters (limit parameter)
-    - `GET /api/master-ai/usage-hourly` - Hourly usage statistics (hours parameter)
-    - `GET /ai-stats` - Visual performance monitoring dashboard
--   **Frontend Features** (`static/chat.html`):
-    - AI model dropdown selector (ChatGPT, Gemini, ChatGLM, DeepSeek, Basic RAG)
-    - Real-time model availability status (✅ Available / ❌ Not configured)
-    - Displays used model and fallback status in responses
-    - Automatic provider detection on page load
--   **Performance Dashboard** (`static/ai_stats.html`):
-    - Real-time visualization of provider performance metrics
-    - Aggregate statistics: total calls, success rate, average latency, token consumption
-    - Per-provider detailed breakdown with color-coded cards
-    - Recent call logs table with filtering and status badges
-    - Auto-refresh every 30 seconds for live monitoring
--   **Graceful Degradation**: Falls back to basic RAG mode (vector search only) when AI models unavailable.
--   **Current Status**: Integrated with existing RAG system, performance monitoring active, tested with all modes, ChatGPT operational.
-
-### Domain Auto-Detection (`update_redirect_uri.py`)
--   **Dynamic Domain Detection**: Automatically detects current Replit Sisko domain from environment variables.
--   **Redirect URI Validation**: Compares current OAuth redirect URI configuration with detected domain.
--   **Interactive Guide**: Provides step-by-step instructions for updating Google OAuth redirect URIs.
--   **Multi-Method Detection**: Uses `REPLIT_DOMAINS`, `REPLIT_DEV_DOMAIN`, or constructs from `REPL_ID`.
--   **Accessibility Check**: Verifies domain accessibility before suggesting updates.
-
-### Bridge Module (`replit_bridge.py`)
--   Abstracts file system operations (`write_file`) and command execution (`run_command`) for platform independence.
-
-### Security Layer (`ai_guard_middleware.py`)
--   Provides centralized access control for all AI operations, checking user permissions, daily AI call limits, and global service suspension status.
--   Integrated across all major AI modules.
-
 ## Prompt Engineering Strategy
-Utilizes structured prompt templates to ensure predictable and parseable AI responses, specifying filename formats, markdown code blocks, and dependency installation instructions.
+Utilizes structured prompt templates to ensure predictable and parseable AI responses.
 
 ## Error Handling
-Includes environment validation, graceful degradation for optional services, and comprehensive output capture.
+Includes environment validation, graceful degradation, and comprehensive output capture.
 
 # External Dependencies
 
 ## Required Services
-
-### OpenAI API
--   **Purpose**: Core AI code generation.
--   **Authentication**: `OPENAI_API_KEY` environment variable.
--   **API Used**: Chat Completions API.
+-   **OpenAI API**: Core AI code generation and chat completions.
 
 ## Optional Services
-
-### Supabase
--   **Purpose**: Database and backend services (e.g., `users`, `verified_charts`, `life_event_weights`, `user_life_tags`, `soulmate_matches`, `child_ai_insights`, `child_ai_memory` tables).
--   **Authentication**: `SUPABASE_URL` and `SUPABASE_KEY` environment variables.
--   **Users Table**: Stores user profiles and Google Drive OAuth credentials (`name`, `email`, `drive_email`, `drive_access_token`, `drive_refresh_token`, `drive_connected`, `created_at`, `updated_at`).
-
-### Google Drive API (Optional)
--   **Purpose**: User data backup to personal cloud storage.
--   **Authentication**: OAuth 2.0 (user-provided access_token).
--   **Configuration**: `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_REDIRECT_URI` environment variables.
--   **Note**: Manual integration - user declined Replit's Google Drive connector.
+-   **Supabase**: Database and backend services for storing various project data (e.g., user profiles, verified charts, life events, soulmate matches, AI insights, memory data).
+-   **Google Drive API**: For user data backup to personal cloud storage.
 
 ## Python Package Dependencies
--   `openai`: OpenAI Python client.
--   `supabase`: Supabase Python client.
--   `requests`: HTTP library for Google Drive API calls.
--   `uv`: Replit's package manager for dependency installation.
--   `numpy`: Used for vectorized similarity computations.
--   `sentence-transformers`: For semantic model loading and embeddings.
--   `functools.lru_cache`: For model caching.
--   Standard libraries: `subprocess`, `os`, `sys`, `concurrent.futures`, `json`, `datetime`.
+-   `openai`
+-   `supabase`
+-   `requests`
+-   `uv`
+-   `numpy`
+-   `sentence-transformers`
+-   Standard Python libraries for system operations, concurrency, JSON, and datetime.
 
 ## Development Environment
 -   **Platform**: Replit.
