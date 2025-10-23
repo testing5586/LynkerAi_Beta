@@ -35,6 +35,7 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Multi-Provider Manager (`master_ai/provider_manager.py`)**: Intelligent AI provider scheduling system for ChatGPT/Gemini/GLM/DeepSeek with automatic fallback, performance monitoring, statistical analysis, and web visualization dashboard.
 -   **Master Vault Engine (`master_vault_engine.py`)**: Secure AES256 encryption system for protecting Master AI's learning knowledge. Supports Superintendent Admin-only decryption, PostgreSQL storage, and complete audit trails. See `master_ai/MASTER_VAULT_ENGINE_GUIDE.md` for details.
 -   **Master AI Evolution Engine (`master_ai_evolution_engine.py`)**: Self-learning system that automatically analyzes birthchart patterns from Supabase database, discovers statistical insights, and encrypts findings into Master Vault. Implements pattern recognition, knowledge validation, and autonomous learning cycles.
+-   **Master AI Reasoner (`master_ai_reasoner.py`)**: Advanced prediction engine that performs explainable reasoning based on discovered patterns. Generates confidence-scored predictions with trait analysis and time windows for individual users or entire population. Stores high-confidence insights (≥0.5) into Master Vault and predictions into dedicated database table. Supports permission-based access control.
 
 ## Language & Runtime
 -   **Language**: Python 3.x
