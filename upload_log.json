@@ -38,5 +38,13 @@
     "timestamp": "2025-10-21T12:18:22.383379",
     "summary": "# 轮换测试文档\n\n这个文档用于测试日志轮换后的幂等性。",
     "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/rotation_test.md → project_docs/rotation_test.md"
+  },
+  {
+    "filename": "lynker_ai_core_index_v2.docx",
+    "category": "dev_brainstorm",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-23T07:24:12.881512",
+    "summary": "[二进制文件，无法生成摘要]",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/lynker_ai_core_index_v2.docx → dev_brainstorm/lynker_ai_core_index_v2.docx"
   }
 ]

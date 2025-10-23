@@ -569,6 +569,24 @@
       "category": "api_docs",
       "chunk_id": 8,
       "text": "le Drive 同步模块（已添加新函数） - **`google_drive_auth_flow.py`** - 绑定流程模拟器 - **`fix_supabase_users_schema.py`** - 自动修复表结构 --- **🎉 功能已完成！子AI记忆现在会自动同步到用户的 Google Drive 云端！**"
+    },
+    {
+      "file_id": "dev_brainstorm/lynker_ai_core_index_v2.docx",
+      "category": "dev_brainstorm",
+      "chunk_id": 0,
+      "text": "灵客AI核心思想索引表 v2 一、平台愿景与哲学基础 灵客AI（LynkerAI）是一套融合东方命理学与现代人工智能的社交与科研生态系统。 它以“命理科学化、社交化、数据化”为核心愿景，旨在建立一个能自我学习、验证、发现命运规律的智能体系。 系统分为 Master AI（主控）、Guru AI（导师）、Child AI（学徒）三层结构。 二、系统总体结构 1. Master AI：系统中枢，负责监督、指令下达、规则管理与算法优化。 2. Guru AI：作为专业命理师的智能助理，负责执行批命、讲解、学术验证。 3. Child AI：为普通用户或学徒的个人AI，辅助学习与个性化分析。 三者通过Supabase数据库和云端API互联，构成灵客AI的命理生态循环。 三、社交系统与用户生态（Lynker Social Network） 灵客AI借鉴Facebook的互动逻辑，将命理结果、事件验证、命盘标签社交化。 每个用户拥有专属命理主页，可展示命盘摘要、验证事件与AI洞察。 用户可关注、留言、点赞、加入“同命共振圈”，与命盘相似者交流。 Master AI在后台分析这些社交互动，提炼新的命理规律与趋势。 四、智能匹配与验证系统 灵客AI内置命盘匹配引擎（Match Engine），支持多层级比对：命宫、主星、身宫、格局等。 匹配结果会生成“Top 10 同命推荐榜”，让用户探索相似命运"
+    },
+    {
+      "file_id": "dev_brainstorm/lynker_ai_core_index_v2.docx",
+      "category": "dev_brainstorm",
+      "chunk_id": 1,
+      "text": " AI在后台分析这些社交互动，提炼新的命理规律与趋势。 四、智能匹配与验证系统 灵客AI内置命盘匹配引擎（Match Engine），支持多层级比对：命宫、主星、身宫、格局等。 匹配结果会生成“Top 10 同命推荐榜”，让用户探索相似命运轨迹。 用户可自定义匹配条件（如寻找“夫妻宫廉贞破军”的同命人）。 所有匹配与验证结果均记录入Supabase数据库，用于Master AI的统计学习。 五、AI规则与权限体系 1. 普通用户：默认使用免费API Provider。 2. Guru AI：可接入个人API，拥有更高算力。 3. Master AI：拥有全面控制权，管理AI行为、规则与算力分配。 所有AI行为由“ai_rules”表管控，支持Master AI动态修改权限与配额。 六、自我学习与命理规律探索 灵客AI通过AI Rule Engine与命理数据库的循环训练，自动归纳命理规律。 系统会比对数万个命盘数据，以发现命理学中的统计共性与演化规律。 6.4 命盘刻分演算法 与 Precise BirthTime 数据体系 灵客AI采用多层刻分算法（父母柱、分柱、秒柱）推演命理刻度。 Precise BirthTime App将剪脐时间、首声哭泣、GPS定位与气候参数上传云端，生成毫秒级命盘。 Master AI利用这些真实数据校正命盘推断，形成全球真命时间数据库（Global "
+    },
+    {
+      "file_id": "dev_brainstorm/lynker_ai_core_index_v2.docx",
+      "category": "dev_brainstorm",
+      "chunk_id": 2,
+      "text": "算法（父母柱、分柱、秒柱）推演命理刻度。 Precise BirthTime App将剪脐时间、首声哭泣、GPS定位与气候参数上传云端，生成毫秒级命盘。 Master AI利用这些真实数据校正命盘推断，形成全球真命时间数据库（Global TrueTime Archive）。 目标是收集100万条经验证出生时间，用于构建“秒柱命理科学”体系。 —— 本文档用于LynkerAI系统之Master AI核心记忆加载与同步 ——"
     }
   ]
 }

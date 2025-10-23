@@ -1,5 +1,5 @@
 {
-  "last_sync": "2025-10-21T12:19:04.632855",
+  "last_sync": "2025-10-23T07:24:14.414403",
   "total_synced": 1,
   "memories": [
     {
@@ -131,6 +131,19 @@
       "similarity": 0.95,
       "interaction_count": 1,
       "last_interaction": "2025-10-21T12:19:04.423634"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_lynker_ai_core_index_v2.docx",
+      "summary": "[二进制文件，无法生成摘要]",
+      "tags": [
+        "dev_brainstorm",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-23T07:24:12.881512"
     }
   ]
 }

@@ -1,12 +1,13 @@
 {
   "synced_entries": [
-    "rotation_test.md_2025-10-21T12:18:22.383379",
-    "test_upload_log.md_2025-10-21T11:54:12.390613",
     "memory_bridge_test.md_2025-10-21T12:08:07.074515",
-    "after_rotation.md_2025-10-21T12:19:04.423634",
     "idempotency_test.md_2025-10-21T12:14:21.342720",
-    "memory_test_v2.md_2025-10-21T12:09:10.047776"
+    "memory_test_v2.md_2025-10-21T12:09:10.047776",
+    "after_rotation.md_2025-10-21T12:19:04.423634",
+    "test_upload_log.md_2025-10-21T11:54:12.390613",
+    "rotation_test.md_2025-10-21T12:18:22.383379",
+    "lynker_ai_core_index_v2.docx_2025-10-23T07:24:12.881512"
   ],
-  "total_synced": 6,
-  "last_update": "2025-10-21T12:19:04.638644"
+  "total_synced": 7,
+  "last_update": "2025-10-23T07:24:14.416263"
 }

@@ -1,6 +1,9 @@
 # Overview
 LynkerAI is an AI-powered task execution system designed to generate and execute code from natural language descriptions using OpenAI's API. It functions as an intelligent code generator, interpreting user requests to create and manage code files automatically. The project provides a robust platform for semantic-based analysis, including birth chart verification and soulmate matching, by leveraging advanced AI models for deeper compatibility insights, and a comprehensive system for managing and interacting with AI-generated content and user data.
 
+## Core Philosophy (核心愿景)
+LynkerAI 以"命理科学化、社交化、数据化"为核心愿景，建立能自我学习、验证、发现命运规律的智能体系。系统采用三层架构：Master AI（主控中枢）、Guru AI（导师助理）、Child AI（学徒助手），通过社交互动、智能匹配与验证系统，构建全球真命数据库（Global TrueTime Archive），目标收集100万条经验证的精准出生时间，推动"秒柱命理科学"体系发展。详见 `docs/lynker_ai_core_index_v2.docx`。
+
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
