@@ -38,8 +38,8 @@ def find_records_needing_repair(supabase: Client) -> list:
         result = supabase.table("birthcharts").select("id, name, birth_data").execute()
         
         needs_repair = []
-        if hasattr(result, 'data') and result.data:
-            for record in result.data:
+        if hasattr(result, 'data') and result.data:  # type: ignore
+            for record in result.data:  # type: ignore
                 # 检查 birth_data 是否为空或不是对象
                 if isinstance(record, dict):
                     birth_data = record.get("birth_data")

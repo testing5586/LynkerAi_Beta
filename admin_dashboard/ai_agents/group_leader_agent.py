@@ -28,7 +28,7 @@ class GroupLeaderAgent:
         
         self.openai_client = None
         if OPENAI_AVAILABLE:
-            api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY")
             if api_key:
                 self.openai_client = OpenAI(api_key=api_key)
     
