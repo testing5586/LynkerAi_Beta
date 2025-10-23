@@ -69,21 +69,31 @@ class LynkerEngine:
     def _get_vault_context(self, query: str) -> Optional[str]:
         """从 Master Vault 获取相关知识（简化版）"""
         try:
+            import sys
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            
             from master_vault_engine import list_vault_entries
             
-            entries = list_vault_entries()
+            entries = list_vault_entries(role="Superintendent Admin")
             
-            if entries:
-                recent = entries[:3]
-                context = "近期知识库发现：\n"
-                for entry in recent:
-                    title = entry[1] if len(entry) > 1 else "未知"
-                    context += f"- {title}\n"
-                return context
+            if not entries:
+                print("ℹ️ Master Vault 暂无知识条目")
+                return None
+            
+            recent = entries[:3]
+            context = "近期 Vault 知识库发现：\n"
+            for entry in recent:
+                title = entry[1] if len(entry) > 1 else "未知"
+                created_at = entry[4] if len(entry) > 4 else "未知时间"
+                context += f"- {title} ({created_at})\n"
+            
+            return context
+        except ImportError as e:
+            print(f"⚠️ Master Vault Engine 未安装: {e}")
+            return None
         except Exception as e:
             print(f"⚠️ 无法获取 Vault 知识: {e}")
-        
-        return None
+            return None
     
     def _fallback_response(self, user_query: str) -> Dict[str, str]:
         """降级响应（AI 不可用时）"""

@@ -7,7 +7,7 @@ import os
 from typing import Dict, List, Any
 
 try:
-    import openai
+    from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -25,8 +25,11 @@ class GroupLeaderAgent:
         self.temperature = config["agents"]["leader"]["temperature"]
         self.max_tokens = config["agents"]["leader"]["max_tokens"]
         
+        self.openai_client = None
         if OPENAI_AVAILABLE:
-            openai.api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            if api_key:
+                self.openai_client = OpenAI(api_key=api_key)
     
     def decompose_task(self, user_query: str) -> List[str]:
         """将用户查询分解为子任务"""
@@ -50,7 +53,7 @@ class GroupLeaderAgent:
     
     def coordinate(self, user_query: str, child_results: List[str]) -> str:
         """协调整合 Child AI 的结果"""
-        if not OPENAI_AVAILABLE:
+        if not self.openai_client:
             return self._simple_coordination(child_results)
         
         try:
@@ -66,7 +69,7 @@ Child AI 提交的分析：
 请用2-3句话总结关键发现，为 Master AI 提供清晰的汇报（中文，专业）。
 """
             
-            response = openai.chat.completions.create(
+            response = self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=self.temperature,

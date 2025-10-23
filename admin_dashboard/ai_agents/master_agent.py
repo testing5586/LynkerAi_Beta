@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any, Optional
 
 try:
-    import openai
+    from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -25,8 +25,11 @@ class MasterAgent:
         self.temperature = config["agents"]["master"]["temperature"]
         self.max_tokens = config["agents"]["master"]["max_tokens"]
         
+        self.openai_client = None
         if OPENAI_AVAILABLE:
-            openai.api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            if api_key:
+                self.openai_client = OpenAI(api_key=api_key)
         
         self.system_prompt = """你是 LynkerAI 的 Master AI（主控推理中枢），负责：
 
@@ -43,7 +46,7 @@ class MasterAgent:
     
     def reason(self, user_query: str, leader_report: str, vault_context: Optional[str] = None) -> str:
         """执行主控推理"""
-        if not OPENAI_AVAILABLE:
+        if not self.openai_client:
             return self._simple_reasoning(user_query, leader_report)
         
         try:
@@ -59,7 +62,7 @@ Group Leader 汇报：
             
             context += "\n\n请基于以上信息提供深度分析和最终结论。"
             
-            response = openai.chat.completions.create(
+            response = self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": self.system_prompt},

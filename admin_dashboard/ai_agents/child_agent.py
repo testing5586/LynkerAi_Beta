@@ -16,7 +16,7 @@ except ImportError:
     print("⚠️ Supabase SDK 不可用，Child AI 使用模拟数据")
 
 try:
-    import openai
+    from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -34,23 +34,26 @@ class ChildAgent:
         self.temperature = config["agents"]["child"]["temperature"]
         self.max_tokens = config["agents"]["child"]["max_tokens"]
         
-        self.client = None
+        self.supabase_client = None
         if SUPABASE_AVAILABLE:
             url = os.getenv("SUPABASE_URL")
             key = os.getenv("SUPABASE_KEY")
             if url and key:
-                self.client = create_client(url, key)
+                self.supabase_client = create_client(url, key)
         
+        self.openai_client = None
         if OPENAI_AVAILABLE:
-            openai.api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+            if api_key:
+                self.openai_client = OpenAI(api_key=api_key)
     
     def query_birthcharts(self, filters: Optional[Dict] = None) -> List[Dict]:
         """查询命盘数据库"""
-        if not self.client:
+        if not self.supabase_client:
             return self._mock_birthcharts()
         
         try:
-            query = self.client.table("birthcharts").select("*")
+            query = self.supabase_client.table("birthcharts").select("*")
             
             if filters:
                 for key, value in filters.items():
@@ -64,11 +67,11 @@ class ChildAgent:
     
     def query_match_results(self, user_id: Optional[int] = None) -> List[Dict]:
         """查询匹配结果"""
-        if not self.client:
+        if not self.supabase_client:
             return []
         
         try:
-            query = self.client.table("match_results").select("*")
+            query = self.supabase_client.table("match_results").select("*")
             
             if user_id:
                 query = query.or_(f"user_a_id.eq.{user_id},user_b_id.eq.{user_id}")
@@ -122,7 +125,7 @@ class ChildAgent:
     
     def _generate_summary(self, patterns: Dict) -> str:
         """使用 AI 生成分析总结"""
-        if not OPENAI_AVAILABLE:
+        if not self.openai_client:
             return self._simple_summary(patterns)
         
         try:
@@ -137,7 +140,7 @@ class ChildAgent:
 请用1-2句话总结关键发现（中文，专业术语）。
 """
             
-            response = openai.chat.completions.create(
+            response = self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=self.temperature,
