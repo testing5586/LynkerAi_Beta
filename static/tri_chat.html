@@ -28,6 +28,13 @@
             white-space: pre-wrap;
             word-break: break-word;
         }
+        .new-message-badge {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="w-screen h-screen overflow-hidden">
@@ -42,6 +49,9 @@
                     <p class="text-sm text-slate-400 mt-1">Master AI ↔ Child AI ↔ User 实时对话</p>
                 </div>
                 <div class="flex items-center gap-4">
+                    <div id="newMessageBadge" class="hidden items-center gap-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-xs cursor-pointer new-message-badge" onclick="scrollToBottom()">
+                        <span>📨 有新消息</span>
+                    </div>
                     <div class="flex items-center gap-2 text-xs">
                         <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                         <span class="text-slate-400">实时同步</span>
@@ -85,6 +95,7 @@
         const API_KEY = 'lynker_relay_secret_2025';
         let logs = [];
         let isSending = false;
+        let lastLogCount = 0;
 
         const roleConfig = {
             master: { label: 'Master AI', icon: '🧠', color: 'bg-purple-500' },
@@ -116,44 +127,90 @@
             return JSON.stringify(log, null, 2);
         }
 
-        function renderMessage(log, index) {
+        function isAtBottom() {
+            const container = document.getElementById('messagesContainer');
+            const threshold = 100;
+            return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+        }
+
+        function scrollToBottom(smooth = true) {
+            const container = document.getElementById('messagesContainer');
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+            document.getElementById('newMessageBadge').classList.add('hidden');
+        }
+
+        function createMessageElement(log, index) {
             const role = getRole(log);
             const align = log.from === 'user' ? 'items-end text-right' : 'items-start';
             const content = formatContent(log);
             const time = formatTime(log.ts);
 
-            return `
-                <div class="flex flex-col ${align} group message-enter">
-                    <div class="flex items-center gap-2 opacity-80 text-xs mb-1">
-                        <div class="rounded-full px-3 py-1 ${role.color} text-white text-xs flex items-center gap-1.5">
-                            <span>${role.icon}</span>
-                            <span>${role.label}</span>
-                        </div>
-                        <span class="text-slate-400">${time}</span>
+            const div = document.createElement('div');
+            div.className = `flex flex-col ${align} group message-enter`;
+            div.setAttribute('data-index', index);
+            div.innerHTML = `
+                <div class="flex items-center gap-2 opacity-80 text-xs mb-1">
+                    <div class="rounded-full px-3 py-1 ${role.color} text-white text-xs flex items-center gap-1.5">
+                        <span>${role.icon}</span>
+                        <span>${role.label}</span>
                     </div>
-                    <div class="message-card max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed backdrop-blur-md bg-white/10 border border-white/10">
-                        <pre class="text-white/90">${content}</pre>
-                    </div>
+                    <span class="text-slate-400">${time}</span>
+                </div>
+                <div class="message-card max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed backdrop-blur-md bg-white/10 border border-white/10">
+                    <pre class="text-white/90">${content}</pre>
                 </div>
             `;
+            return div;
         }
 
-        function renderMessages() {
+        function updateMessages(newLogs) {
             const container = document.getElementById('messagesContainer');
-            if (logs.length === 0) {
+            const wasAtBottom = isAtBottom();
+            
+            if (newLogs.length === 0) {
                 container.innerHTML = '<div class="text-center text-slate-500 py-20">暂无对话记录</div>';
+                lastLogCount = 0;
                 return;
             }
-            container.innerHTML = logs.map((log, i) => renderMessage(log, i)).join('');
-            container.scrollTop = container.scrollHeight;
+
+            if (newLogs.length > lastLogCount) {
+                const startIndex = lastLogCount;
+                const fragment = document.createDocumentFragment();
+                
+                for (let i = startIndex; i < newLogs.length; i++) {
+                    fragment.appendChild(createMessageElement(newLogs[i], i));
+                }
+                
+                if (lastLogCount === 0) {
+                    container.innerHTML = '';
+                }
+                
+                container.appendChild(fragment);
+                lastLogCount = newLogs.length;
+
+                if (wasAtBottom) {
+                    scrollToBottom(true);
+                } else {
+                    const badge = document.getElementById('newMessageBadge');
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                }
+            }
         }
 
         async function fetchLogs() {
             try {
                 const res = await fetch('/api/relay/logs?limit=100');
                 const data = await res.json();
-                logs = data.logs || [];
-                renderMessages();
+                const newLogs = data.logs || [];
+                
+                if (JSON.stringify(newLogs) !== JSON.stringify(logs)) {
+                    logs = newLogs;
+                    updateMessages(logs);
+                }
             } catch (error) {
                 console.error('获取日志失败:', error);
             }
@@ -187,7 +244,7 @@
 
                 if (res.ok) {
                     input.value = '';
-                    setTimeout(fetchLogs, 500);
+                    setTimeout(fetchLogs, 300);
                 } else {
                     alert('发送失败，请重试');
                 }
@@ -209,8 +266,18 @@
 
         function clearLogs() {
             if (confirm('确定要清空所有日志吗？此操作不可恢复。')) {
-                logs = [];
-                renderMessages();
+                fetch('/api/relay/clear', {
+                    method: 'POST',
+                    headers: { 'X-Relay-API-Key': API_KEY }
+                }).then(() => {
+                    logs = [];
+                    lastLogCount = 0;
+                    const container = document.getElementById('messagesContainer');
+                    container.innerHTML = '<div class="text-center text-slate-500 py-20">暂无对话记录</div>';
+                }).catch(err => {
+                    console.error('清空日志失败:', err);
+                    alert('清空失败，请重试');
+                });
             }
         }
 

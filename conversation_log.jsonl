@@ -10,3 +10,11 @@
 {"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_2", "payload": {"test": 2}, "task_id": "t_1761141243066", "ts": "2025-10-22 13:54:03"}
 {"event": "send", "from": "master", "to": "child", "type": "task", "cmd": "test_1", "payload": {"test": 1}, "task_id": "t_1761141243083", "ts": "2025-10-22 13:54:03"}
 {"event": "send", "from": "user", "to": "master", "type": "message", "text": "你好，这是来自三方聊天界面的测试消息！", "ts": "2025-10-22 14:16:58"}
+{"event": "send", "from": "user", "to": "master", "type": "message", "text": "帮我验证命盘结构", "ts": "2025-10-23 00:53:55"}
+{"event": "callback", "task_id": "t_1761140597992", "child_id": "child_bazi", "status": "done", "result": {"summary": "已根据 Vault 规则初检命盘轨迹一致性", "score": 0.72}, "ts": "2025-10-23 00:55:52"}
+{"event": "callback", "task_id": "t_1761141014541", "child_id": "child_bazi", "status": "done", "result": {"summary": "已根据 Vault 规则初检命盘轨迹一致性", "score": 0.72}, "ts": "2025-10-23 00:55:52"}
+{"event": "callback", "task_id": "t_1761141243040", "child_id": "child_bazi", "status": "done", "result": {"echo": {"test": 4}}, "ts": "2025-10-23 00:55:52"}
+{"event": "callback", "task_id": "t_1761141243054", "child_id": "child_bazi", "status": "done", "result": {"echo": {"test": 5}}, "ts": "2025-10-23 00:55:52"}
+{"event": "callback", "task_id": "t_1761141243064", "child_id": "child_bazi", "status": "done", "result": {"echo": {"test": 3}}, "ts": "2025-10-23 00:55:52"}
+{"event": "callback", "task_id": "t_1761141243066", "child_id": "child_bazi", "status": "done", "result": {"echo": {"test": 2}}, "ts": "2025-10-23 00:55:52"}
+{"event": "callback", "task_id": "t_1761141243083", "child_id": "child_bazi", "status": "done", "result": {"echo": {"test": 1}}, "ts": "2025-10-23 00:55:52"}
