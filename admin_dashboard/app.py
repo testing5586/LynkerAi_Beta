@@ -4,8 +4,12 @@ from auth import verify_login
 from data_fetcher import get_dashboard_data
 from chat_hub import process_message
 
+import os
+
 app = Flask(__name__)
-app.secret_key = "lynker_dashboard_session"
+app.secret_key = os.getenv("MASTER_VAULT_KEY")
+if not app.secret_key:
+    raise ValueError("MASTER_VAULT_KEY environment variable must be set for secure session management")
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 @app.route("/")

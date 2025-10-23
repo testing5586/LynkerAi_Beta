@@ -1,6 +1,12 @@
 from datetime import datetime
 import os
-from supabase import create_client
+
+try:
+    from supabase import create_client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    print("Warning: Supabase SDK not available. Using mock data.")
 
 def get_dashboard_data():
     """获取仪表板数据"""
@@ -9,7 +15,7 @@ def get_dashboard_data():
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_KEY")
         
-        if supabase_url and supabase_key:
+        if SUPABASE_AVAILABLE and supabase_url and supabase_key:
             client = create_client(supabase_url, supabase_key)
             
             vault_count = client.table("master_vault").select("id", count="exact").execute()
