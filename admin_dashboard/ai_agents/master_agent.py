@@ -44,23 +44,41 @@ class MasterAgent:
 - 保持中文输出
 """
     
-    def reason(self, user_query: str, leader_report: str, vault_context: Optional[str] = None) -> str:
-        """执行主控推理"""
+    def reason(self, user_query: str, leader_report: Dict[str, Any], vault_context: Optional[str] = None) -> Dict[str, Any]:
+        """执行主控推理（模式归纳 + 异常值解释）"""
         if not self.openai_client:
-            return self._simple_reasoning(user_query, leader_report)
+            return self._simple_reasoning_report(user_query, leader_report)
         
         try:
+            leader_summary = leader_report.get("summary", "未知汇报") if isinstance(leader_report, dict) else str(leader_report)
+            sample_size = leader_report.get("sample_size", 0) if isinstance(leader_report, dict) else 0
+            conformity_rate = leader_report.get("conformity_rate", 0) if isinstance(leader_report, dict) else 0
+            new_discoveries = leader_report.get("new_discoveries", []) if isinstance(leader_report, dict) else []
+            
             context = f"""
 用户查询：{user_query}
 
 Group Leader 汇报：
-{leader_report}
+{leader_summary}
+
+样本量：{sample_size} 份
+规律相符率：{int(conformity_rate*100)}%
+新发现：{', '.join(new_discoveries) if new_discoveries else '无'}
 """
             
             if vault_context:
                 context += f"\n\nMaster Vault 知识库：\n{vault_context}"
             
-            context += "\n\n请基于以上信息提供深度分析和最终结论。"
+            context += """
+
+请执行：
+1. 模式归纳：总结命理规律的核心特征
+2. 异常值解释：分析不符合规律的特殊案例
+3. 与紫微飞化系统交叉验证
+4. 给出可执行建议（样本扩容、权重调优等）
+
+输出格式：自然语言结论（中文，专业）。
+"""
             
             response = self.openai_client.chat.completions.create(
                 model=self.model,
@@ -72,10 +90,57 @@ Group Leader 汇报：
                 max_tokens=self.max_tokens
             )
             
-            return response.choices[0].message.content.strip()
+            conclusion = response.choices[0].message.content.strip()
+            
+            confidence = self._calculate_confidence(conformity_rate, sample_size)
+            
+            return {
+                "conclusion": conclusion,
+                "confidence": confidence,
+                "sample_size": sample_size,
+                "conformity_rate": conformity_rate,
+                "new_discoveries": new_discoveries,
+                "should_save_to_vault": confidence >= 0.80
+            }
         except Exception as e:
             print(f"⚠️ Master AI 推理失败: {e}")
-            return self._simple_reasoning(user_query, leader_report)
+            return self._simple_reasoning_report(user_query, leader_report)
+    
+    def _calculate_confidence(self, conformity_rate: float, sample_size: int) -> float:
+        """计算置信度（基于相符率和样本量）"""
+        base_confidence = conformity_rate
+        
+        if sample_size >= 50:
+            size_bonus = 0.10
+        elif sample_size >= 20:
+            size_bonus = 0.05
+        else:
+            size_bonus = 0.0
+        
+        return min(base_confidence + size_bonus, 0.95)
+    
+    def _simple_reasoning_report(self, user_query: str, leader_report: Any) -> Dict[str, Any]:
+        """简化版推理报告"""
+        if isinstance(leader_report, dict):
+            summary = leader_report.get("summary", "未知")
+            sample_size = leader_report.get("sample_size", 0)
+            conformity_rate = leader_report.get("conformity_rate", 0)
+        else:
+            summary = str(leader_report)
+            sample_size = 0
+            conformity_rate = 0
+        
+        conclusion = f"基于 Group Leader 的分析，{summary}。建议进一步收集数据验证此规律。"
+        confidence = self._calculate_confidence(conformity_rate, sample_size)
+        
+        return {
+            "conclusion": conclusion,
+            "confidence": confidence,
+            "sample_size": sample_size,
+            "conformity_rate": conformity_rate,
+            "new_discoveries": [],
+            "should_save_to_vault": False
+        }
     
     def _simple_reasoning(self, user_query: str, leader_report: str) -> str:
         """简单推理（无需 AI）"""

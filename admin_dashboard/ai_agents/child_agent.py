@@ -83,23 +83,33 @@ class ChildAgent:
             return []
     
     def analyze_pattern(self, task: str) -> Dict[str, Any]:
-        """执行命盘模式分析任务"""
+        """执行命盘模式分析任务（真实命理逻辑）"""
         charts = self.query_birthcharts()
         
         if not charts:
             return {
                 "status": "no_data",
                 "message": "数据库暂无命盘数据",
-                "patterns": []
+                "patterns": {},
+                "core_findings": []
             }
         
         main_stars = Counter()
         palaces = Counter()
         combinations = Counter()
+        marriage_palace_stars = Counter()
+        wealth_palace_stars = Counter()
+        hualu_count = 0
+        huaji_count = 0
         
         for chart in charts:
-            star = chart.get("main_star")
-            palace = chart.get("ziwei_palace")
+            birth_data = chart.get("birth_data", {})
+            
+            star = birth_data.get("main_star") or chart.get("main_star")
+            palace = birth_data.get("ziwei_palace") or chart.get("ziwei_palace")
+            marriage_star = birth_data.get("marriage_palace_star")
+            wealth_star = birth_data.get("wealth_palace_star")
+            transformations = birth_data.get("transformations", {})
             
             if star:
                 main_stars[star] += 1
@@ -107,19 +117,36 @@ class ChildAgent:
                 palaces[palace] += 1
             if star and palace:
                 combinations[f"{palace}-{star}"] += 1
+            if marriage_star:
+                marriage_palace_stars[marriage_star] += 1
+            if wealth_star:
+                wealth_palace_stars[wealth_star] += 1
+            
+            if transformations.get("hualu"):
+                hualu_count += 1
+            if transformations.get("huaji"):
+                huaji_count += 1
         
         patterns = {
             "total_charts": len(charts),
             "top_stars": main_stars.most_common(5),
             "top_palaces": palaces.most_common(5),
-            "top_combinations": combinations.most_common(5)
+            "top_combinations": combinations.most_common(5),
+            "marriage_palace_distribution": marriage_palace_stars.most_common(5),
+            "wealth_palace_distribution": wealth_palace_stars.most_common(5),
+            "hualu_ratio": round(hualu_count / len(charts), 2) if len(charts) > 0 else 0,
+            "huaji_ratio": round(huaji_count / len(charts), 2) if len(charts) > 0 else 0
         }
+        
+        core_findings = self._extract_core_findings(patterns)
         
         return {
             "status": "success",
             "agent": f"{self.icon} {self.name}",
             "task": task,
+            "sample_size": len(charts),
             "patterns": patterns,
+            "core_findings": core_findings,
             "summary": self._generate_summary(patterns)
         }
     
@@ -152,12 +179,41 @@ class ChildAgent:
             print(f"⚠️ Child AI 总结生成失败: {e}")
             return self._simple_summary(patterns)
     
+    def _extract_core_findings(self, patterns: Dict) -> List[str]:
+        """提取核心命理发现（优先三大核心指标）"""
+        findings = []
+        total = patterns.get("total_charts", 0)
+        
+        if total == 0:
+            return findings
+        
+        top_star = patterns['top_stars'][0] if patterns['top_stars'] else None
+        if top_star and top_star[1] / total > 0.15:
+            findings.append(f"{top_star[0]}型命盘占比{int(top_star[1]/total*100)}%，显著高于平均")
+        
+        hualu_ratio = patterns.get("hualu_ratio", 0)
+        if hualu_ratio > 0.5:
+            findings.append(f"化禄比例偏高（{int(hualu_ratio*100)}%），整体运势较顺")
+        
+        huaji_ratio = patterns.get("huaji_ratio", 0)
+        if huaji_ratio > 0.4:
+            findings.append(f"化忌比例较高（{int(huaji_ratio*100)}%），需防破财或情感波折")
+        
+        if len(findings) < 3:
+            marriage_stars = patterns.get("marriage_palace_distribution", [])
+            if marriage_stars:
+                top_marriage = marriage_stars[0]
+                findings.append(f"夫妻宫以{top_marriage[0]}为主（{top_marriage[1]}例）")
+        
+        return findings[:3]
+    
     def _simple_summary(self, patterns: Dict) -> str:
         """简单文本总结（无需 AI）"""
         top_star = patterns['top_stars'][0][0] if patterns['top_stars'] else "未知"
         top_palace = patterns['top_palaces'][0][0] if patterns['top_palaces'] else "未知"
+        total = patterns.get('total_charts', 0)
         
-        return f"数据库共{patterns['total_charts']}个命盘，主星以{top_star}为主，命宫多见{top_palace}。"
+        return f"数据库共{total}个命盘，主星以{top_star}为主，命宫多见{top_palace}。"
     
     def _mock_birthcharts(self) -> List[Dict]:
         """模拟数据（开发环境）"""

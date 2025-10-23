@@ -29,41 +29,61 @@ class LynkerEngine:
         self.enabled = self.config["ai_collaboration"]["enabled"]
         self.timeout = self.config["ai_collaboration"]["timeout_seconds"]
     
-    def process_query(self, user_query: str) -> Dict[str, str]:
+    def process_query(self, user_query: str) -> Dict[str, Any]:
         """
-        处理用户查询，返回三方 AI 的完整对话
+        处理用户查询，返回三方 AI 的完整对话（v2.1 - 动态命理分析）
         
         返回格式：
         {
             "child": "Child AI 的分析结果",
             "leader": "Group Leader 的协调报告",
-            "master": "Master AI 的最终结论"
+            "master": "Master AI 的最终结论",
+            "vault_saved": bool,
+            "superintendent_notified": bool
         }
         """
         if not self.enabled:
             return self._fallback_response(user_query)
         
         try:
-            child_response = self.child.process(user_query)
+            child_result = self.child.analyze_pattern(user_query)
+            child_response = f"{self.child.icon} {self.child.name}: {child_result.get('summary', '分析中...')}"
             
-            leader_response = self.leader.process(user_query, self.child)
+            leader_report = self.leader.coordinate(user_query, [child_result])
+            leader_response = f"{self.leader.icon} {self.leader.name}: {leader_report.get('summary', '协调中...')}"
             
             vault_context = self._get_vault_context(user_query)
             
-            master_response = self.master.process(
+            master_result = self.master.reason(
                 user_query, 
-                leader_response, 
+                leader_report, 
                 vault_context
             )
+            master_response = f"{self.master.icon} {self.master.name}: {master_result.get('conclusion', '推理中...')}"
+            
+            vault_saved = False
+            superintendent_notified = False
+            
+            if master_result.get("should_save_to_vault", False):
+                vault_saved = self._save_to_vault(user_query, master_result, leader_report)
+                
+                if vault_saved and master_result.get("confidence", 0) >= 0.80:
+                    superintendent_notified = self._notify_superintendent(master_result)
             
             return {
                 "child": child_response,
                 "leader": leader_response,
-                "master": master_response
+                "master": master_response,
+                "vault_saved": vault_saved,
+                "superintendent_notified": superintendent_notified,
+                "confidence": master_result.get("confidence", 0),
+                "sample_size": master_result.get("sample_size", 0)
             }
         
         except Exception as e:
             print(f"❌ Lynker Engine 处理失败: {e}")
+            import traceback
+            traceback.print_exc()
             return self._fallback_response(user_query)
     
     def _get_vault_context(self, query: str) -> Optional[str]:
@@ -95,12 +115,79 @@ class LynkerEngine:
             print(f"⚠️ 无法获取 Vault 知识: {e}")
             return None
     
-    def _fallback_response(self, user_query: str) -> Dict[str, str]:
+    def _save_to_vault(self, user_query: str, master_result: Dict, leader_report: Dict) -> bool:
+        """保存高信度发现到 Master Vault"""
+        try:
+            import sys
+            from datetime import datetime
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            
+            from master_vault_engine import save_to_vault
+            
+            title = f"命盘规律对比分析报告 #{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            content = f"""
+查询：{user_query}
+
+样本量：{master_result.get('sample_size', 0)} 份
+置信度：{master_result.get('confidence', 0):.2%}
+规律相符率：{leader_report.get('conformity_rate', 0):.2%}
+
+核心发现：
+{chr(10).join(['- ' + d for d in master_result.get('new_discoveries', [])])}
+
+Master AI 结论：
+{master_result.get('conclusion', '未知')}
+"""
+            
+            save_to_vault(
+                title=title,
+                content=content,
+                author="Master AI",
+                role="Superintendent Admin"
+            )
+            
+            print(f"✅ 已将高信度发现存入 Master Vault：{title}")
+            return True
+            
+        except Exception as e:
+            print(f"⚠️ Vault 存储失败: {e}")
+            return False
+    
+    def _notify_superintendent(self, master_result: Dict) -> bool:
+        """通知 Superintendent Admin 新规律发现"""
+        try:
+            confidence = master_result.get("confidence", 0)
+            sample_size = master_result.get("sample_size", 0)
+            new_discoveries = master_result.get("new_discoveries", [])
+            
+            notification = f"""
+🧠 新规律已验证！
+
+置信度：{confidence:.2%}
+样本量：{sample_size} 份
+新发现：{', '.join(new_discoveries[:2]) if new_discoveries else '无'}
+
+请前往 Master Vault 查看完整报告。
+"""
+            
+            print(notification)
+            
+            return True
+            
+        except Exception as e:
+            print(f"⚠️ Superintendent 通知失败: {e}")
+            return False
+    
+    def _fallback_response(self, user_query: str) -> Dict[str, Any]:
         """降级响应（AI 不可用时）"""
         return {
             "child": f"{self.child.icon} {self.child.name}: 正在分析数据库...",
             "leader": f"{self.leader.icon} {self.leader.name}: 协调任务中...",
-            "master": f"{self.master.icon} {self.master.name}: 系统暂时无法完成深度推理。"
+            "master": f"{self.master.icon} {self.master.name}: 系统暂时无法完成深度推理。",
+            "vault_saved": False,
+            "superintendent_notified": False,
+            "confidence": 0,
+            "sample_size": 0
         }
     
     def get_agent_info(self) -> Dict[str, Any]:
