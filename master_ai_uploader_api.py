@@ -24,7 +24,7 @@ except ImportError:
     RAG_AVAILABLE = False
     print("⚠️ RAG 模块未找到，Chat 功能将不可用")
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='master_ai/templates')
 app.register_blueprint(relay_bp)
 supabase = get_supabase()
 
@@ -539,6 +539,21 @@ def upload_page():
     </html>
     """
 
+@app.route("/api/provider/stats")
+def provider_stats_api():
+    """Provider 性能统计 API"""
+    try:
+        from master_ai.provider_manager import ProviderManager
+        manager = ProviderManager()
+        return jsonify(manager.get_all_stats())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/provider-dashboard")
+def provider_dashboard():
+    """Provider 性能面板"""
+    return render_template("performance.html")
+
 if __name__ == "__main__":
     print("=" * 70)
     print("🚀 Lynker Master Vault API + RAG Chat")
@@ -550,6 +565,8 @@ if __name__ == "__main__":
     print("   GET  /api/master-ai/context      - 查看 Vault")
     print("   GET  /api/master-ai/memory       - 查询子AI记忆")
     print("   GET  /master-ai-memory           - Memory Dashboard")
+    print("   GET  /provider-dashboard         - Multi-Provider 性能面板")
+    print("   GET  /api/provider/stats         - Provider 统计 API")
     print("=" * 70)
     if RAG_AVAILABLE:
         print("✅ RAG 向量检索功能已启用")

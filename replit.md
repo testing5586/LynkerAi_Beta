@@ -29,6 +29,7 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Bridge Module (`replit_bridge.py`)**: Abstracts file system operations and command execution for platform independence.
 -   **Security Layer (`ai_guard_middleware.py`)**: Centralized access control for AI operations, checking user permissions, call limits, and service status.
 -   **TMS - Trusted Metaphysics System (`master_ai/`)**: Global trusted chart verification network with pseudonym protection, signature verification, regional adaptation, confidence voting, and hierarchical validation architecture. Includes Master Validator API (port 8080), PostgreSQL database schema, and comprehensive documentation.
+-   **Multi-Provider Manager (`master_ai/provider_manager.py`)**: Intelligent AI provider scheduling system for ChatGPT/Gemini/GLM/DeepSeek with automatic fallback, performance monitoring, statistical analysis, and web visualization dashboard.
 
 ## Language & Runtime
 -   **Language**: Python 3.x
