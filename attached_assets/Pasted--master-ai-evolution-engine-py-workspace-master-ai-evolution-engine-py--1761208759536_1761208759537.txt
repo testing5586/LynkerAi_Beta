@@ -1,0 +1,93 @@
+创建一个新文件：master_ai_evolution_engine.py  
+要求：
+
+📁 文件位置：
+~/workspace/master_ai_evolution_engine.py
+
+💡 文件功能：
+构建 LynkerAI 的 Master AI 自我学习引擎，让系统具备自动学习、规律发现、自我验证与加密存档功能。
+
+🧩 代码内容如下（请完整保存）：
+-------------------------------------------------------------
+
+import os
+import time
+from datetime import datetime
+from supabase import create_client, Client
+from master_vault_engine import insert_vault
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def analyze_patterns(records):
+    """
+    🧠 自动分析命盘规律（示例逻辑）
+    """
+    stats = {}
+    for r in records:
+        key = (r["ziwei_palace"], r["main_star"])
+        stats[key] = stats.get(key, 0) + 1
+
+    results = []
+    for (palace, star), count in stats.items():
+        if count >= 2:
+            results.append({
+                "pattern": f"{palace}-{star}",
+                "count": count,
+                "insight": f"{palace} 宫主星 {star} 出现频率较高，可能与特定命格特征相关。"
+            })
+    return results
+
+def store_to_vault(patterns):
+    """
+    🔐 存入 Master Vault（加密）
+    """
+    for p in patterns:
+        title = f"命盘规律发现：{p['pattern']}"
+        content = f"发现次数: {p['count']}\n推测: {p['insight']}\n时间: {datetime.utcnow()}"
+        insert_vault(title=title, content=content, created_by="Master AI")
+        print(f"✅ 已存入 Vault：{title}")
+
+def learn_from_birthcharts():
+    """
+    📊 从 Supabase 数据库中自动学习
+    """
+    print("🔍 扫描 birthcharts 数据中...")
+    response = client.table("birthcharts").select("*").execute()
+    records = response.data or []
+
+    if not records:
+        print("⚠️ 未找到命盘数据。")
+        return
+
+    patterns = analyze_patterns(records)
+    if patterns:
+        store_to_vault(patterns)
+    else:
+        print("ℹ️ 暂无可记录的新规律。")
+
+def verify_and_update_knowledge():
+    """
+    🔄 自我验证与知识更新逻辑
+    """
+    print("🧩 正在交叉验证既有结论...")
+    # （未来将加入 AI 验证机制）
+    time.sleep(1)
+    print("✅ 验证完成，无冲突。")
+
+def main():
+    print("🚀 Master AI 自我学习引擎启动中...")
+    learn_from_birthcharts()
+    verify_and_update_knowledge()
+    print("🌟 自我学习周期完成。")
+
+if __name__ == "__main__":
+    main()
+
+-------------------------------------------------------------
+
+💾 保存后执行验证：
+1. 检查 Python 语法；
+2. 确认文件可被主环境执行；
+3. 打印 “✅ Master AI 自我学习引擎创建并验证完成”。
