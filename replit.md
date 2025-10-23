@@ -28,6 +28,7 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Domain Auto-Detection (`update_redirect_uri.py`)**: Dynamically detects Replit Sisko domain and provides guidance for updating Google OAuth redirect URIs.
 -   **Bridge Module (`replit_bridge.py`)**: Abstracts file system operations and command execution for platform independence.
 -   **Security Layer (`ai_guard_middleware.py`)**: Centralized access control for AI operations, checking user permissions, call limits, and service status.
+-   **TMS - Trusted Metaphysics System (`master_ai/`)**: Global trusted chart verification network with pseudonym protection, signature verification, regional adaptation, confidence voting, and hierarchical validation architecture. Includes Master Validator API (port 8080), PostgreSQL database schema, and comprehensive documentation.
 
 ## Language & Runtime
 -   **Language**: Python 3.x
