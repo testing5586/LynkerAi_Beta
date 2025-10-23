@@ -3,21 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 协作聊天室 - LynkerAI</title>
+    <title>三方AI智能协作引擎 v2.0 - LynkerAI</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.js"></script>
+    <style>
+        .agent-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            margin: 0 5px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .agent-info {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+        .ai-msg.child {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+            border-left: 3px solid #34d399;
+            animation: fadeIn 0.5s;
+        }
+        .ai-msg.leader {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+            border-left: 3px solid #fbbf24;
+            animation: fadeIn 0.6s;
+        }
+        .ai-msg.master {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(109, 40, 217, 0.05) 100%);
+            border-left: 3px solid #8b5cf6;
+            animation: fadeIn 0.7s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .system-info {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+        .system-info h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+    </style>
 </head>
 <body>
 <div class="sidebar">
-    <h2>💬 三方AI协作</h2>
-    <p class="sidebar-subtitle">Master / Leader / Child</p>
+    <h2>🧠 三方AI协作 v2.0</h2>
+    <p class="sidebar-subtitle">智能推理引擎</p>
     <ul>
         <li><a href="/dashboard">📊 Dashboard</a></li>
-        <li><a href="/chatroom" class="active">💬 Chatroom</a></li>
+        <li><a href="/chatroom" class="active">💬 AI Chatroom</a></li>
     </ul>
     
     <div class="ai-status">
-        <h4>AI 角色状态</h4>
+        <h4>AI 协作层级</h4>
         <div class="status-item">
             <span class="status-dot online"></span>
             <span>Master AI 🧠</span>
@@ -31,19 +80,40 @@
             <span>Child AI 🤖</span>
         </div>
     </div>
+
+    {% if agents %}
+    <div class="agent-info">
+        <h4>🔧 引擎配置</h4>
+        <p style="font-size: 12px; margin: 5px 0;">
+            Master: {{ agents.master.model }}<br>
+            Leader: {{ agents.leader.model }}<br>
+            Child: {{ agents.child.model }}
+        </p>
+    </div>
+    {% endif %}
 </div>
 
 <div class="main">
-    <h1>Superintendent AI 指令台</h1>
-    <p class="timestamp">实时协作通信</p>
+    <h1>🧠 Superintendent AI 指令台</h1>
+    <p class="timestamp">三方AI智能协作引擎 v2.0 - 实时推理系统</p>
+    
+    <div class="system-info">
+        <h3>💡 系统说明</h3>
+        <p>此聊天室已接入 <strong>Lynker Engine v2.0</strong>，三方 AI 将协作处理您的查询：</p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+            <li><strong>🤖 Child AI</strong>: 检索数据库，识别命盘模式与统计规律</li>
+            <li><strong>🧩 Group Leader</strong>: 分配任务，整合 Child AI 的分析结果</li>
+            <li><strong>🧠 Master AI</strong>: 综合 Vault 知识库，提供最终结论与建议</li>
+        </ul>
+    </div>
     
     <div class="chat-container">
         <div id="chat-window" class="chat-window">
-            <div class="system-msg">系统: 三方 AI 协作聊天室已就绪，输入指令开始对话...</div>
+            <div class="system-msg">✅ 系统: Lynker Engine v2.0 已就绪，三方 AI 待命中...</div>
         </div>
         
         <div class="chat-input-container">
-            <input id="msg" type="text" placeholder="输入命令或提问..." />
+            <input id="msg" type="text" placeholder="输入命令或提问（例如：分析命盘数据库的高频组合）..." />
             <button onclick="sendMsg()">发送</button>
         </div>
     </div>
@@ -76,11 +146,27 @@ document.getElementById('msg').addEventListener('keypress', function(e) {
 socket.on('receive_message', function(data){
     const chatWindow = document.getElementById('chat-window');
     
-    data.forEach(reply => {
-        chatWindow.innerHTML += `<div class="msg ai-msg">${reply}</div>`;
-    });
-    
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    if (Array.isArray(data)) {
+        data.forEach((reply, index) => {
+            let cssClass = 'ai-msg';
+            
+            if (reply.includes('🤖') || reply.includes('Child AI')) {
+                cssClass += ' child';
+            } else if (reply.includes('🧩') || reply.includes('Group Leader')) {
+                cssClass += ' leader';
+            } else if (reply.includes('🧠') || reply.includes('Master AI')) {
+                cssClass += ' master';
+            }
+            
+            setTimeout(() => {
+                chatWindow.innerHTML += `<div class="msg ${cssClass}">${reply}</div>`;
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }, index * 200);
+        });
+    } else {
+        chatWindow.innerHTML += `<div class="msg ai-msg">${data}</div>`;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
 });
 </script>
 </body>

@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, session
 from flask_socketio import SocketIO, emit
 from auth import verify_login
 from data_fetcher import get_dashboard_data
-from chat_hub import process_message
+from chat_hub_v2 import process_message, get_agent_info
 
 import os
 
@@ -36,7 +36,8 @@ def dashboard():
 def chatroom():
     if not session.get("auth"):
         return redirect("/admin")
-    return render_template("chatroom.html")
+    agent_info = get_agent_info()
+    return render_template("chatroom.html", agents=agent_info)
 
 @socketio.on("send_message")
 def handle_message(data):
