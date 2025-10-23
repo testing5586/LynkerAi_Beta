@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lynker Superintendent Command Center</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+<div class="sidebar">
+    <h2>🧠 LSCC</h2>
+    <p class="sidebar-subtitle">Lynker Superintendent<br>Command Center</p>
+    <ul>
+        <li><a href="/dashboard" class="active">📊 Dashboard</a></li>
+        <li><a href="/chatroom">💬 AI 协作聊天</a></li>
+    </ul>
+</div>
+
+<div class="main">
+    <h1>Superintendent 控制面板</h1>
+    <p class="timestamp">更新时间: {{ data.timestamp }}</p>
+    
+    <div class="stats-grid">
+        <div class="card">
+            <h3>{{ data.master_status }}</h3>
+            <p class="label">Master AI 状态</p>
+        </div>
+        <div class="card">
+            <h3>{{ data.group_leaders }}</h3>
+            <p class="label">Group Leaders</p>
+        </div>
+        <div class="card">
+            <h3>{{ data.child_ai }}</h3>
+            <p class="label">Child AI 数量</p>
+        </div>
+        <div class="card">
+            <h3>{{ data.token_today }}</h3>
+            <p class="label">今日 Token 消耗</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📊 数据库统计</h3>
+        <div class="db-stats">
+            <div class="stat-item">
+                <span class="stat-label">Master Vault 条目:</span>
+                <span class="stat-value">{{ data.vault_entries }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">命盘总数:</span>
+                <span class="stat-value">{{ data.charts_total }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">预测总数:</span>
+                <span class="stat-value">{{ data.predictions_total }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📈 Token 消耗趋势</h3>
+        <div id="tokenChart" style="width:100%;height:300px;"></div>
+    </div>
+
+    <div class="card">
+        <h3>🔍 最新命理规律发现</h3>
+        <ul class="findings-list">
+            {% for finding in data.new_findings %}
+            <li>{{ finding }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script>
+    var trace = {
+        x: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+        y: [5000, 5200, 5100, 5321, 5400, 5500, 5600],
+        type: 'scatter',
+        mode: 'lines+markers',
+        marker: { color: '#61dafb', size: 8 },
+        line: { color: '#61dafb', width: 3 }
+    };
+    
+    var layout = {
+        title: '',
+        xaxis: { title: '日期' },
+        yaxis: { title: 'Token 数量' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: 'Microsoft YaHei, sans-serif' }
+    };
+    
+    Plotly.newPlot('tokenChart', [trace], layout, {responsive: true});
+</script>
+</body>
+</html>

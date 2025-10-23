@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 协作聊天室 - LynkerAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.js"></script>
+</head>
+<body>
+<div class="sidebar">
+    <h2>💬 三方AI协作</h2>
+    <p class="sidebar-subtitle">Master / Leader / Child</p>
+    <ul>
+        <li><a href="/dashboard">📊 Dashboard</a></li>
+        <li><a href="/chatroom" class="active">💬 Chatroom</a></li>
+    </ul>
+    
+    <div class="ai-status">
+        <h4>AI 角色状态</h4>
+        <div class="status-item">
+            <span class="status-dot online"></span>
+            <span>Master AI 🧠</span>
+        </div>
+        <div class="status-item">
+            <span class="status-dot online"></span>
+            <span>Group Leader 🧩</span>
+        </div>
+        <div class="status-item">
+            <span class="status-dot online"></span>
+            <span>Child AI 🤖</span>
+        </div>
+    </div>
+</div>
+
+<div class="main">
+    <h1>Superintendent AI 指令台</h1>
+    <p class="timestamp">实时协作通信</p>
+    
+    <div class="chat-container">
+        <div id="chat-window" class="chat-window">
+            <div class="system-msg">系统: 三方 AI 协作聊天室已就绪，输入指令开始对话...</div>
+        </div>
+        
+        <div class="chat-input-container">
+            <input id="msg" type="text" placeholder="输入命令或提问..." />
+            <button onclick="sendMsg()">发送</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const socket = io();
+
+function sendMsg() {
+    const msgInput = document.getElementById('msg');
+    const msg = msgInput.value.trim();
+    
+    if (!msg) return;
+    
+    const chatWindow = document.getElementById('chat-window');
+    chatWindow.innerHTML += `<div class="msg user-msg">👤 Superintendent: ${msg}</div>`;
+    
+    socket.emit('send_message', { message: msg });
+    msgInput.value = '';
+    
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+document.getElementById('msg').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMsg();
+    }
+});
+
+socket.on('receive_message', function(data){
+    const chatWindow = document.getElementById('chat-window');
+    
+    data.forEach(reply => {
+        chatWindow.innerHTML += `<div class="msg ai-msg">${reply}</div>`;
+    });
+    
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+});
+</script>
+</body>
+</html>
