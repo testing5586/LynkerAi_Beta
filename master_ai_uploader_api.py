@@ -141,7 +141,7 @@ def chat_page():
 
 @app.route("/api/master-ai/chat", methods=["POST"])
 def master_ai_chat():
-    """RAG：从 Vault 中检索相关片段并生成简要回答"""
+    """RAG：从 Vault 中检索相关片段并生成智能回答"""
     if not RAG_AVAILABLE:
         return jsonify({
             "status": "error",
@@ -167,16 +167,58 @@ def master_ai_chat():
                 "citations": []
             })
 
-        bullets = []
+        context_parts = []
         for h in hits:
             txt = h["text"].strip()
-            if len(txt) > 180:
-                txt = txt[:180] + "..."
-            bullets.append(f"• 来自《{h['file_id']}》：{txt}")
+            context_parts.append(f"来自《{h['file_id']}》：\n{txt}")
         
-        answer = "基于知识库检索，我找到以下要点：\n" + "\n".join(bullets) + "\n\n（以上为自动检索摘要，详情请查看引用片段与原文档）"
+        context = "\n\n".join(context_parts)
         
-        print(f"✅ 返回 {len(hits)} 条引用")
+        try:
+            from multi_model_ai import MultiModelAI
+            
+            system_prompt = """你是 Lynker Master AI，精通命理学、八字、紫微斗数、铁板神数等玄学知识。
+请根据以下知识库内容，用专业、易懂的方式回答用户问题。
+如果知识库中没有相关信息，请坦诚说明，不要编造。"""
+            
+            full_prompt = f"""知识库内容：
+{context}
+
+用户问题：{query}
+
+请基于以上知识库内容，用简洁、专业的语言回答用户问题。回答时：
+1. 直接回答问题，不要重复知识库原文
+2. 用自己的话总结和解释
+3. 如果涉及专业术语，请简要说明
+4. 保持回答简洁明了（200-300字）"""
+            
+            print("🤖 正在调用 AI 生成智能回答...")
+            result = MultiModelAI.call("chatgpt", full_prompt, system_prompt, enable_fallback=True)
+            
+            if result["success"]:
+                answer = result["answer"]
+                print(f"✅ AI 回答生成成功 ({result['provider']})")
+            else:
+                print(f"⚠️ AI 调用失败，使用摘要模式")
+                bullets = []
+                for h in hits:
+                    txt = h["text"].strip()
+                    if len(txt) > 180:
+                        txt = txt[:180] + "..."
+                    bullets.append(f"• 来自《{h['file_id']}》：{txt}")
+                answer = "基于知识库检索，我找到以下要点：\n" + "\n".join(bullets)
+        
+        except Exception as e:
+            print(f"⚠️ AI 生成异常: {e}，使用摘要模式")
+            bullets = []
+            for h in hits:
+                txt = h["text"].strip()
+                if len(txt) > 180:
+                    txt = txt[:180] + "..."
+                bullets.append(f"• 来自《{h['file_id']}》：{txt}")
+            answer = "基于知识库检索，我找到以下要点：\n" + "\n".join(bullets)
+        
+        print(f"✅ 返回回答和 {len(hits)} 条引用")
         
         return jsonify({
             "status": "ok",
