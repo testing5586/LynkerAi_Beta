@@ -34,6 +34,7 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **TMS - Trusted Metaphysics System (`master_ai/`)**: Global trusted chart verification network with pseudonym protection, signature verification, regional adaptation, confidence voting, and hierarchical validation architecture. Includes Master Validator API (port 8080), PostgreSQL database schema, and comprehensive documentation.
 -   **Multi-Provider Manager (`master_ai/provider_manager.py`)**: Intelligent AI provider scheduling system for ChatGPT/Gemini/GLM/DeepSeek with automatic fallback, performance monitoring, statistical analysis, and web visualization dashboard.
 -   **Master Vault Engine (`master_vault_engine.py`)**: Secure AES256 encryption system for protecting Master AI's learning knowledge. Supports Superintendent Admin-only decryption, PostgreSQL storage, and complete audit trails. See `master_ai/MASTER_VAULT_ENGINE_GUIDE.md` for details.
+-   **Master AI Evolution Engine (`master_ai_evolution_engine.py`)**: Self-learning system that automatically analyzes birthchart patterns from Supabase database, discovers statistical insights, and encrypts findings into Master Vault. Implements pattern recognition, knowledge validation, and autonomous learning cycles.
 
 ## Language & Runtime
 -   **Language**: Python 3.x
