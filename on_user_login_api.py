@@ -359,6 +359,99 @@ def login_refresh():
     return jsonify(result)
 
 
+@app.route("/login_refresh_ai", methods=["POST"])
+def login_refresh_ai():
+    """
+    用户登录触发 Master AI Reasoner 推理引擎
+    POST /login_refresh_ai
+    Body: {"user_id": 2}
+    
+    功能：
+    1. 自动触发 master_ai_reasoner.reason_user(user_id)
+    2. 将预测结果写入 predictions 表
+    3. 若置信度 ≥ 0.6，自动刷新同命推荐榜
+    4. 记录活动日志
+    """
+    from datetime import datetime
+    import os
+    
+    LOG_PATH = "logs/user_login_activity.log"
+    os.makedirs("logs", exist_ok=True)
+    
+    def write_log(msg):
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now()}] {msg}\n")
+    
+    data = request.get_json()
+    user_id = data.get("user_id")
+    
+    if not user_id:
+        return jsonify({"error": "缺少 user_id 参数"}), 400
+
+    write_log(f"🔔 用户 {user_id} 登录触发推理引擎...")
+
+    try:
+        from master_ai_reasoner import reason_user
+        result = reason_user(user_id)
+    except Exception as e:
+        write_log(f"❌ 推理错误: {e}")
+        return jsonify({"status": "error", "msg": str(e)}), 500
+
+    prediction = result.get("prediction", {})
+    conf = prediction.get("confidence", 0)
+    refreshed = False
+    refresh_count = 0
+
+    if conf >= 0.6:
+        write_log(f"✅ 用户 {user_id} 推理置信度高({conf})，刷新推荐榜...")
+        
+        try:
+            user_chart_res = supabase.table("birthcharts").select("*").eq("id", user_id).execute()
+            if user_chart_res.data:
+                user_chart = user_chart_res.data[0]
+                all_charts = supabase.table("birthcharts").select("*").neq("id", user_id).execute().data
+                
+                for target in all_charts:
+                    score, fields = calculate_match_score(user_chart, target)
+                    if score > 0:
+                        try:
+                            supabase.table("recommendations").upsert({
+                                "user_a_id": user_id,
+                                "user_a_name": user_chart["name"],
+                                "user_b_id": target["id"],
+                                "user_b_name": target["name"],
+                                "match_score": score,
+                                "matching_fields": fields,
+                                "created_at": datetime.utcnow().isoformat()
+                            }).execute()
+                            refresh_count += 1
+                        except Exception:
+                            pass
+                
+                refreshed = True
+                write_log(f"📊 已更新 {refresh_count} 条推荐记录")
+        except Exception as e:
+            write_log(f"⚠️ 刷新推荐榜失败: {e}")
+
+    try:
+        top10 = supabase.table("recommendations").select(
+            "user_a_name,user_b_name,match_score,matching_fields"
+        ).order("match_score", desc=True).limit(10).execute().data or []
+    except Exception:
+        top10 = []
+
+    write_log(f"✅ 登录结果: user={user_id}, conf={conf}, refreshed={refreshed}, top10_count={len(top10)}")
+
+    return jsonify({
+        "status": "ok",
+        "user_id": user_id,
+        "prediction": prediction,
+        "refreshed": refreshed,
+        "refresh_count": refresh_count,
+        "recommendations": top10
+    })
+
+
 @app.route("/chat")
 def chat_page():
     """RAG Chat 界面"""
