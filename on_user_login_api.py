@@ -2,7 +2,7 @@ import os
 import requests
 import json
 from datetime import datetime
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 from supabase import create_client, Client
 from match_palace import calculate_match_score
 
@@ -30,7 +30,7 @@ except ImportError:
 # ===============================
 # 初始化
 # ===============================
-app = Flask(__name__)
+app = Flask(__name__, template_folder='master_ai/templates')
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -593,6 +593,24 @@ def master_ai_dashboard():
     except FileNotFoundError:
         return jsonify({"error": "Dashboard 文件未找到"}), 404
 
+@app.route("/api/provider/stats")
+def provider_stats_api():
+    """Provider 性能统计 API"""
+    try:
+        from master_ai.provider_manager import ProviderManager
+        manager = ProviderManager()
+        return jsonify(manager.get_all_stats())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/provider-dashboard")
+def provider_dashboard():
+    """Provider 性能面板"""
+    try:
+        return render_template("performance.html")
+    except Exception as e:
+        return jsonify({"error": f"无法加载性能面板: {str(e)}"}), 500
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """健康检查端点"""
@@ -604,7 +622,8 @@ def health_check():
             "api": ["/login_refresh", "/health"],
             "rag_chat": ["/chat", "/api/master-ai/chat"],
             "memory_api": ["/api/master-ai/memory", "/api/master-ai/memory/search"],
-            "dashboard": ["/master-ai-memory"]
+            "dashboard": ["/master-ai-memory", "/provider-dashboard"],
+            "provider_stats": ["/api/provider/stats"]
         }
     }), 200
 
