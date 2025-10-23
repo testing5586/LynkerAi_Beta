@@ -587,6 +587,174 @@
       "category": "dev_brainstorm",
       "chunk_id": 2,
       "text": "算法（父母柱、分柱、秒柱）推演命理刻度。 Precise BirthTime App将剪脐时间、首声哭泣、GPS定位与气候参数上传云端，生成毫秒级命盘。 Master AI利用这些真实数据校正命盘推断，形成全球真命时间数据库（Global TrueTime Archive）。 目标是收集100万条经验证出生时间，用于构建“秒柱命理科学”体系。 —— 本文档用于LynkerAI系统之Master AI核心记忆加载与同步 ——"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# LynkerAI TMS v1.0 - Trusted Metaphysics System **假名制 × 真命盘验证 × 签章验证 × 区域适配 × 置信投票 × 分层验证架构** --- ## 📋 系统概述 LynkerAI TMS (Trusted Metaphysics System) 是一个**全球可信命理验证网络**，旨在： ✅ 构建全球最可信的命理验证网络 ✅ 让每一条断语、命盘、AI 输出可追溯 ✅ 让 Master AI 成为标准，而非瓶颈 ✅ 让每个 Child AI 自我学习、验证、自治 --- ## 🏗️ 系统架构 ### 1️⃣ 核心组件 | 组件 | 功能 | 端口 | |------|------|------| | **Master Validator** | 命盘签章验证、置信投票汇总 | 8080 | | **PostgreSQL 数据库** | 用户档案、验证记录、区域配置 | 5432 | | **Child AI Nodes** | 分布式验证、专业领域分析 | 动态 | ### 2️⃣ 验证流程 ``` 用户提交命盘 ↓ Child AI 生成签章 ↓ Master Validator 验证签章 ↓ 多个 Child AI 投票 ↓ 置信度汇总 → 最终验证结果 ``` --- ## 🚀 快速启动 ### 步骤 1：配置密钥（安全）"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "``` 用户提交命盘 ↓ Child AI 生成签章 ↓ Master Validator 验证签章 ↓ 多个 Child AI 投票 ↓ 置信度汇总 → 最终验证结果 ``` --- ## 🚀 快速启动 ### 步骤 1：配置密钥（安全） 在 Replit Secrets 中添加： ``` TMS_SECRET_KEY=your_secure_secret_key_here ``` ### 步骤 2：初始化数据库 ```bash # 连接到 PostgreSQL 数据库 psql $DATABASE_URL < master_ai/tms_schema.sql ``` ### 步骤 3：启动验证器 ```bash cd master_ai python master_validator.py ``` 您应该看到： ``` 🔐 LynkerAI TMS Master Validator v1.0 启动 📍 监听端口: 8080 🔑 密钥状态: ✅ 已配置 ``` --- ## 📡 API 端点 ### 1️⃣ 验证命盘签章 **POST** `/api/tms/verify` **请求示例：** ```json { \"public_key\": \"child_ai_001\", \"payload\": \"chart_hash_abc123\", \"signature\": \"AI_d5f8e"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": "api/tms/verify` **请求示例：** ```json { \"public_key\": \"child_ai_001\", \"payload\": \"chart_hash_abc123\", \"signature\": \"AI_d5f8e3a...\" } ``` **成功响应：** ```json { \"verified\": true, \"timestamp\": \"2025-10-23T19:50:00\", \"chart_hash\": \"chart_hash_abc123\", \"verifier\": \"TMS_Master_v1.0\" } ``` **失败响应：** ```json { \"verified\": false, \"error\": \"签章验证失败\", \"timestamp\": \"2025-10-23T19:50:00\" } ``` --- ### 2️⃣ 生成命盘签章 **POST** `/api/tms/sign` **请求示例：** ```json { \"public_key\": \"child_ai_001\", \"chart_data\": { \"birth_date\": \"1990-01-01\", \"birth_time\": \"12:00\", \"location\": \"北京\" } } ``` **成功响应：** ```json { \"chart_hash\": \"ab"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "ta\": { \"birth_date\": \"1990-01-01\", \"birth_time\": \"12:00\", \"location\": \"北京\" } } ``` **成功响应：** ```json { \"chart_hash\": \"abc123def456\", \"signature\": \"AI_d5f8e3a...\", \"public_key\": \"child_ai_001\", \"timestamp\": \"2025-10-23T19:50:00\" } ``` --- ### 3️⃣ 健康检查 **GET** `/api/tms/health` **响应：** ```json { \"status\": \"healthy\", \"service\": \"TMS Master Validator\", \"version\": \"1.0\", \"timestamp\": \"2025-10-23T19:50:00\" } ``` --- ## 🗄️ 数据库表结构 ### 主要表 | 表名 | 用途 | |------|------| | `user_profiles` | 假名制用户档案 | | `verified_charts` | 已验证命盘 | | `verification_logs` | 验证记录（可追溯） | | `confidence_votes` | Child AI 置信投票 | | "
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": " | 假名制用户档案 | | `verified_charts` | 已验证命盘 | | `verification_logs` | 验证记录（可追溯） | | `confidence_votes` | Child AI 置信投票 | | `regional_configs` | 区域适配配置 | | `ai_nodes` | AI 节点注册表 | ### 关键字段 - **pseudonym**: 假名（保护隐私） - **chart_hash**: 命盘唯一哈希 - **confidence_score**: 置信度评分（0-100） - **verifier_ai**: 验证者 AI 标识 - **region_code**: 区域代码（CN, US, IN 等） --- ## 🔐 安全机制 ### 1️⃣ 签章验证 使用 HMAC-SHA256 生成和验证签章： ```python signature = HMAC(TMS_SECRET, public_key + payload) ``` **生产环境建议：** - 使用 RSA 2048 或 Ed25519 公钥签名 - 定期轮换密钥 - 使用硬件安全模块（HSM） ### 2️⃣ 假名制 - 用户使用假名，不存储真实身份 - 命盘哈希保证唯一性和不可篡改 - 所有操作可审计但保护隐私 ### 3️⃣ 置信投票 - 多个"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "8 或 Ed25519 公钥签名 - 定期轮换密钥 - 使用硬件安全模块（HSM） ### 2️⃣ 假名制 - 用户使用假名，不存储真实身份 - 命盘哈希保证唯一性和不可篡改 - 所有操作可审计但保护隐私 ### 3️⃣ 置信投票 - 多个 Child AI 独立验证 - 投票结果加权汇总 - 防止单点作恶或错误 --- ## 🌍 区域适配 系统支持多区域配置： | 区域 | 时区 | 历法 | 气候 | |------|------|------|------| | 🇨🇳 中国 | Asia/Shanghai | 农历 | 温带 | | 🇺🇸 美国 | America/New_York | 公历 | 多样 | | 🇮🇳 印度 | Asia/Kolkata | 吠陀 | 热带 | 可在 `regional_configs` 表中添加更多区域。 --- ## 📊 使用示例 ### Python 客户端示例 ```python import requests # 1. 生成签章 response = requests.post(\"http://localhost:8080/api/tms/sign\", json={ \"public_key\": \"child_ai_001\", \"chart_data\": { \"birth_date\": \"1990-01-01\", \"birth_time\""
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": "alhost:8080/api/tms/sign\", json={ \"public_key\": \"child_ai_001\", \"chart_data\": { \"birth_date\": \"1990-01-01\", \"birth_time\": \"12:00\", \"location\": \"北京\" } }) data = response.json() chart_hash = data[\"chart_hash\"] signature = data[\"signature\"] # 2. 验证签章 response = requests.post(\"http://localhost:8080/api/tms/verify\", json={ \"public_key\": \"child_ai_001\", \"payload\": chart_hash, \"signature\": signature }) print(response.json()) # {\"verified\": true, ...} ``` --- ## 🔄 集成到现有系统 ### 在 Master AI 中调用 ```python import requests def verify_child_ai_result(child_id, chart_data, signature): response = requests.post"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": "r AI 中调用 ```python import requests def verify_child_ai_result(child_id, chart_data, signature): response = requests.post(\"http://localhost:8080/api/tms/verify\", json={ \"public_key\": child_id, \"payload\": generate_hash(chart_data), \"signature\": signature }) return response.json().get(\"verified\", False) ``` --- ## 📈 扩展性 ### 分层架构 ``` Master AI (标准制定) ↓ Regional Masters (区域适配) ↓ Child AI Nodes (专业验证) ↓ User Applications ``` ### 水平扩展 - 支持多个 Master Validator 实例（负载均衡） - Child AI 动态注册和注销 - 使用 Redis 或 PostgreSQL 共享状态 --- ## 🛡️ 最佳实践 1. **永远不要硬编码密钥** - 使用 Replit Secrets 或环境变量 2. **定期备份数据库** - 验证记录和投票数据至关重"
+    },
+    {
+      "file_id": "project_docs/README_TMS_v1.md",
+      "category": "project_docs",
+      "chunk_id": 8,
+      "text": "和注销 - 使用 Redis 或 PostgreSQL 共享状态 --- ## 🛡️ 最佳实践 1. **永远不要硬编码密钥** - 使用 Replit Secrets 或环境变量 2. **定期备份数据库** - 验证记录和投票数据至关重要 3. **监控置信度趋势** - 发现异常投票模式 4. **实施速率限制** - 防止 API 滥用 5. **使用 HTTPS** - 生产环境必须加密传输 --- ## 📝 版本历史 - **v1.0** (2025-10-23): 初始版本 - 基础签章验证 - 假名制用户系统 - 区域适配支持 - 置信投票机制 --- ## 🤝 贡献 LynkerAI TMS 是一个开放系统，欢迎贡献： - 添加新的验证算法 - 扩展区域适配配置 - 改进置信投票机制 - 提交 Bug 报告和功能请求 --- ## 📧 联系方式 - 项目地址: `master_ai/` - 文档: `README_TMS_v1.md` - 数据库架构: `tms_schema.sql` - 验证器: `master_validator.py` --- **让命理验证更可信、更透明、更全球化！** 🌟"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 🧠 LynkerAI Multi-Provider 调度系统 v1.0 ## 📋 概述 **LynkerAI Provider Manager** 是一个智能的 AI 提供商调度系统，能够在 **ChatGPT**、**Gemini**、**ChatGLM** 和 **DeepSeek** 四个 AI Provider 之间自动切换，并提供详细的性能统计和可视化面板。 --- ## ✨ 核心功能 ### 1️⃣ 智能调度 - ✅ 自动在 4 个 Provider 之间切换 - ✅ 基于成功率和响应时间的智能推荐 - ✅ 自动 Fallback 机制（继承自 `multi_model_ai.py`） ### 2️⃣ 性能监控 - ✅ 实时记录每个 Provider 的性能数据 - ✅ 跟踪成功率、响应时间、请求次数 - ✅ JSON 格式持久化存储 ### 3️⃣ 可视化面板 - ✅ 精美的 Web UI 性能面板 - ✅ 实时刷新（30秒自动更新） - ✅ 智能推荐最优 Provider --- ## 📁 文件结构 ``` master_ai/ ├── provider_manager.py # 核心调度管理器 ├── provider_test.py # 测试脚本 ├── provider_stats.json # 性能统计数据（自动生成） ├── templates/ │ "
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "/ ├── provider_manager.py # 核心调度管理器 ├── provider_test.py # 测试脚本 ├── provider_stats.json # 性能统计数据（自动生成） ├── templates/ │ └── performance.html # 性能面板 UI └── README_PROVIDER_MANAGER.md # 本文档 ``` --- ## 🚀 快速开始 ### 步骤 1: 环境准备 确保已配置 AI Provider 的 API 密钥： ```bash # Replit Secrets 中配置： OPENAI_API_KEY=sk-... # ChatGPT GEMINI_API_KEY=... # Google Gemini GLM_API_KEY=... # 智谱 ChatGLM DEEPSEEK_API_KEY=... # DeepSeek ``` ### 步骤 2: 运行测试 ```bash cd master_ai # 基础测试（3个查询） python provider_test.py # 压力测试（10个请求） python provider_test.py stress 10 # 查看性能报告 python provider_test.py report # 重置统计数据 python provider_tes"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": ".py # 压力测试（10个请求） python provider_test.py stress 10 # 查看性能报告 python provider_test.py report # 重置统计数据 python provider_test.py reset ``` ### 步骤 3: 启动性能面板 性能面板需要通过 Flask API 提供： ```python # 在您的 Flask 应用中添加以下代码： from master_ai.provider_manager import ProviderManager from flask import render_template, jsonify @app.route('/api/provider/stats') def provider_stats(): \"\"\"提供 Provider 统计数据 API\"\"\" manager = ProviderManager() return jsonify(manager.get_all_stats()) @app.route('/provider-dashboard') def provider_dashboard(): \"\"\"性能面板页面\"\"\" return render_template('performance.html') ``` 然后访问：`http://localhost:"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "ashboard') def provider_dashboard(): \"\"\"性能面板页面\"\"\" return render_template('performance.html') ``` 然后访问：`http://localhost:5000/provider-dashboard` --- ## 💻 使用示例 ### 1. 基础调用 ```python from master_ai.provider_manager import smart_chat # 智能聊天（自动记录性能） response, provider, time = smart_chat(\"你好，请介绍一下自己\") print(f\"Provider: {provider}\") print(f\"响应时间: {time:.2f}s\") print(f\"回复: {response}\") ``` ### 2. 获取性能报告 ```python from master_ai.provider_manager import get_performance_report # 打印终端报告 print(get_performance_report()) ``` ### 3. 获取最佳 Provider ```python from master_ai.provider_manager import ProviderManag"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": " print(get_performance_report()) ``` ### 3. 获取最佳 Provider ```python from master_ai.provider_manager import ProviderManager manager = ProviderManager() best = manager.get_best_provider() print(f\"推荐使用: {best.upper()}\") ``` ### 4. 查看详细统计 ```python manager = ProviderManager() # 单个 Provider 统计 chatgpt_stats = manager.get_provider_stats(\"chatgpt\") print(f\"成功率: {chatgpt_stats['success_rate']:.1f}%\") # 所有统计 all_stats = manager.get_all_stats() ``` --- ## 📊 性能评分算法 系统使用以下公式计算 Provider 评分： ```python 速度评分 = max(0, 100 - 平均响应时间 * 10) 综合评分 = 成功率 * 0.7 + 速度评分 * 0.3 ``` **推荐 Provider** = 综合评分最高的 Provider --- #"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "分： ```python 速度评分 = max(0, 100 - 平均响应时间 * 10) 综合评分 = 成功率 * 0.7 + 速度评分 * 0.3 ``` **推荐 Provider** = 综合评分最高的 Provider --- ## 🗂️ 数据格式 `provider_stats.json` 结构： ```json { \"providers\": { \"chatgpt\": { \"total_requests\": 10, \"successful_requests\": 9, \"failed_requests\": 1, \"total_response_time\": 15.2, \"avg_response_time\": 1.69, \"success_rate\": 90.0, \"last_used\": \"2025-10-23T12:00:00\", \"last_status\": \"成功\" } }, \"total_requests\": 40, \"last_updated\": \"2025-10-23T12:05:00\" } ``` --- ## 🔧 配置选项 ### 修改 Fallback 顺序 编辑 `multi_model_ai.py` 中的： ```python FALLBACK_ORDER = [\"chatgpt\", \"gemini\", \"glm\", \"deepseek\"] ```"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 6,
+      "text": "选项 ### 修改 Fallback 顺序 编辑 `multi_model_ai.py` 中的： ```python FALLBACK_ORDER = [\"chatgpt\", \"gemini\", \"glm\", \"deepseek\"] ``` ### 修改统计文件路径 ```python manager = ProviderManager(stats_file=\"custom_path/stats.json\") ``` --- ## 🎯 测试场景 ### 基础功能测试 ```bash python provider_test.py ``` **输出示例：** ``` ====================================================================== 🧪 LynkerAI Multi-Provider 测试 ====================================================================== 📝 测试 1/3: 你好，请简单介绍一下你自己 ---------------------------------------------------------------------- 🤖 Provider: CHATGPT ⏱️ 响应时间: 1.45s 💬 回复: 你好！我是 L"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 7,
+      "text": " ---------------------------------------------------------------------- 🤖 Provider: CHATGPT ⏱️ 响应时间: 1.45s 💬 回复: 你好！我是 Lynker Master AI... ✅ 测试完成 ``` ### 压力测试 ```bash python provider_test.py stress 20 ``` ### 性能报告 ```bash python provider_test.py report ``` **输出示例：** ``` ====================================================================== 🧠 LynkerAI Multi-Provider 性能报告 ====================================================================== 📊 总请求数: 30 🕐 最后更新: 2025-10-23 12:00:00 ---------------------------------------------------------------------- 🤖 Provider: CHATGPT 总请求: 15 成功率: 93.3% 平均响应时间:"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 8,
+      "text": "00 ---------------------------------------------------------------------- 🤖 Provider: CHATGPT 总请求: 15 成功率: 93.3% 平均响应时间: 1.52s 最后使用: 2025-10-23 12:00:00 状态: 成功 ... ---------------------------------------------------------------------- ✨ 推荐 Provider: CHATGPT ====================================================================== ``` --- ## 🌐 Web 性能面板 访问 `/provider-dashboard` 查看： - 📊 **实时统计卡片** - 总请求数、最后更新时间 - 🤖 **Provider 性能卡片** - 每个 AI Provider 的详细数据 - 📈 **成功率可视化** - 进度条显示 - ✨ **智能推荐** - 当前最优 Provider - 🔄 **自动刷新** - 30秒自动更新数据 --- ## 🔄 集成到现有系统 ### 在 Flask API 中集成 ```python from flask import Flas"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 9,
+      "text": " **智能推荐** - 当前最优 Provider - 🔄 **自动刷新** - 30秒自动更新数据 --- ## 🔄 集成到现有系统 ### 在 Flask API 中集成 ```python from flask import Flask, jsonify, render_template from master_ai.provider_manager import ProviderManager, smart_chat app = Flask(__name__, template_folder='master_ai/templates') @app.route('/api/provider/stats') def get_provider_stats(): manager = ProviderManager() return jsonify(manager.get_all_stats()) @app.route('/api/provider/chat', methods=['POST']) def provider_chat(): data = request.json query = data.get('query', '') response, provider, time = smart_chat(query) return jsonify({ 'response': "
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 10,
+      "text": " = request.json query = data.get('query', '') response, provider, time = smart_chat(query) return jsonify({ 'response': response, 'provider': provider, 'response_time': time }) @app.route('/provider-dashboard') def dashboard(): return render_template('performance.html') ``` ### 在 Master Responder 中使用 ```python from master_ai.provider_manager import smart_chat # 替换原来的 multi_model_chat response, provider, time = smart_chat(user_message, context, use_rag=True) print(f\"✅ 使用 {provider.upper()}, 耗时 {time:.2f}s\") ``` --- ## 📈 性能优化建议 1. **定期清理统计数据** - 避免文件过大 ```bash python provider_test.py reset ``` 2"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 11,
+      "text": "ider.upper()}, 耗时 {time:.2f}s\") ``` --- ## 📈 性能优化建议 1. **定期清理统计数据** - 避免文件过大 ```bash python provider_test.py reset ``` 2. **监控成功率** - 如果某个 Provider 成功率 < 80%，检查 API 密钥 3. **调整超时设置** - 在 `multi_model_ai.py` 中配置 4. **备份统计数据** - 定期备份 `provider_stats.json` --- ## 🐛 故障排查 ### 问题 1: 所有 Provider 都失败 **解决方案：** ```bash # 检查 API 密钥 python3 verify_secrets.py # 检查网络连接 curl -I https://api.openai.com ``` ### 问题 2: 统计数据不更新 **解决方案：** ```bash # 检查文件权限 ls -la master_ai/provider_stats.json # 重新初始化 python provider_test.py reset ``` ### 问题 3: Web 面板显示空白 **解决方案：** 1. 确保 Flask API 端点 `/api/provider/stats` 正常工作 2. 检查浏"
+    },
+    {
+      "file_id": "project_docs/README_PROVIDER_MANAGER.md",
+      "category": "project_docs",
+      "chunk_id": 12,
+      "text": "始化 python provider_test.py reset ``` ### 问题 3: Web 面板显示空白 **解决方案：** 1. 确保 Flask API 端点 `/api/provider/stats` 正常工作 2. 检查浏览器控制台错误 3. 确认 `templates/performance.html` 路径正确 --- ## 🎉 总结 **LynkerAI Provider Manager** 提供了： ✅ **智能调度** - 自动选择最优 Provider ✅ **性能监控** - 实时跟踪所有 Provider ✅ **可视化面板** - 精美的 Web UI ✅ **易于集成** - 与现有系统无缝对接 **开始使用：** ```bash cd master_ai python provider_test.py ``` **祝您使用愉快！** 🌟"
+    },
+    {
+      "file_id": "project_docs/QUICK_START.md",
+      "category": "project_docs",
+      "chunk_id": 0,
+      "text": "# 🚀 LynkerAI Multi-Provider 调度系统 - 快速开始 ## 5分钟快速上手 ### ✅ 系统已就绪 所有文件已创建并集成到 LynkerAI 系统中！ --- ## 📁 文件结构 ``` master_ai/ ├── provider_manager.py # 核心调度管理器 ✅ ├── provider_test.py # 测试脚本 ✅ ├── provider_stats.json # 性能统计数据 ✅ ├── templates/ │ └── performance.html # Web 性能面板 ✅ ├── README_PROVIDER_MANAGER.md # 完整文档 ✅ └── QUICK_START.md # 本文档 ``` --- ## 🔧 第一步：查看当前性能报告 ```bash cd master_ai python3 provider_manager.py ``` **输出示例：** ``` ====================================================================== 🧠 LynkerAI Multi-Provider 性能报告 ======================================================================"
+    },
+    {
+      "file_id": "project_docs/QUICK_START.md",
+      "category": "project_docs",
+      "chunk_id": 1,
+      "text": "================== 🧠 LynkerAI Multi-Provider 性能报告 ====================================================================== 📊 总请求数: 0 🕐 最后更新: 无 ---------------------------------------------------------------------- 🤖 Provider: CHATGPT 总请求: 0 成功率: 0.0% ... ✨ 推荐 Provider: CHATGPT ====================================================================== ``` --- ## 🧪 第二步：运行基础测试 ```bash cd master_ai python3 provider_test.py ``` 这将： 1. 发送 3 个测试查询 2. 记录性能数据 3. 生成完整报告 --- ## 🌐 第三步：访问 Web 性能面板 系统已自动集成到 Upload API（端口 8008） 访问：**`http://localhost:8008/provider-dashboard`** 您将看到： - ✅ 实时性能卡片 - ✅ 每个 Provider 的详细统"
+    },
+    {
+      "file_id": "project_docs/QUICK_START.md",
+      "category": "project_docs",
+      "chunk_id": 2,
+      "text": "能面板 系统已自动集成到 Upload API（端口 8008） 访问：**`http://localhost:8008/provider-dashboard`** 您将看到： - ✅ 实时性能卡片 - ✅ 每个 Provider 的详细统计 - ✅ 成功率可视化 - ✅ 智能推荐 - ✅ 自动刷新（30秒） --- ## 📊 第四步：查看统计 API ```bash curl http://localhost:8008/api/provider/stats | python3 -m json.tool ``` **返回 JSON 格式的完整统计数据** --- ## 🔥 进阶：压力测试 ```bash cd master_ai # 运行 10 次测试 python3 provider_test.py stress 10 # 运行 50 次测试 python3 provider_test.py stress 50 ``` --- ## 🔄 管理统计数据 ### 查看报告 ```bash python3 provider_test.py report ``` ### 重置统计 ```bash python3 provider_test.py reset ``` --- ## 💻 在代码中使用 ```python from master_ai.provider_manager impo"
+    },
+    {
+      "file_id": "project_docs/QUICK_START.md",
+      "category": "project_docs",
+      "chunk_id": 3,
+      "text": "t ``` ### 重置统计 ```bash python3 provider_test.py reset ``` --- ## 💻 在代码中使用 ```python from master_ai.provider_manager import smart_chat, ProviderManager # 智能聊天（自动记录性能） response, provider, time = smart_chat(\"你好，请介绍一下自己\") print(f\"Provider: {provider}, 耗时: {time:.2f}s\") # 获取最佳 Provider manager = ProviderManager() best = manager.get_best_provider() print(f\"推荐使用: {best.upper()}\") # 查看详细统计 stats = manager.get_provider_stats(\"chatgpt\") print(f\"成功率: {stats['success_rate']:.1f}%\") ``` --- ## 🎯 集成到现有系统 ### 在 Master Responder 中使用 ```python from master_ai.provider_manager import smart_chat # 替换原来的调用 respons"
+    },
+    {
+      "file_id": "project_docs/QUICK_START.md",
+      "category": "project_docs",
+      "chunk_id": 4,
+      "text": "-- ## 🎯 集成到现有系统 ### 在 Master Responder 中使用 ```python from master_ai.provider_manager import smart_chat # 替换原来的调用 response, provider, time = smart_chat(user_message, context=\"\") print(f\"✅ 使用 {provider.upper()}, 耗时 {time:.2f}s\") ``` ### 在 Flask API 中添加端点 **已自动集成！** ✅ - `/api/provider/stats` - 统计数据 API - `/provider-dashboard` - Web 性能面板 --- ## 📚 完整文档 查看 `README_PROVIDER_MANAGER.md` 了解： - 详细的 API 说明 - 性能评分算法 - 故障排查指南 - 集成示例 --- ## ✨ 特性亮点 ✅ **智能调度** - 自动选择最优 Provider ✅ **性能监控** - 实时跟踪成功率和响应时间 ✅ **自动 Fallback** - 失败时自动切换 ✅ **可视化面板** - 精美的 Web UI ✅ **统计持久化** - JSON 格式保存数据 ✅ **易于集成** - 无缝接入现有系统 --- **"
+    },
+    {
+      "file_id": "project_docs/QUICK_START.md",
+      "category": "project_docs",
+      "chunk_id": 5,
+      "text": "实时跟踪成功率和响应时间 ✅ **自动 Fallback** - 失败时自动切换 ✅ **可视化面板** - 精美的 Web UI ✅ **统计持久化** - JSON 格式保存数据 ✅ **易于集成** - 无缝接入现有系统 --- **系统已完全就绪，开始使用吧！** 🎉"
     }
   ]
 }

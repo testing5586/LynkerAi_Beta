@@ -46,5 +46,45 @@
     "timestamp": "2025-10-23T07:24:12.881512",
     "summary": "[二进制文件，无法生成摘要]",
     "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/lynker_ai_core_index_v2.docx → dev_brainstorm/lynker_ai_core_index_v2.docx"
+  },
+  {
+    "filename": "lynker_ai_core_index_v2.docx",
+    "category": "dev_brainstorm",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-23T07:31:21.995509",
+    "summary": "[二进制文件，无法生成摘要]",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/lynker_ai_core_index_v2.docx → dev_brainstorm/lynker_ai_core_index_v2.docx"
+  },
+  {
+    "filename": "README_TMS_v1.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-23T07:31:23.116903",
+    "summary": "# LynkerAI TMS v1.0 - Trusted Metaphysics System\n\n**假名制 × 真命盘验证 × 签章验证 × 区域适配 × 置信投票 × 分层验证架构**\n\n---...",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/README_TMS_v1.md → project_docs/README_TMS_v1.md"
+  },
+  {
+    "filename": "README_PROVIDER_MANAGER.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-23T07:31:28.694921",
+    "summary": "# 🧠 LynkerAI Multi-Provider 调度系统 v1.0\n\n## 📋 概述\n\n**LynkerAI Provider Manager** 是一个智能的 AI 提供商调度系统，能够在 ...",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/README_PROVIDER_MANAGER.md → project_docs/README_PROVIDER_MANAGER.md"
+  },
+  {
+    "filename": "QUICK_START.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-23T07:31:36.202183",
+    "summary": "# 🚀 LynkerAI Multi-Provider 调度系统 - 快速开始\n\n## 5分钟快速上手\n\n### ✅ 系统已就绪\n\n所有文件已创建并集成到 LynkerAI 系统中！\n\n---\n\n##...",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/QUICK_START.md → project_docs/QUICK_START.md"
+  },
+  {
+    "filename": "replit.md",
+    "category": "project_docs",
+    "uploaded_by": "web_upload",
+    "timestamp": "2025-10-23T07:31:38.910489",
+    "summary": "# Overview\nLynkerAI is an AI-powered task execution system designed to generate and execute code fro...",
+    "import_result": "📚 索引已更新 → lynker_master_vault/index.yaml\n✅ 已导入 uploaded_docs/replit.md → project_docs/replit.md"
   }
 ]

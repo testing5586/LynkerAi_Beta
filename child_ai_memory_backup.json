@@ -1,5 +1,5 @@
 {
-  "last_sync": "2025-10-23T07:24:14.414403",
+  "last_sync": "2025-10-23T07:31:39.129315",
   "total_synced": 1,
   "memories": [
     {
@@ -144,6 +144,71 @@
       "similarity": 0.95,
       "interaction_count": 1,
       "last_interaction": "2025-10-23T07:24:12.881512"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_lynker_ai_core_index_v2.docx",
+      "summary": "[二进制文件，无法生成摘要]",
+      "tags": [
+        "dev_brainstorm",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-23T07:31:21.995509"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_README_TMS_v1.md",
+      "summary": "# LynkerAI TMS v1.0 - Trusted Metaphysics System\n\n**假名制 × 真命盘验证 × 签章验证 × 区域适配 × 置信投票 × 分层验证架构**\n\n---...",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-23T07:31:23.116903"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_README_PROVIDER_MANAGER.md",
+      "summary": "# 🧠 LynkerAI Multi-Provider 调度系统 v1.0\n\n## 📋 概述\n\n**LynkerAI Provider Manager** 是一个智能的 AI 提供商调度系统，能够在 ...",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-23T07:31:28.694921"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_QUICK_START.md",
+      "summary": "# 🚀 LynkerAI Multi-Provider 调度系统 - 快速开始\n\n## 5分钟快速上手\n\n### ✅ 系统已就绪\n\n所有文件已创建并集成到 LynkerAI 系统中！\n\n---\n\n##...",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-23T07:31:36.202183"
+    },
+    {
+      "user_id": "web_upload",
+      "partner_id": "doc_replit.md",
+      "summary": "# Overview\nLynkerAI is an AI-powered task execution system designed to generate and execute code fro...",
+      "tags": [
+        "project_docs",
+        "document",
+        "vault"
+      ],
+      "similarity": 0.95,
+      "interaction_count": 1,
+      "last_interaction": "2025-10-23T07:31:38.910489"
     }
   ]
 }
