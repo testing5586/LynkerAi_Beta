@@ -154,3 +154,18 @@ def relay_ack():
         return jsonify({"status":"error","msg":"missing task_id"}), 400
     _append_log({"event":"ack", **data})
     return jsonify({"status":"ok"})
+
+@bp.route("/api/relay/clear", methods=["POST"])
+@require_auth
+def relay_clear():
+    """清空对话日志和相关状态"""
+    with _lock:
+        if os.path.exists(LOG_FILE):
+            os.remove(LOG_FILE)
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
+        if os.path.exists("master_responder_state.json"):
+            os.remove("master_responder_state.json")
+        if os.path.exists("child_worker_state.json"):
+            os.remove("child_worker_state.json")
+    return jsonify({"status":"ok", "msg":"对话日志已清空"})
