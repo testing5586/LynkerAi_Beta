@@ -217,21 +217,81 @@ def predict_for_user(user, rules):
 # 结果入库（predictions 表）
 # -----------------------------
 def save_prediction(record):
+    """使用直接 PostgreSQL 连接保存预测（绕过 Supabase PostgREST cache 问题）"""
     try:
-        client = get_supabase_client()
-        client.table("predictions").insert({
-            "user_id": record["user_id"],
-            "user_name": record.get("user_name",""),
-            "pair": record["pair"],
-            "traits": record["traits"],
-            "time_window": record["time_window"],
-            "confidence": record["confidence"],
-            "evidence": record["evidence"],
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
+        from master_vault_engine import get_db_connection
+        import json
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO predictions (user_id, user_name, pair, traits, time_window, confidence, evidence, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (user_id, pair) DO UPDATE SET
+                confidence = EXCLUDED.confidence,
+                evidence = EXCLUDED.evidence,
+                created_at = EXCLUDED.created_at
+        """, (
+            record["user_id"],
+            record.get("user_name", ""),
+            record["pair"],
+            json.dumps(record["traits"], ensure_ascii=False),
+            record["time_window"],
+            record["confidence"],
+            json.dumps(record["evidence"], ensure_ascii=False)
+        ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"status": "ok"}
     except Exception as e:
         print(f"⚠️ 保存预测失败: {e}")
-        print("提示：请确保 predictions 表已创建")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def save_predictions_batch(records):
+    """批量保存预测（使用单个数据库连接）"""
+    if not records:
+        return
+    
+    try:
+        from master_vault_engine import get_db_connection
+        import json
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        for record in records:
+            cursor.execute("""
+                INSERT INTO predictions (user_id, user_name, pair, traits, time_window, confidence, evidence, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (user_id, pair) DO UPDATE SET
+                    confidence = EXCLUDED.confidence,
+                    evidence = EXCLUDED.evidence,
+                    created_at = EXCLUDED.created_at
+            """, (
+                record["user_id"],
+                record.get("user_name", ""),
+                record["pair"],
+                json.dumps(record["traits"], ensure_ascii=False),
+                record["time_window"],
+                record["confidence"],
+                json.dumps(record["evidence"], ensure_ascii=False)
+            ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print(f"✅ 成功保存 {len(records)} 条预测到 PostgreSQL")
+        return {"status": "ok", "count": len(records)}
+    except Exception as e:
+        print(f"⚠️ 批量保存预测失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 # -----------------------------
 # 重要洞察 -> Vault 加密存档
@@ -299,9 +359,12 @@ def reason_all(limit: int = 50):
             continue
         e = predict_for_user(u, rules)
         if e:
-            save_prediction(e)
             results.append(e)
 
+    if results:
+        print(f"💾 批量保存 {len(results)} 条预测...")
+        save_predictions_batch(results)
+    
     persist_insight_to_vault(results)
     return {"status":"ok","count":len(results)}
 
