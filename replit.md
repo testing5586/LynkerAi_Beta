@@ -33,6 +33,7 @@ The application utilizes a command-line interface (CLI) with an AI-driven code g
 -   **Security Layer (`ai_guard_middleware.py`)**: Centralized access control for AI operations, checking user permissions, call limits, and service status.
 -   **TMS - Trusted Metaphysics System (`master_ai/`)**: Global trusted chart verification network with pseudonym protection, signature verification, regional adaptation, confidence voting, and hierarchical validation architecture. Includes Master Validator API (port 8080), PostgreSQL database schema, and comprehensive documentation.
 -   **Multi-Provider Manager (`master_ai/provider_manager.py`)**: Intelligent AI provider scheduling system for ChatGPT/Gemini/GLM/DeepSeek with automatic fallback, performance monitoring, statistical analysis, and web visualization dashboard.
+-   **Master Vault Engine (`master_vault_engine.py`)**: Secure AES256 encryption system for protecting Master AI's learning knowledge. Supports Superintendent Admin-only decryption, PostgreSQL storage, and complete audit trails. See `master_ai/MASTER_VAULT_ENGINE_GUIDE.md` for details.
 
 ## Language & Runtime
 -   **Language**: Python 3.x
@@ -60,6 +61,8 @@ Includes environment validation, graceful degradation, and comprehensive output 
 -   `uv`
 -   `numpy`
 -   `sentence-transformers`
+-   `psycopg2-binary`
+-   `cryptography`
 -   Standard Python libraries for system operations, concurrency, JSON, and datetime.
 
 ## Development Environment
