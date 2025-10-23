@@ -1,0 +1,174 @@
+"""
+Child AI Agent - 执行分析层
+负责：数据库检索、命盘模式识别、统计规律提取
+"""
+
+import os
+import json
+from typing import Dict, List, Any, Optional
+from collections import Counter
+
+try:
+    from supabase import create_client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    print("⚠️ Supabase SDK 不可用，Child AI 使用模拟数据")
+
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️ OpenAI SDK 不可用")
+
+
+class ChildAgent:
+    """Child AI - 执行分析助手"""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.name = config["agents"]["child"]["name"]
+        self.icon = config["agents"]["child"]["icon"]
+        self.model = config["agents"]["child"]["model"]
+        self.temperature = config["agents"]["child"]["temperature"]
+        self.max_tokens = config["agents"]["child"]["max_tokens"]
+        
+        self.client = None
+        if SUPABASE_AVAILABLE:
+            url = os.getenv("SUPABASE_URL")
+            key = os.getenv("SUPABASE_KEY")
+            if url and key:
+                self.client = create_client(url, key)
+        
+        if OPENAI_AVAILABLE:
+            openai.api_key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+    
+    def query_birthcharts(self, filters: Optional[Dict] = None) -> List[Dict]:
+        """查询命盘数据库"""
+        if not self.client:
+            return self._mock_birthcharts()
+        
+        try:
+            query = self.client.table("birthcharts").select("*")
+            
+            if filters:
+                for key, value in filters.items():
+                    query = query.eq(key, value)
+            
+            resp = query.limit(self.config["database"]["max_query_results"]).execute()
+            return resp.data or []
+        except Exception as e:
+            print(f"❌ Child AI 查询失败: {e}")
+            return self._mock_birthcharts()
+    
+    def query_match_results(self, user_id: Optional[int] = None) -> List[Dict]:
+        """查询匹配结果"""
+        if not self.client:
+            return []
+        
+        try:
+            query = self.client.table("match_results").select("*")
+            
+            if user_id:
+                query = query.or_(f"user_a_id.eq.{user_id},user_b_id.eq.{user_id}")
+            
+            resp = query.limit(50).execute()
+            return resp.data or []
+        except Exception as e:
+            print(f"❌ Child AI 查询匹配结果失败: {e}")
+            return []
+    
+    def analyze_pattern(self, task: str) -> Dict[str, Any]:
+        """执行命盘模式分析任务"""
+        charts = self.query_birthcharts()
+        
+        if not charts:
+            return {
+                "status": "no_data",
+                "message": "数据库暂无命盘数据",
+                "patterns": []
+            }
+        
+        main_stars = Counter()
+        palaces = Counter()
+        combinations = Counter()
+        
+        for chart in charts:
+            star = chart.get("main_star")
+            palace = chart.get("ziwei_palace")
+            
+            if star:
+                main_stars[star] += 1
+            if palace:
+                palaces[palace] += 1
+            if star and palace:
+                combinations[f"{palace}-{star}"] += 1
+        
+        patterns = {
+            "total_charts": len(charts),
+            "top_stars": main_stars.most_common(5),
+            "top_palaces": palaces.most_common(5),
+            "top_combinations": combinations.most_common(5)
+        }
+        
+        return {
+            "status": "success",
+            "agent": f"{self.icon} {self.name}",
+            "task": task,
+            "patterns": patterns,
+            "summary": self._generate_summary(patterns)
+        }
+    
+    def _generate_summary(self, patterns: Dict) -> str:
+        """使用 AI 生成分析总结"""
+        if not OPENAI_AVAILABLE:
+            return self._simple_summary(patterns)
+        
+        try:
+            prompt = f"""你是 Child AI 执行助手，正在分析命盘数据库。
+
+数据统计：
+- 总命盘数：{patterns['total_charts']}
+- 高频主星：{patterns['top_stars'][:3]}
+- 高频命宫：{patterns['top_palaces'][:3]}
+- 高频组合：{patterns['top_combinations'][:3]}
+
+请用1-2句话总结关键发现（中文，专业术语）。
+"""
+            
+            response = openai.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
+            )
+            
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"⚠️ Child AI 总结生成失败: {e}")
+            return self._simple_summary(patterns)
+    
+    def _simple_summary(self, patterns: Dict) -> str:
+        """简单文本总结（无需 AI）"""
+        top_star = patterns['top_stars'][0][0] if patterns['top_stars'] else "未知"
+        top_palace = patterns['top_palaces'][0][0] if patterns['top_palaces'] else "未知"
+        
+        return f"数据库共{patterns['total_charts']}个命盘，主星以{top_star}为主，命宫多见{top_palace}。"
+    
+    def _mock_birthcharts(self) -> List[Dict]:
+        """模拟数据（开发环境）"""
+        return [
+            {"id": 1, "name": "测试用户A", "main_star": "天府", "ziwei_palace": "巳"},
+            {"id": 2, "name": "测试用户B", "main_star": "武曲", "ziwei_palace": "午"},
+            {"id": 3, "name": "测试用户C", "main_star": "紫微", "ziwei_palace": "卯"}
+        ]
+    
+    def process(self, task: str) -> str:
+        """处理任务并返回结果"""
+        result = self.analyze_pattern(task)
+        
+        if result["status"] == "no_data":
+            return f"{self.icon} {self.name}: 暂无数据可分析。"
+        
+        return f"{self.icon} {self.name}: {result['summary']}"

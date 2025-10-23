@@ -1,0 +1,41 @@
+{
+  "ai_collaboration": {
+    "enabled": true,
+    "timeout_seconds": 30,
+    "max_retries": 3
+  },
+  "agents": {
+    "master": {
+      "name": "Master AI",
+      "icon": "🧠",
+      "model": "gpt-4-turbo",
+      "temperature": 0.7,
+      "max_tokens": 800,
+      "role": "主控推理：综合分析命盘、Vault知识、用户反馈，提供最终结论"
+    },
+    "leader": {
+      "name": "Group Leader",
+      "icon": "🧩",
+      "model": "gpt-4o-mini",
+      "temperature": 0.5,
+      "max_tokens": 500,
+      "role": "任务协调：分配子任务给 Child AI，整合结果，向 Master AI 汇报"
+    },
+    "child": {
+      "name": "Child AI",
+      "icon": "🤖",
+      "model": "gpt-4o-mini",
+      "temperature": 0.3,
+      "max_tokens": 400,
+      "role": "执行分析：检索数据库、识别命盘模式、提取统计规律"
+    }
+  },
+  "database": {
+    "max_query_results": 100,
+    "cache_ttl_seconds": 300
+  },
+  "vault": {
+    "auto_encrypt_threshold": 0.7,
+    "access_level": "restricted"
+  }
+}
