@@ -1,6 +1,6 @@
 """
 命盘导入 API Blueprint
-Import API - 前端页面 + JSON/OCR 接口
+Import API - 前端页面 + JSON/OCR/TXT/DOC 多格式接口
 """
 
 import os
@@ -8,7 +8,9 @@ import json
 from flask import Blueprint, request, jsonify, render_template
 from supabase import create_client
 from .normalize_chart import normalize_from_wenmote
-from .ocr_importer import process_image_bytes, save_record
+from .ocr_importer import process_image_bytes, save_record as ocr_save
+from .txt_importer import process_txt_file, save_record as txt_save
+from .doc_importer import process_docx_file, save_record as doc_save
 
 bp_import = Blueprint("bp_import", __name__, url_prefix="/import")
 
@@ -100,15 +102,90 @@ def ocr_preview():
 def ocr_confirm():
     """
     前端把修正后的字段 JSON 传回 → 写库
-    POST /admin/import/ocr/confirm
+    POST /import/ocr/confirm
     """
     try:
         payload = request.get_json(force=True)
-        resp = save_record(payload)
+        resp = ocr_save(payload)
         
         print(f"✅ OCR 确认导入: {payload.get('name', '未知')}")
         return jsonify({"ok": True, "inserted": resp.data})
         
     except Exception as e:
         print(f"❌ OCR 确认失败: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@bp_import.route("/file/preview", methods=["POST"])
+def file_preview():
+    """
+    通用文件上传预览接口 - 自动识别格式（.txt, .doc, .docx）
+    POST /import/file/preview
+    """
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "error": "未上传文件"}), 400
+    
+    filename = f.filename.lower()
+    file_content = f.read()
+    
+    try:
+        # 根据文件扩展名选择处理器
+        if filename.endswith('.txt'):
+            print(f"📝 处理 TXT 文件: {f.filename}")
+            parsed = process_txt_file(file_content)
+            file_type = "txt"
+            
+        elif filename.endswith('.docx'):
+            print(f"📄 处理 DOCX 文件: {f.filename}")
+            parsed, error = process_docx_file(file_content)
+            if error:
+                return jsonify({"ok": False, "error": error}), 500
+            file_type = "docx"
+            
+        elif filename.endswith('.doc'):
+            # .doc 格式需要转换（暂不支持，提示用户转为 .docx）
+            return jsonify({
+                "ok": False, 
+                "error": "暂不支持 .doc 格式，请将文件另存为 .docx 格式后重新上传"
+            }), 400
+            
+        else:
+            return jsonify({
+                "ok": False,
+                "error": f"不支持的文件格式: {filename}，支持的格式: .txt, .docx"
+            }), 400
+        
+        if "error" in parsed and parsed["error"]:
+            return jsonify({"ok": False, "error": parsed["error"]}), 500
+        
+        print(f"✅ {file_type.upper()} 预览成功: {parsed.get('name', '未识别')}")
+        return jsonify({"ok": True, "parsed": parsed, "file_type": file_type})
+        
+    except Exception as e:
+        print(f"❌ 文件预览失败: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@bp_import.route("/file/confirm", methods=["POST"])
+def file_confirm():
+    """
+    通用文件确认写入接口
+    POST /import/file/confirm
+    """
+    try:
+        payload = request.get_json(force=True)
+        file_type = payload.get("file_type", "txt")
+        
+        # 根据文件类型选择保存函数
+        if file_type == "txt":
+            resp = txt_save(payload)
+        elif file_type in ["doc", "docx"]:
+            resp = doc_save(payload)
+        else:
+            resp = ocr_save(payload)  # 默认使用 OCR 保存
+        
+        print(f"✅ {file_type.upper()} 确认导入: {payload.get('name', '未知')}")
+        return jsonify({"ok": True, "inserted": resp.data})
+        
+    except Exception as e:
+        print(f"❌ 文件确认失败: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500

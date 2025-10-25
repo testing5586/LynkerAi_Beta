@@ -39,6 +39,33 @@
   </div>
 
   <div class="card">
+    <h2>📄 文档导入（TXT / DOCX）</h2>
+    <div class="row">
+      <input type="file" id="docfile" accept=".txt,.docx" />
+      <button onclick="filePreview()">识别并预览</button>
+      <span id="fileStatus"></span>
+    </div>
+    <div class="grid" style="margin-top:16px">
+      <div>
+        <label>识别结果（可编辑后提交）</label>
+        <textarea id="fileJson" placeholder='{"name":"命主","gender":"女","birth_time":"1990-05-20T15:30:00","marriage_palace_star":"天府","wealth_palace_star":"武曲","transformations":{"hualu":true,"huaji":false}}'></textarea>
+        <div style="margin-top:10px">
+          <button onclick="fileConfirm()">确认写入数据库</button>
+        </div>
+      </div>
+      <div>
+        <label>原始文本</label>
+        <textarea id="fileRawText" readonly></textarea>
+      </div>
+    </div>
+    <div class="info">
+      💡 支持 .txt 和 .docx 格式，自动提取关键字段<br>
+      📝 文本格式示例：姓名: 张三 | 性别: 男 | 出生时间: 1990-05-20 14:30 | 夫妻宫: 天府 | 财帛宫: 武曲<br>
+      ⚠️ DOCX 功能需要安装：<code style="background:#0b1220;padding:2px 6px;border-radius:4px">pip install python-docx</code>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>🖼️ 截图 OCR 半自动导入</h2>
     <div class="row">
       <input type="file" id="imgfile" accept="image/*,.pdf" />
@@ -103,6 +130,71 @@ async function uploadJSON(){
   } catch(e) {
     document.getElementById('jsonStatus').textContent = '❌ 网络错误';
     document.getElementById('jsonStatus').className = 'err';
+  }
+}
+
+async function filePreview(){
+  const file = document.getElementById('docfile').files[0];
+  if(!file) return alert('请选择一个 TXT 或 DOCX 文件');
+  
+  document.getElementById('fileStatus').textContent = '⏳ 识别中...';
+  
+  const fd = new FormData();
+  fd.append('file', file);
+  
+  try {
+    const r = await fetch('/import/file/preview', { method:'POST', body: fd });
+    const j = await r.json();
+    
+    if(!j.ok){ 
+      document.getElementById('fileStatus').textContent = '❌ ' + j.error; 
+      document.getElementById('fileStatus').className = 'err';
+      return; 
+    }
+    
+    const p = j.parsed || {};
+    document.getElementById('fileJson').value = JSON.stringify({
+      name: p.name || "",
+      gender: p.gender || "",
+      birth_time: p.birth_time || "",
+      marriage_palace_star: p.marriage_palace_star || "",
+      wealth_palace_star: p.wealth_palace_star || "",
+      transformations: p.transformations || {hualu:false, huaji:false},
+      file_type: j.file_type || "txt"
+    }, null, 2);
+    
+    document.getElementById('fileRawText').value = p.raw_text || '';
+    document.getElementById('fileStatus').textContent = '✅ 识别完成，请检查字段后点击"确认写入"';
+    document.getElementById('fileStatus').className = 'ok';
+  } catch(e) {
+    document.getElementById('fileStatus').textContent = '❌ 网络错误';
+    document.getElementById('fileStatus').className = 'err';
+  }
+}
+
+async function fileConfirm(){
+  try{
+    const payload = JSON.parse(document.getElementById('fileJson').value);
+    
+    document.getElementById('fileStatus').textContent = '⏳ 写入中...';
+    
+    const r = await fetch('/import/file/confirm', {
+      method:'POST', 
+      headers:{'Content-Type':'application/json'}, 
+      body: JSON.stringify(payload)
+    });
+    
+    const j = await r.json();
+    document.getElementById('fileStatus').textContent = j.ok ? '✅ 写入成功' : ('❌ ' + j.error);
+    document.getElementById('fileStatus').className = j.ok ? 'ok' : 'err';
+    
+    if(j.ok) {
+      // 清空表单
+      document.getElementById('fileJson').value = '';
+      document.getElementById('fileRawText').value = '';
+    }
+  }catch(e){
+    alert('JSON 格式不正确：' + e.message);
   }
 }
 
