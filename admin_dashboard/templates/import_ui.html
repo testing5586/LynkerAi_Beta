@@ -74,7 +74,7 @@
 // 页面加载时获取统计
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    const r = await fetch('/api/birthcharts/stats');
+    const r = await fetch('/admin/import/stats');
     if (r.ok) {
       const data = await r.json();
       document.getElementById('stats').innerHTML = `

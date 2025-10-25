@@ -17,6 +17,23 @@ def page():
     """导入中心首页"""
     return render_template("import_ui.html")
 
+@bp_import.route("/stats", methods=["GET"])
+def get_stats():
+    """获取命盘导入统计数据"""
+    try:
+        SUPABASE_URL = os.getenv("SUPABASE_URL")
+        SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+        sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+        
+        # 查询总记录数
+        result = sb.table("birthcharts").select("id", count="exact").execute()
+        total = result.count if result.count else 0
+        
+        return jsonify({"ok": True, "total": total})
+    except Exception as e:
+        print(f"❌ 统计查询失败: {e}")
+        return jsonify({"ok": False, "total": 0, "error": str(e)})
+
 @bp_import.route("/json", methods=["POST"])
 def upload_json():
     """
