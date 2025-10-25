@@ -231,6 +231,11 @@
                         <option value="女">女</option>
                     </select>
                     
+                    <label style="margin-left: 12px; display: flex; align-items: center; gap: 6px;">
+                        <input id="lock_manual" type="checkbox" checked style="width: auto; height: auto; margin: 0;" />
+                        <span style="white-space: nowrap;">🔒 锁定手动信息（不被识别覆盖）</span>
+                    </label>
+                    
                     <button id="apply_to_json" class="apply-btn">✏️ 写入 JSON</button>
                 </div>
                 
@@ -253,6 +258,34 @@ const previewBox = document.getElementById('previewBox');
 const scoreTips = document.getElementById('scoreTips');
 const inputName = document.getElementById('input_name');
 const inputGender = document.getElementById('input_gender');
+const lockManual = document.getElementById('lock_manual');
+
+// 性别标准化函数
+function normalizeGender(g) {
+    if (!g) return "";
+    return String(g).replace(/\s/g, "")
+        .replace(/female|女/i, "女")
+        .replace(/male|男/i, "男");
+}
+
+// 合并手动字段逻辑
+function mergeManualFields(parsed) {
+    const lock = lockManual.checked;
+    const manualName = (inputName.value || "").trim();
+    const manualGender = normalizeGender(inputGender.value || "");
+    
+    if (lock) {
+        // 锁定模式：手动值优先覆盖AI识别值
+        if (manualName) parsed.name = manualName;
+        if (manualGender) parsed.gender = manualGender;
+    } else {
+        // 非锁定模式：AI值优先，手动值仅作为补充（AI没识别到才使用）
+        parsed.name = parsed.name || manualName || "";
+        parsed.gender = parsed.gender || manualGender || "";
+    }
+    
+    return parsed;
+}
 
 // 从剪贴板粘贴
 document.getElementById('btnPaste').onclick = async () => {
@@ -303,15 +336,20 @@ document.getElementById('btnPreview').onclick = async () => {
             return;
         }
         
+        // 应用手动字段合并逻辑
+        const mergedParsed = mergeManualFields({ ...j.parsed });
+        
         // 显示识别结果
         previewBox.textContent = JSON.stringify({
-            parsed: j.parsed,
+            parsed: mergedParsed,
             score: j.score
         }, null, 2);
         
-        // 自动填充手动输入区域（始终更新，避免保留旧值）
-        inputName.value = j.parsed.name || '';
-        inputGender.value = j.parsed.gender || '';
+        // 仅在未锁定模式下自动填充输入框
+        if (!lockManual.checked) {
+            inputName.value = j.parsed.name || '';
+            inputGender.value = j.parsed.gender || '';
+        }
         
         // 显示评分提示
         const score = j.score.score;
@@ -358,13 +396,8 @@ document.getElementById('apply_to_json').onclick = () => {
             data.parsed = {};
         }
         
-        // 写入手动输入的值
-        if (inputName.value.trim()) {
-            data.parsed.name = inputName.value.trim();
-        }
-        if (inputGender.value) {
-            data.parsed.gender = inputGender.value;
-        }
+        // 应用手动字段合并逻辑
+        data.parsed = mergeManualFields(data.parsed);
         
         // 更新显示
         previewBox.textContent = JSON.stringify(data, null, 2);
@@ -375,7 +408,7 @@ document.getElementById('apply_to_json').onclick = () => {
         if (inputGender.value) tips.push('性别');
         
         if (tips.length > 0) {
-            alert(`✅ 已写入：${tips.join('、')}`);
+            alert(`✅ 已写入：${tips.join('、')} ${lockManual.checked ? '（已锁定）' : ''}`);
         } else {
             alert('⚠️ 请先填写姓名或性别');
         }

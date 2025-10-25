@@ -63,6 +63,15 @@ def submit():
     score_data = ver["score"]
     final_score = score_data["score"]
     
+    # 验证必填字段：姓名和性别
+    if not parsed.get("name") or not parsed.get("gender"):
+        return jsonify({
+            "ok": False,
+            "status": "rejected",
+            "error": "姓名或性别缺失，请填写后重新提交",
+            "parsed": parsed
+        }), 400
+    
     # 记录验证日志
     import datetime
     log_entry = {

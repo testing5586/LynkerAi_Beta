@@ -1,0 +1,106 @@
+✅ Replit 执行任务说明：**修复真命盘验证中心的手动姓名/性别被覆盖问题**
+
+---
+
+### 🧩 修改目标
+
+防止在点击“🔍 识别并预览”时系统重新解析覆盖掉手动填写的姓名与性别。
+
+---
+
+### ✅ 步骤 1：在 HTML 加入手动信息锁定区
+
+在识别区（JSON 输出上方）插入：
+
+```html
+<div class="manual-input-section">
+  <label>命主姓名：</label>
+  <input id="input_name" type="text" placeholder="请输入姓名或代号" />
+
+  <label>性别：</label>
+  <select id="input_gender">
+    <option value="">请选择</option>
+    <option value="男">男</option>
+    <option value="女">女</option>
+  </select>
+
+  <label style="margin-left:12px;">
+    <input id="lock_manual" type="checkbox" checked />
+    锁定手动信息（不被识别覆盖）
+  </label>
+
+  <button id="apply_to_json" class="apply-btn">✏️ 写入 JSON</button>
+</div>
+```
+
+---
+
+### ✅ 步骤 2：在 JS 中加入逻辑（写在识别脚本底部）
+
+```javascript
+function normalizeGender(g) {
+  if (!g) return "";
+  return String(g).replace(/\s/g, "")
+    .replace(/female|女/i, "女").replace(/male|男/i, "男");
+}
+
+function mergeManualFields(parsed) {
+  const lock = document.getElementById("lock_manual").checked;
+  const manualName   = (document.getElementById("input_name").value || "").trim();
+  const manualGender = normalizeGender(document.getElementById("input_gender").value || "");
+
+  if (lock) {
+    if (manualName)   parsed.name   = manualName;
+    if (manualGender) parsed.gender = manualGender;
+  } else {
+    parsed.name   = manualName   || parsed.name   || "";
+    parsed.gender = manualGender || parsed.gender || "";
+  }
+  return parsed;
+}
+
+function renderRecognized(parsed) {
+  let merged = { ...parsed };
+  merged = mergeManualFields(merged);
+  document.getElementById("recognized_json").value = JSON.stringify({
+    parsed: merged,
+    score: parsed.score || {}
+  }, null, 2);
+}
+
+document.getElementById("apply_to_json").onclick = function () {
+  try {
+    const box = document.getElementById("recognized_json");
+    let data = {};
+    try { data = JSON.parse(box.value || "{}"); } catch (_) { data = {}; }
+    const parsed = mergeManualFields(data.parsed || {});
+    box.value = JSON.stringify({ ...data, parsed }, null, 2);
+  } catch (e) {
+    alert("❌ JSON 写入失败，请检查格式");
+  }
+};
+```
+
+---
+
+### ✅ 步骤 3：后端（可选）
+
+在 `verify_controller.py` 或验证逻辑中增加：
+
+```python
+if not chart_data.get("name") or not chart_data.get("gender"):
+    return {"status": "rejected", "reason": "姓名或性别缺失，请填写后重新提交。"}
+```
+
+---
+
+### 🚀 执行后效果
+
+* 手动输入 `姓名/性别` → 写入 JSON ✅
+* 再点击“识别并预览”不会被覆盖 ✅
+* 可勾选/取消“锁定手动信息”灵活切换 ✅
+* 确认提交验证时，若缺少姓名或性别会提示拒绝 ✅
+
+---
+
+🟩 现在让 Replit 执行以上脚本，即可修复真命盘验证中心逻辑。
