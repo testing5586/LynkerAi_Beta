@@ -21,7 +21,7 @@ print("✅ 用户事件追踪 API 已注册: /api/events/track, /api/insights/<u
 try:
     from import_engine.import_api import bp_import
     app.register_blueprint(bp_import)
-    print("✅ 命盘批量导入中心已注册: /admin/import")
+    print("✅ 命盘批量导入中心已注册: /import")
 except Exception as e:
     print(f"⚠️ 命盘导入中心挂载失败: {e}")
 
