@@ -10,7 +10,7 @@ from supabase import create_client
 from .normalize_chart import normalize_from_wenmote
 from .ocr_importer import process_image_bytes, save_record
 
-bp_import = Blueprint("bp_import", __name__, url_prefix="/admin/import")
+bp_import = Blueprint("bp_import", __name__, url_prefix="/import")
 
 @bp_import.route("/", methods=["GET"])
 def page():

@@ -74,7 +74,7 @@
 // 页面加载时获取统计
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    const r = await fetch('/admin/import/stats');
+    const r = await fetch('/import/stats');
     if (r.ok) {
       const data = await r.json();
       document.getElementById('stats').innerHTML = `
@@ -96,7 +96,7 @@ async function uploadJSON(){
   fd.append('file', file);
   
   try {
-    const r = await fetch('/admin/import/json', { method:'POST', body:fd });
+    const r = await fetch('/import/json', { method:'POST', body:fd });
     const j = await r.json();
     document.getElementById('jsonStatus').textContent = j.ok ? '✅ 导入成功' : ('❌ ' + j.error);
     document.getElementById('jsonStatus').className = j.ok ? 'ok' : 'err';
@@ -116,7 +116,7 @@ async function ocrPreview(){
   fd.append('image', file);
   
   try {
-    const r = await fetch('/admin/import/ocr/preview', { method:'POST', body: fd });
+    const r = await fetch('/import/ocr/preview', { method:'POST', body: fd });
     const j = await r.json();
     
     if(!j.ok){ 
@@ -150,7 +150,7 @@ async function ocrConfirm(){
     
     document.getElementById('ocrStatus').textContent = '⏳ 写入中...';
     
-    const r = await fetch('/admin/import/ocr/confirm', {
+    const r = await fetch('/import/ocr/confirm', {
       method:'POST', 
       headers:{'Content-Type':'application/json'}, 
       body: JSON.stringify(payload)
