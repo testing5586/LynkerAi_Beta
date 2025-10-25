@@ -25,13 +25,21 @@ try:
 except Exception as e:
     print(f"⚠️ 命盘导入中心挂载失败: {e}")
 
-# 注册真命盘验证 Blueprint
+# 注册真命盘验证 Blueprint（旧版）
 try:
     from verification.api import bp as verify_bp
     app.register_blueprint(verify_bp)
     print("✅ 真命盘验证系统已注册: /verify/preview, /verify/submit")
 except Exception as e:
     print(f"⚠️ 真命盘验证系统挂载失败: {e}")
+
+# 注册真命盘验证中心 Blueprint（新版 Wizard）
+try:
+    from verify.routes import bp as verify_wizard_bp
+    app.register_blueprint(verify_wizard_bp)
+    print("✅ 真命盘验证中心（Wizard）已注册: /verify, /verify/api/preview, /verify/api/submit")
+except Exception as e:
+    print(f"⚠️ 真命盘验证中心挂载失败: {e}")
 
 @app.route("/")
 def index():
