@@ -25,6 +25,14 @@ try:
 except Exception as e:
     print(f"⚠️ 命盘导入中心挂载失败: {e}")
 
+# 注册真命盘验证 Blueprint
+try:
+    from verification.api import bp as verify_bp
+    app.register_blueprint(verify_bp)
+    print("✅ 真命盘验证系统已注册: /verify/preview, /verify/submit")
+except Exception as e:
+    print(f"⚠️ 真命盘验证系统挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")
@@ -51,6 +59,12 @@ def chatroom():
         return redirect("/admin")
     agent_info = get_agent_info()
     return render_template("chatroom.html", agents=agent_info)
+
+@app.route("/verify_view")
+def verify_view():
+    if not session.get("auth"):
+        return redirect("/admin")
+    return render_template("verify.html")
 
 @socketio.on("send_message")
 def handle_message(data):

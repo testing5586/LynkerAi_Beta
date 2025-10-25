@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>真命盘验证中心 - LynkerAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            color: #94a3b8;
+            margin-top: 10px;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 20px;
+        }
+        .section-title {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        textarea {
+            width: 100%;
+            height: 350px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #60a5fa;
+        }
+        pre {
+            width: 100%;
+            height: 350px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #0f172a;
+            color: #10b981;
+            border: 1px solid #334155;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            overflow: auto;
+            box-sizing: border-box;
+            margin: 0;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background: #111827;
+            border-color: #475569;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            border-color: #1d4ed8;
+            color: white;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%);
+        }
+        .score-tips {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            font-size: 14px;
+            color: #10b981;
+        }
+        .file-input {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover {
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/dashboard" class="back-link">← 返回控制面板</a>
+    
+    <div class="header">
+        <h1>🔐 真命盘验证中心</h1>
+        <p>上传/粘贴命盘（文墨 TXT、截图 OCR 文本等），系统将自动评分并决定入库</p>
+    </div>
+
+    <div class="card">
+        <div class="grid">
+            <div>
+                <div class="section-title">原始文本</div>
+                <textarea id="raw" placeholder="粘贴命盘文本...
+
+支持格式：
+- 文墨天机导出的 TXT 文本
+- OCR 识别的命盘文本
+- 手动输入的命盘信息
+
+请确保包含：姓名、性别、出生时间、命宫、主星等关键信息"></textarea>
+                <div class="button-group">
+                    <label for="file" class="file-input">📂 选择文件</label>
+                    <input type="file" id="file" accept=".txt,.doc,.docx" />
+                    <button id="btnPaste" class="btn">📋 从剪贴板粘贴</button>
+                    <button id="btnPreview" class="btn">🔍 识别并预览</button>
+                </div>
+            </div>
+            <div>
+                <div class="section-title">识别结果（可编辑后提交）</div>
+                <pre id="previewBox">{ }</pre>
+                <div class="button-group">
+                    <button id="btnCopy" class="btn">📄 复制识别JSON</button>
+                    <button id="btnSubmit" class="btn btn-primary">✅ 确认提交验证</button>
+                </div>
+                <div id="scoreTips" class="score-tips" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const raw = document.getElementById('raw');
+const file = document.getElementById('file');
+const previewBox = document.getElementById('previewBox');
+const scoreTips = document.getElementById('scoreTips');
+
+// 从剪贴板粘贴
+document.getElementById('btnPaste').onclick = async () => {
+    try {
+        const text = await navigator.clipboard.readText();
+        raw.value = text;
+        alert('✅ 已从剪贴板粘贴文本');
+    } catch (e) {
+        alert('❌ 无法读取剪贴板，请使用 Ctrl+V 粘贴');
+    }
+};
+
+// 文件上传
+file.onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    
+    try {
+        const txt = await f.text();
+        raw.value = txt;
+        alert(`✅ 已加载文件：${f.name}`);
+    } catch (e) {
+        alert('❌ 文件读取失败');
+    }
+};
+
+// 预览评分
+document.getElementById('btnPreview').onclick = async () => {
+    if (!raw.value.trim()) {
+        alert('❌ 请先输入或粘贴命盘文本');
+        return;
+    }
+    
+    scoreTips.style.display = 'none';
+    previewBox.textContent = '⏳ 正在分析...';
+    
+    try {
+        const r = await fetch('/verify/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({raw_text: raw.value})
+        });
+        
+        const j = await r.json();
+        
+        if (!j.ok) {
+            alert(`❌ 预览失败：${j.error || '未知错误'}`);
+            return;
+        }
+        
+        // 显示识别结果
+        previewBox.textContent = JSON.stringify({
+            parsed: j.parsed,
+            score: j.score
+        }, null, 2);
+        
+        // 显示评分提示
+        const score = j.score.score;
+        const status = score >= 0.8 ? '✅ 通过' : '❌ 未通过';
+        const color = score >= 0.8 ? '#10b981' : '#ef4444';
+        
+        scoreTips.innerHTML = `
+            <strong style="color:${color}">${status}</strong><br>
+            总评分：${score.toFixed(3)} （阈值：≥0.8）<br>
+            结构一致性：${j.score.structure.toFixed(3)} | 
+            事件应验：${j.score.event.toFixed(3)} | 
+            人格匹配：${j.score.persona.toFixed(3)}
+        `;
+        scoreTips.style.display = 'block';
+        scoreTips.style.borderColor = color.replace('4', '3');
+        scoreTips.style.background = color.replace('4', '1') + '1a';
+        
+    } catch (e) {
+        alert(`❌ 网络错误：${e.message}`);
+    }
+};
+
+// 复制 JSON
+document.getElementById('btnCopy').onclick = async () => {
+    try {
+        await navigator.clipboard.writeText(previewBox.textContent);
+        alert('✅ 已复制到剪贴板');
+    } catch (e) {
+        alert('❌ 复制失败，请手动复制');
+    }
+};
+
+// 提交验证
+document.getElementById('btnSubmit').onclick = async () => {
+    if (!raw.value.trim()) {
+        alert('❌ 请先输入或粘贴命盘文本');
+        return;
+    }
+    
+    if (!confirm('确认提交验证？系统将根据评分自动决定入库策略。')) {
+        return;
+    }
+    
+    scoreTips.textContent = '⏳ 正在提交验证...';
+    scoreTips.style.display = 'block';
+    
+    try {
+        const r = await fetch('/verify/submit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                raw_text: raw.value,
+                uploader_id: null
+            })
+        });
+        
+        const j = await r.json();
+        
+        if (!j.ok) {
+            alert(`❌ 提交失败：${j.error || '未知错误'}`);
+            return;
+        }
+        
+        // 显示结果
+        const status = j.status === 'verified' ? '✅ 验证通过' : '❌ 验证未通过';
+        const color = j.status === 'verified' ? '#10b981' : '#ef4444';
+        
+        scoreTips.innerHTML = `
+            <strong style="color:${color}">${status}</strong><br>
+            ${j.message}<br>
+            <small>Pending ID: ${j.pending_id}</small>
+        `;
+        scoreTips.style.borderColor = color.replace('4', '3');
+        scoreTips.style.background = color.replace('4', '1') + '1a';
+        
+        // 成功后清空输入
+        if (j.status === 'verified') {
+            setTimeout(() => {
+                raw.value = '';
+                previewBox.textContent = '{ }';
+            }, 2000);
+        }
+        
+    } catch (e) {
+        alert(`❌ 网络错误：${e.message}`);
+    }
+};
+</script>
+</body>
+</html>
