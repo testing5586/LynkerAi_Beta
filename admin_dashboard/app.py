@@ -12,6 +12,11 @@ if not app.secret_key:
     raise ValueError("MASTER_VAULT_KEY environment variable must be set for secure session management")
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# 注册用户事件追踪 Blueprint
+from user_events.event_api import event_bp
+app.register_blueprint(event_bp)
+print("✅ 用户事件追踪 API 已注册: /api/events/track, /api/insights/<user_id>")
+
 @app.route("/")
 def index():
     return redirect("/admin")

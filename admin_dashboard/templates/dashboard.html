@@ -71,6 +71,38 @@
             {% endfor %}
         </ul>
     </div>
+
+    <div class="card">
+        <h3>👥 用户行为概览（7天）</h3>
+        <div class="stats-grid" style="margin-top: 15px;">
+            <div class="stat-item">
+                <span class="stat-label">7日事件数:</span>
+                <span class="stat-value" id="events7d">加载中...</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">今日事件数:</span>
+                <span class="stat-value" id="eventsToday">加载中...</span>
+            </div>
+        </div>
+        <div id="emotionChart" style="width:100%;height:250px;margin-top:15px;"></div>
+        <div style="margin-top: 15px;">
+            <h4 style="font-size: 0.95em; margin-bottom: 8px;">Top3 用户关注点</h4>
+            <div id="topConcerns" style="color: #888;">加载中...</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🔎 用户画像查询</h3>
+        <div style="margin-top: 15px;">
+            <input type="number" id="userIdInput" placeholder="输入用户 ID (例如: 3)" 
+                   style="width: 200px; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: #fff;">
+            <button onclick="queryUserInsight()" 
+                    style="padding: 8px 16px; margin-left: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 4px; color: white; cursor: pointer;">
+                查询画像
+            </button>
+        </div>
+        <div id="insightResult" style="margin-top: 20px; min-height: 80px;"></div>
+    </div>
 </div>
 
 <script>
@@ -93,6 +125,105 @@
     };
     
     Plotly.newPlot('tokenChart', [trace], layout, {responsive: true});
+
+    // 加载用户行为概览
+    function loadEventOverview() {
+        fetch('/api/events/stats/overview')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('events7d').textContent = data.total_events_7d || 0;
+                document.getElementById('eventsToday').textContent = '未实现';
+                
+                // 绘制情绪分布图
+                const emotions = data.emotion_distribution || {};
+                const labels = Object.keys(emotions);
+                const values = Object.values(emotions);
+                
+                const emotionTrace = {
+                    x: labels,
+                    y: values,
+                    type: 'bar',
+                    marker: { color: '#764ba2' }
+                };
+                
+                const emotionLayout = {
+                    title: '情绪分布',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { family: 'Microsoft YaHei, sans-serif', color: '#fff' },
+                    xaxis: { title: '情绪类型' },
+                    yaxis: { title: '事件数' }
+                };
+                
+                Plotly.newPlot('emotionChart', [emotionTrace], emotionLayout, {responsive: true});
+                
+                // 模拟 Top3 关注点（实际应从聚合数据获取）
+                document.getElementById('topConcerns').innerHTML = 
+                    '<span style="color: #61dafb;">1. 夫妻宫</span> &nbsp;&nbsp; ' +
+                    '<span style="color: #764ba2;">2. 化忌</span> &nbsp;&nbsp; ' +
+                    '<span style="color: #f093fb;">3. 财帛宫</span>';
+            })
+            .catch(err => {
+                console.error('加载事件概览失败:', err);
+                document.getElementById('events7d').textContent = '加载失败';
+            });
+    }
+    
+    // 查询用户画像
+    function queryUserInsight() {
+        const userId = document.getElementById('userIdInput').value;
+        if (!userId) {
+            alert('请输入用户 ID');
+            return;
+        }
+        
+        const resultDiv = document.getElementById('insightResult');
+        resultDiv.innerHTML = '<p style="color: #888;">正在查询...</p>';
+        
+        fetch(`/api/insights/${userId}`)
+            .then(res => res.json())
+            .then(insight => {
+                const html = `
+                    <div style="background: #2a2a2a; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <div class="stat-item" style="margin-bottom: 10px;">
+                            <span class="stat-label">情绪倾向:</span>
+                            <span class="stat-value" style="color: ${getEmotionColor(insight.emotion_tendency)}">${insight.emotion_tendency}</span>
+                        </div>
+                        <div class="stat-item" style="margin-bottom: 10px;">
+                            <span class="stat-label">7天事件数:</span>
+                            <span class="stat-value">${insight.last_7d_event_count}</span>
+                        </div>
+                        <div class="stat-item" style="margin-bottom: 10px;">
+                            <span class="stat-label">关注点:</span>
+                            <span class="stat-value">${(insight.top_concerns || []).join(', ') || '暂无'}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">推送就绪:</span>
+                            <span class="stat-value" style="color: ${insight.push_ready ? '#4ade80' : '#888'}">${insight.push_ready ? '是' : '否'}</span>
+                        </div>
+                    </div>
+                `;
+                resultDiv.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('查询用户画像失败:', err);
+                resultDiv.innerHTML = '<p style="color: #f87171;">查询失败，请检查用户 ID</p>';
+            });
+    }
+    
+    function getEmotionColor(emotion) {
+        const colors = {
+            'positive': '#4ade80',
+            'neutral': '#888',
+            'anxious': '#fbbf24',
+            'sad': '#60a5fa',
+            'angry': '#f87171'
+        };
+        return colors[emotion] || '#888';
+    }
+    
+    // 页面加载时获取数据
+    loadEventOverview();
 </script>
 </body>
 </html>
