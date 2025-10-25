@@ -1,0 +1,234 @@
+真命盘验证中心（Wizard + 手写补充 + 八字/紫微导入）
+
+请在本项目中完成以下改造。所有路径相对于仓库根目录。
+
+目标
+
+新增 用户个人主页 → 我的命盘 → 真命盘验证中心 的完整流程（温柔关怀型语气 A）。
+
+三组合：① 逐步问答 Wizard（家庭/学业/事业/婚姻/财务/健康/重大事件）② 手写补充 ③ 命盘导入（八字+紫微：上传/拖拽/粘贴文本/OCR占位）。
+
+解析后执行匹配评分 → 输出 3 组“可能真实命盘” → 用户确认 → 入库归档（Supabase birthcharts + verified_charts 表）。
+
+手动填写姓名/性别 锁定优先，不会被识别值覆盖。
+
+技术栈
+
+Flask (+SocketIO 已有)、Jinja2、Tailwind/原生CSS、ES6 modules、Supabase Python SDK（已配置）。
+沿用项目里的 admin_dashboard 应用与 verification/verifier.py。
+
+一、数据库
+
+新建表（若不存在）：
+
+verified_charts
+
+create table if not exists public.verified_charts(
+  id bigserial primary key,
+  user_id bigint references public.users(id),
+  source_text text,
+  parsed jsonb,         -- 解析后的结构化命盘（八字/紫微合并字段）
+  wizard jsonb,         -- 逐步问答结果
+  notes text,           -- 手写补充
+  candidates jsonb,     -- 匹配候选({id,score,explain})
+  chosen_id bigint,     -- 用户确认的birthcharts.id
+  score numeric,        -- 最终匹配分
+  created_at timestamptz default now()
+);
+
+
+为 birthcharts 增补列（若缺少）：
+
+alter table public.birthcharts
+  add column if not exists birth_data jsonb,
+  add column if not exists source_type text;  -- 'bazi' | 'ziwei' | 'mix'
+
+二、后端（Flask）
+
+在 admin_dashboard/ 下新增/修改：
+
+新增 Blueprint
+
+admin_dashboard/verify/__init__.py
+
+admin_dashboard/verify/routes.py 路由：
+
+GET /verify 渲染页面
+
+POST /api/verify/preview 接收 wizard+notes+命盘文本/文件，调用 verification/verifier.py 返回 parsed 与 score.breakdown
+
+POST /api/verify/submit 入库 verified_charts，必要时写入/更新 birthcharts
+
+POST /api/verify/ocr（占位，直接回传“暂不启用OCR，请粘贴文本/上传TXT”）
+
+复用并增强解析
+
+调用现有 admin_dashboard/verification/verifier.py 的解析方法，不要用主星改名。
+
+增加函数 merge_manual_fields(parsed, manual)：若 manual.name_locked==true 则强制以手动姓名/性别覆盖。
+
+新增评分器 score_match(parsed, wizard, notes)：返回
+
+{
+  "score": 0.0-1.0,
+  "weights": {"events":0.45,"traits":0.30,"marriage":0.15,"health":0.10},
+  "signals": [{"key":"大限-事件命中","value":true,"weight":0.18}, ...],
+  "candidates":[
+     {"id": <birthcharts.id or null>, "label":"戊辰子时", "score":0.89, "explain":"夫妻宫/大限命中2处"}
+  ]
+}
+
+
+选择确认
+
+POST /api/verify/confirm：接收 {user_id, chosen_id, score, parsed, wizard, notes, candidates}
+
+写入 verified_charts（带审计）
+
+将选择的命盘 ID 记录到 users 的 true_chart_id（若你已有该列，否则跳过）
+
+所有接口返回形如：{"ok":true, "data":..., "toast":"温柔提示语"}
+
+三、前端（模板与脚本）
+
+模板
+
+admin_dashboard/templates/verify.html
+结构（Jinja）：
+
+顶部：温柔提示文案（如“我会陪你一步步还原真实的出生时辰”）
+
+Wizard Stepper（7步，每步表单+“下一步”）
+
+手写补充（多行文本）
+
+命盘导入组合区：
+
+Tab：八字 / 紫微
+
+三种方式：上传TXT、拖拽、粘贴文本（<textarea>）
+
+OCR按钮（提示“暂不启用，请优先粘贴文本”）
+
+手动姓名/性别 + “🔒锁定姓名/性别”开关
+
+右侧 识别JSON 预览（可复制）
+
+底部按钮：[识别并预览] [保存为我的真命盘]
+
+样式
+
+admin_dashboard/static/css/verify.css（延续深色优雅风）
+
+脚本
+
+admin_dashboard/static/js/verify_wizard.js
+
+State：wizard, notes, manual={name, gender, name_locked}, rawText={bazi, ziwei}
+
+composePayload() 合并所有输入，fetch('/api/verify/preview') → 渲染 JSON 预览与评分
+
+“复制到剪贴板”按钮
+
+“保存为我的真命盘”→ fetch('/api/verify/submit')，成功后弹出温柔提示
+
+文案（温柔关怀型）：
+
+第一步：“谢谢你信任我，我们先从家庭开始，好吗？”
+
+下一步：“很好，我们继续……”、保存：“我已为你保管这份记录。”
+
+路由挂载
+在 admin_dashboard/app.py（或主入口）注册 blueprint：
+
+from verify.routes import verify_bp
+app.register_blueprint(verify_bp)
+
+四、手动字段锁定（关键）
+
+前端提交中加入：
+
+"manual": {"name":"张三","gender":"女","name_locked": true}
+
+
+后端 merge_manual_fields：
+
+def merge_manual_fields(parsed, manual):
+    parsed = dict(parsed or {})
+    if manual.get("name_locked"):
+        if manual.get("name"):   parsed["name"] = manual["name"]
+        if manual.get("gender"): parsed["gender"] = manual["gender"]
+    else:
+        parsed["name"]   = parsed.get("name")   or manual.get("name")   or ""
+        parsed["gender"] = parsed.get("gender") or manual.get("gender") or ""
+    return parsed
+
+五、导航与权限
+
+在已有的用户个人主页侧边栏，新增入口：
+
+“我的命盘” → /verify
+
+需要 user_id（从 session 或 query），没有则引导登录。
+
+六、验收标准（必须全部通过）
+
+打开 /verify 能看到 Wizard+手写+导入的三组合界面，文案温柔。
+
+在“手动姓名= u_test99、性别=女，🔒锁定开启”，粘贴一段紫微文本 → 点击“识别并预览”
+
+预览 JSON 中 parsed.name === "u_test99"，不会被覆盖。
+
+提交后：
+
+verified_charts 新增一条，含 wizard/notes/parsed/candidates/score
+
+若匹配候选包含已有 birthcharts，则 chosen_id 可保存（在确认接口）
+
+birthcharts 至少有 1 条 source_type 与 birth_data 更新。
+
+“复制JSON”按钮可复制识别结果。
+
+OCR 按钮提示“暂不启用，请优先粘贴文本/上传TXT”。
+
+任一接口失败会返回 {"ok":false,"toast":"温柔错误提示"} 并在前端展示。
+
+七、开发后本地自测命令
+# 运行
+python admin_dashboard/app.py
+
+# 快速检查最近入库
+python - <<'PY'
+from supabase import create_client; import os, json
+db=create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+r=db.table("verified_charts").select("id,user_id,score,created_at").order("id",desc=True).limit(3).execute()
+print(json.dumps(r.data,ensure_ascii=False,indent=2))
+PY
+
+八、文件清单（请创建/更新）
+
+admin_dashboard/verify/__init__.py
+
+admin_dashboard/verify/routes.py
+
+admin_dashboard/templates/verify.html
+
+admin_dashboard/static/css/verify.css
+
+admin_dashboard/static/js/verify_wizard.js
+
+更新 admin_dashboard/app.py 挂载 blueprint
+
+如无 verified_charts 表则创建
+
+注意：严格保证“手动姓名/性别锁定优先”的逻辑贯通前后端；不要在任何解析步骤用主星等字段覆盖姓名。
+
+完成后请回显：
+
+新增/修改的文件列表
+
+数据库迁移结果（表/列是否存在）
+
+访问路径 /verify
+
+一次端到端演示：粘贴命盘 → 识别预览 → 保存 → Supabase 记录截图/JSON 输出
