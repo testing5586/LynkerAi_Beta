@@ -1,0 +1,17 @@
+{
+  "name": "测试用户A",
+  "gender": "女",
+  "birth_time": "1992-08-15T09:45:00",
+  "palaces": {
+    "夫妻宫": {
+      "main_star": "紫微"
+    },
+    "财帛宫": {
+      "main_star": "天府"
+    }
+  },
+  "transformations": {
+    "hualu": true,
+    "huaji": false
+  }
+}
