@@ -14,29 +14,33 @@ sb = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY 
 
 def extract_fields_from_text(text):
     """
-    从纯文本中提取命盘字段
+    从纯文本中提取命盘字段 - 高容忍度版本
     支持多种格式：
-    - 姓名: 张三
-    - 性别: 男
-    - 出生时间: 1990-05-20 14:30
-    - 夫妻宫: 天府
-    - 财帛宫: 武曲
-    - 化禄: 是/否
-    - 化忌: 是/否
+    - 姓名: 张三 （必填）
+    - 性别: 男 （可选，默认"未知"）
+    - 出生时间: 1990-05-20 14:30 （可选，默认 None）
+    - 夫妻宫: 天府 （可选）
+    - 财帛宫: 武曲 （可选）
+    - 化禄: 是/否 （可选，默认 false）
+    - 化忌: 是/否 （可选，默认 false）
     """
     def find(pattern, default=None):
         m = re.search(pattern, text, re.MULTILINE | re.IGNORECASE)
-        return m.group(1).strip() if m else default
+        result = m.group(1).strip() if m else default
+        # 空字符串转为 None
+        if result == "":
+            return None
+        return result
     
     # 提取字段（支持中英文标签）
-    name = find(r"(?:姓名|name|命主)[:：=\s]+([^\n]+)")
+    name = find(r"(?:姓名|name|命主)[:：=\s]+([^\n]+)") or "未命名"
     
-    # 性别处理
+    # 性别处理：默认"未知"
     gender_match = find(r"(?:性别|gender|sex)[:：=\s]*([男女MFmf])")
     if gender_match:
         gender = "男" if gender_match.upper() in ["男", "M"] else "女"
     else:
-        gender = None
+        gender = "未知"
     
     # 出生时间（支持多种格式）
     birth_time_raw = find(r"(?:出生时间|出生|生辰|birth[\s_]?time|datetime)[:：=\s]*([0-9T:\-/\s]+)")

@@ -63,17 +63,41 @@ def normalize_from_wenmote(json_obj):
 
 def normalize_from_ocr(ocr_result):
     """
-    OCR 粗解析 → 人工确认后写入
+    OCR/TXT/DOC 粗解析 → 人工确认后写入
+    高容忍度设计：缺失字段自动使用友好默认值，永不报错
     ocr_result建议提供：name, gender, birth_time, marriage_palace_star, wealth_palace_star,
                         transformations: {hualu: bool, huaji: bool}
     """
-    name = ocr_result.get("name", "未知")
-    gender = ocr_result.get("gender", "未知")
-    birth_time = ocr_result.get("birth_time")
+    # 姓名：默认"未命名"
+    name = ocr_result.get("name") or "未命名"
+    if isinstance(name, str):
+        name = name.strip() or "未命名"
     
+    # 性别：默认"未知"
+    gender = ocr_result.get("gender") or "未知"
+    if isinstance(gender, str):
+        gender = gender.strip() or "未知"
+    
+    # 出生时间：空字符串转为 None（数据库兼容）
+    birth_time = ocr_result.get("birth_time")
+    if birth_time and isinstance(birth_time, str):
+        birth_time = birth_time.strip() or None  # 空字符串 → None
+    else:
+        birth_time = None
+    
+    # 宫位主星：允许 None
+    marriage_star = ocr_result.get("marriage_palace_star")
+    if marriage_star and isinstance(marriage_star, str):
+        marriage_star = marriage_star.strip() or None
+    
+    wealth_star = ocr_result.get("wealth_palace_star")
+    if wealth_star and isinstance(wealth_star, str):
+        wealth_star = wealth_star.strip() or None
+    
+    # 飞化：默认 False
     birth_data = {
-        "marriage_palace_star": ocr_result.get("marriage_palace_star"),
-        "wealth_palace_star": ocr_result.get("wealth_palace_star"),
+        "marriage_palace_star": marriage_star,
+        "wealth_palace_star": wealth_star,
         "transformations": {
             "hualu": bool(_safe_get(ocr_result, "transformations", "hualu", default=False)),
             "huaji": bool(_safe_get(ocr_result, "transformations", "huaji", default=False)),
