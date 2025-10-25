@@ -53,6 +53,8 @@ def submit():
     
     raw = request.json.get("raw_text", "")
     uploader_id = request.json.get("uploader_id", None)
+    manual_name = request.json.get("manual_name", None)
+    manual_gender = request.json.get("manual_gender", None)
     
     if not raw.strip():
         return jsonify({"ok": False, "error": "raw_text 不能为空"}), 400
@@ -62,6 +64,12 @@ def submit():
     parsed = ver["parsed"]
     score_data = ver["score"]
     final_score = score_data["score"]
+    
+    # ✅ 手动输入优先：覆盖AI识别值
+    if manual_name:
+        parsed["name"] = manual_name
+    if manual_gender:
+        parsed["gender"] = manual_gender
     
     # 验证必填字段：姓名和性别
     if not parsed.get("name") or not parsed.get("gender"):

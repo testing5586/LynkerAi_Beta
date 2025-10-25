@@ -442,13 +442,19 @@ document.getElementById('btnSubmit').onclick = async () => {
     scoreTips.textContent = '⏳ 正在提交验证...';
     scoreTips.style.display = 'block';
     
+    // ✅ 手动输入优先：在提交前注入手动值
+    const manualName = inputName.value.trim();
+    const manualGender = normalizeGender(inputGender.value);
+    
     try {
         const r = await fetch('/verify/submit', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 raw_text: raw.value,
-                uploader_id: null
+                uploader_id: null,
+                manual_name: manualName || null,
+                manual_gender: manualGender || null
             })
         });
         
