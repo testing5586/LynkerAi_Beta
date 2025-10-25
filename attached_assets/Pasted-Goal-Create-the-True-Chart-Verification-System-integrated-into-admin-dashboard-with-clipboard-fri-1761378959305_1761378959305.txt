@@ -1,0 +1,298 @@
+Goal: Create the “True-Chart Verification System” integrated into admin_dashboard with clipboard-friendly UI.
+
+# 1) Create Supabase tables (init script)
+# =====================================
+# File: admin_dashboard/verification/create_verification_tables.py
+# Purpose: Create pending_charts, verified_charts, rejected_charts.
+
+CONTENT: <<'PY'
+import os
+from supabase import create_client
+
+url=os.getenv("SUPABASE_URL"); key=os.getenv("SUPABASE_KEY")
+sp=create_client(url,key)
+
+def exec_sql(sql):
+    sp.postgrest.rpc("exec", {"sql": sql}).execute()
+
+SQL = r"""
+CREATE TABLE IF NOT EXISTS public.pending_charts (
+  id bigserial PRIMARY KEY,
+  uploader_id bigint,
+  raw_text text,
+  parsed_json jsonb,
+  source text default 'user_upload',
+  status text default 'pending',
+  created_at timestamptz default now()
+);
+
+CREATE TABLE IF NOT EXISTS public.verified_charts (
+  id bigserial PRIMARY KEY,
+  pending_id bigint,
+  name text,
+  gender text,
+  birth_time timestamptz,
+  ziwei_palace text,
+  main_star text,
+  shen_palace text,
+  birth_data jsonb,
+  verify_score numeric,
+  verified_by text default 'ai_pipeline',
+  created_at timestamptz default now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rejected_charts (
+  id bigserial PRIMARY KEY,
+  pending_id bigint,
+  reason text,
+  suggestion text,
+  created_at timestamptz default now()
+);
+"""
+exec_sql(SQL)
+print("✅ Tables ensured.")
+PY
+
+# 2) Add verifier (AI pipeline)
+# =============================
+# File: admin_dashboard/verification/verifier.py
+# Purpose: score chart authenticity. Fallback when OpenAI unavailable.
+
+CONTENT: <<'PY'
+import os, re, json, datetime
+from typing import Dict, Any
+try:
+    from openai import OpenAI
+    OPENAI_OK = True
+except Exception:
+    OPENAI_OK = False
+
+WEIGHTS = {
+    "structure_consistency": 0.45,
+    "event_alignment": 0.35,
+    "persona_match": 0.20
+}
+
+def parse_basic_fields(raw: str) -> Dict[str, Any]:
+    # very light parser for WenMo TXT
+    d = {"name":"", "gender":"", "birth_time":"", "ziwei_palace":"", "main_star":"", "shen_palace":""}
+    m = re.search(r"性别\s*[:：]\s*(\S+)", raw);        d["gender"] = m.group(1) if m else ""
+    m = re.search(r"鐘錶時間\s*[:：]\s*([0-9\-\s:]+)", raw); d["birth_time"]=m.group(1).replace(" ", "T") if m else ""
+    m = re.search(r"命\s*宮\[([^\]]+)\]", raw);         d["ziwei_palace"]= m.group(1) if m else ""
+    m = re.search(r"主星\s*[:：]\s*([^\n]+)", raw);      d["main_star"]= m.group(1).split(",")[0] if m else ""
+    m = re.search(r"身宮\s*[:：]\s*(\S+)", raw);         d["shen_palace"]= m.group(1) if m else ""
+    return d
+
+def offline_score(raw:str, parsed:Dict[str,Any]) -> Dict[str,Any]:
+    # Simple heuristics when LLM not available
+    s_ok = sum(1 for k in ["gender","birth_time","ziwei_palace","main_star"] if parsed.get(k))
+    structure = 0.2 + 0.2*s_ok  # 0.2 ~ 1.0
+    event = 0.5 if ("大限" in raw and "流年" in raw) else 0.2
+    persona = 0.4 if any(x in raw for x in ["性别","身主","命主"]) else 0.2
+    total = (structure*WEIGHTS["structure_consistency"] +
+             event*WEIGHTS["event_alignment"] +
+             persona*WEIGHTS["persona_match"])
+    return {"structure":structure,"event":event,"persona":persona,"score": round(min(1.0,total),3)}
+
+def llm_score(raw:str, parsed:Dict[str,Any]) -> Dict[str,Any]:
+    if not OPENAI_OK:
+        return offline_score(raw, parsed)
+    key = os.getenv("LYNKER_MASTER_KEY") or os.getenv("OPENAI_API_KEY")
+    if not key:
+        return offline_score(raw, parsed)
+    client = OpenAI(api_key=key)
+    prompt = f"""你是一位紫微斗數驗盤審核官。
+請根據以下原始文本評估是否為真命盤，並給出三個分分項：
+1) 結構一致性（0~1）
+2) 事件應驗一致性（0~1）
+3) 人格斷宮一致性（0~1）
+最後輸出 JSON: {{"structure":x,"event":y,"persona":z}}
+原始文本：
+{raw[:8000]}
+"""
+    try:
+        rsp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content":prompt}],
+            temperature=0.2,
+        )
+        txt = rsp.choices[0].message.content
+        j = json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
+        structure=j.get("structure",0.5); event=j.get("event",0.5); persona=j.get("persona",0.5)
+    except Exception:
+        return offline_score(raw, parsed)
+
+    total=(structure*WEIGHTS["structure_consistency"]+
+           event*WEIGHTS["event_alignment"]+
+           persona*WEIGHTS["persona_match"])
+    return {"structure":structure,"event":event,"persona":persona,"score": round(min(1.0,total),3)}
+
+def verify_raw(raw_text:str)->Dict[str,Any]:
+    parsed = parse_basic_fields(raw_text)
+    score = llm_score(raw_text, parsed)
+    return {"parsed":parsed, "score":score}
+PY
+
+# 3) Backend API (Flask blueprint)
+# ================================
+# File: admin_dashboard/verification/api.py
+# Routes:
+#   POST /verify/preview   -> returns parsed+score (no DB write)
+#   POST /verify/submit    -> write to pending, if score>=0.8 move to verified else rejected
+
+CONTENT: <<'PY'
+import os, json
+from flask import Blueprint, request, jsonify
+from supabase import create_client
+from .verifier import verify_raw
+
+bp = Blueprint("verify", __name__, url_prefix="/verify")
+sp = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
+@bp.post("/preview")
+def preview():
+    raw = request.json.get("raw_text","")
+    if not raw.strip():
+        return jsonify({"ok":False,"error":"raw_text is empty"}), 400
+    res = verify_raw(raw)
+    return jsonify({"ok":True, **res})
+
+@bp.post("/submit")
+def submit():
+    raw = request.json.get("raw_text","")
+    uploader_id = request.json.get("uploader_id", None)
+    if not raw.strip():
+        return jsonify({"ok":False,"error":"raw_text is empty"}), 400
+
+    ver = verify_raw(raw)
+    pending = sp.table("pending_charts").insert({
+        "uploader_id": uploader_id,
+        "raw_text": raw,
+        "parsed_json": json.dumps(ver["parsed"]),
+        "status": "reviewed"
+    }).execute().data[0]
+
+    score = ver["score"]["score"]
+    if score >= 0.8:
+        parsed = ver["parsed"]
+        verified = sp.table("verified_charts").insert({
+            "pending_id": pending["id"],
+            "name": parsed.get("name",""),
+            "gender": parsed.get("gender",""),
+            "birth_time": parsed.get("birth_time") or None,
+            "ziwei_palace": parsed.get("ziwei_palace",""),
+            "main_star": parsed.get("main_star",""),
+            "shen_palace": parsed.get("shen_palace",""),
+            "birth_data": json.dumps(parsed),
+            "verify_score": score
+        }).execute().data[0]
+        status = "verified"
+    else:
+        sp.table("rejected_charts").insert({
+            "pending_id": pending["id"],
+            "reason": f"score={score} < 0.8",
+            "suggestion": "建议精确校时或补充应验事件再提交"
+        }).execute()
+        status = "rejected"
+
+    return jsonify({"ok":True, "status": status, "score": score, "pending_id": pending["id"]})
+PY
+
+# 4) Wire into Flask app
+# ======================
+# Edit: admin_dashboard/app.py  → register blueprint & nav
+PATCH: find `app = Flask(__name__)` block and ensure:
+    from verification.api import bp as verify_bp
+    app.register_blueprint(verify_bp)
+
+# 5) Add UI page “真命盘验证中心”
+# ===============================
+# File: admin_dashboard/templates/verify.html
+# Features: upload file, paste textarea, preview, submit, and “复制到剪贴板”。
+
+CONTENT: <<'HTML'
+{% extends "dashboard.html" %}
+{% block content %}
+<div class="card p-4">
+  <h2>🔐 真命盘验证中心</h2>
+  <p class="text-sm opacity-70">上传/粘贴命盘（文墨 TXT、截图 OCR 文本等），系统将自动评分并决定入库。</p>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr; gap:16px;">
+    <div>
+      <label class="text-sm">原始文本</label>
+      <textarea id="raw" class="w-full h-72 p-3 rounded bg-slate-900 text-slate-100" placeholder="粘贴命盘文本..."></textarea>
+      <div class="mt-2 flex gap-2">
+        <input type="file" id="file" accept=".txt,.doc,.docx" />
+        <button id="btnPaste" class="btn">从剪贴板粘贴</button>
+        <button id="btnPreview" class="btn">识别并预览</button>
+      </div>
+    </div>
+    <div>
+      <label class="text-sm">识别结果（可编辑后提交）</label>
+      <pre id="previewBox" class="w-full h-72 p-3 rounded bg-slate-900 text-emerald-300 overflow-auto">{ }</pre>
+      <div class="mt-2 flex gap-2">
+        <button id="btnCopy" class="btn">复制识别JSON</button>
+        <button id="btnSubmit" class="btn btn-primary">确认提交验证</button>
+      </div>
+      <p id="scoreTips" class="text-sm mt-2"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const raw = document.getElementById('raw');
+const file = document.getElementById('file');
+const previewBox = document.getElementById('previewBox');
+const scoreTips = document.getElementById('scoreTips');
+
+document.getElementById('btnPaste').onclick = async ()=>{
+  try { raw.value = await navigator.clipboard.readText(); } catch(e){ alert('无法读取剪贴板'); }
+};
+file.onchange = async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const txt = await f.text(); raw.value = txt;
+};
+document.getElementById('btnPreview').onclick = async ()=>{
+  const r = await fetch('/verify/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({raw_text:raw.value})});
+  const j = await r.json();
+  if(!j.ok){ alert(j.error||'预览失败'); return; }
+  previewBox.textContent = JSON.stringify({parsed:j.parsed, score:j.score}, null, 2);
+  scoreTips.textContent = `评分：${j.score.score}（≥0.8 将直接通过）`;
+};
+document.getElementById('btnCopy').onclick = async ()=>{
+  try { await navigator.clipboard.writeText(previewBox.textContent); alert('已复制到剪贴板'); } catch(e){ alert('复制失败');}
+};
+document.getElementById('btnSubmit').onclick = async ()=>{
+  const r = await fetch('/verify/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({raw_text:raw.value, uploader_id: null})});
+  const j = await r.json();
+  if(!j.ok){ alert(j.error||'提交失败'); return; }
+  alert(`状态：${j.status}  分数：${j.score}`);
+};
+</script>
+<style>
+.btn{padding:.5rem .8rem;border-radius:.5rem;background:#0f172a;color:#cbd5e1;border:1px solid #334155}
+.btn:hover{background:#111827}
+.btn-primary{background:#2563eb;border-color:#1d4ed8;color:white}
+</style>
+{% endblock %}
+HTML
+
+# 6) Add nav entry
+# ================
+# Edit: admin_dashboard/templates/dashboard.html
+# Add a sidebar link:
+#   <li><a href="/verify_view">真命盘验证</a></li>
+# And route:
+#   in app.py add:
+#       @app.get("/verify_view")
+#       def verify_view():
+#           return render_template("verify.html")
+
+PATCH app.py accordingly.
+
+# 7) Run
+# ======
+# a) Ensure tables
+python admin_dashboard/verification/create_verification_tables.py
+# b) Restart Flask (if needed) and open /verify_view
+# c) Test with your WenMo TXT by paste/upload.
