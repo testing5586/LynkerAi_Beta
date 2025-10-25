@@ -142,6 +142,52 @@
         .back-link:hover {
             color: #93c5fd;
         }
+        .manual-input-section {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px dashed #475569;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        .manual-input-section label {
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .manual-input-section input,
+        .manual-input-section select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            font-size: 14px;
+        }
+        .manual-input-section input:focus,
+        .manual-input-section select:focus {
+            outline: none;
+            border-color: #60a5fa;
+        }
+        .manual-input-section .apply-btn {
+            grid-column: 1 / -1;
+            padding: 10px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .manual-input-section .apply-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -173,6 +219,21 @@
                 </div>
             </div>
             <div>
+                <!-- 手动信息编辑区域 -->
+                <div class="manual-input-section">
+                    <label>命主姓名：</label>
+                    <input id="input_name" type="text" placeholder="请输入姓名或代号" />
+                    
+                    <label>性别：</label>
+                    <select id="input_gender">
+                        <option value="">请选择</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                    
+                    <button id="apply_to_json" class="apply-btn">✏️ 写入 JSON</button>
+                </div>
+                
                 <div class="section-title">识别结果（可编辑后提交）</div>
                 <pre id="previewBox">{ }</pre>
                 <div class="button-group">
@@ -190,6 +251,8 @@ const raw = document.getElementById('raw');
 const file = document.getElementById('file');
 const previewBox = document.getElementById('previewBox');
 const scoreTips = document.getElementById('scoreTips');
+const inputName = document.getElementById('input_name');
+const inputGender = document.getElementById('input_gender');
 
 // 从剪贴板粘贴
 document.getElementById('btnPaste').onclick = async () => {
@@ -246,6 +309,10 @@ document.getElementById('btnPreview').onclick = async () => {
             score: j.score
         }, null, 2);
         
+        // 自动填充手动输入区域（始终更新，避免保留旧值）
+        inputName.value = j.parsed.name || '';
+        inputGender.value = j.parsed.gender || '';
+        
         // 显示评分提示
         const score = j.score.score;
         const status = score >= 0.8 ? '✅ 通过' : '❌ 未通过';
@@ -264,6 +331,57 @@ document.getElementById('btnPreview').onclick = async () => {
         
     } catch (e) {
         alert(`❌ 网络错误：${e.message}`);
+    }
+};
+
+// 写入 JSON - 将手动输入的姓名和性别合并到识别结果中
+document.getElementById('apply_to_json').onclick = () => {
+    try {
+        // 解析当前 JSON
+        let data = {};
+        const currentText = previewBox.textContent.trim();
+        
+        if (currentText && currentText !== '{ }' && currentText !== '⏳ 正在分析...') {
+            try {
+                data = JSON.parse(currentText);
+            } catch (e) {
+                // 如果解析失败，创建新的数据结构
+                data = { parsed: {}, score: null };
+            }
+        } else {
+            // 如果没有现有数据，创建新结构
+            data = { parsed: {}, score: null };
+        }
+        
+        // 确保 parsed 对象存在
+        if (!data.parsed) {
+            data.parsed = {};
+        }
+        
+        // 写入手动输入的值
+        if (inputName.value.trim()) {
+            data.parsed.name = inputName.value.trim();
+        }
+        if (inputGender.value) {
+            data.parsed.gender = inputGender.value;
+        }
+        
+        // 更新显示
+        previewBox.textContent = JSON.stringify(data, null, 2);
+        
+        // 提示成功
+        const tips = [];
+        if (inputName.value.trim()) tips.push('姓名');
+        if (inputGender.value) tips.push('性别');
+        
+        if (tips.length > 0) {
+            alert(`✅ 已写入：${tips.join('、')}`);
+        } else {
+            alert('⚠️ 请先填写姓名或性别');
+        }
+        
+    } catch (e) {
+        alert(`❌ 写入失败：${e.message}`);
     }
 };
 
