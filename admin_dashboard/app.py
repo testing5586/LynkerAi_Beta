@@ -17,6 +17,14 @@ from user_events.event_api import event_bp
 app.register_blueprint(event_bp)
 print("✅ 用户事件追踪 API 已注册: /api/events/track, /api/insights/<user_id>")
 
+# 注册命盘导入 Blueprint
+try:
+    from import_engine.import_api import bp_import
+    app.register_blueprint(bp_import)
+    print("✅ 命盘批量导入中心已注册: /admin/import")
+except Exception as e:
+    print(f"⚠️ 命盘导入中心挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")

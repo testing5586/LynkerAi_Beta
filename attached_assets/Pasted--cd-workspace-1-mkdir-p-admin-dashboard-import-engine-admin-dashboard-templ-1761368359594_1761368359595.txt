@@ -1,0 +1,416 @@
+# 进入项目根目录
+cd ~/workspace
+
+# 1) 创建目录
+mkdir -p admin_dashboard/import_engine admin_dashboard/templates
+
+# 2) 规范化器：把各种来源的命盘数据统一成 birth_data 结构
+cat > admin_dashboard/import_engine/normalize_chart.py <<'PY'
+import datetime
+
+REQUIRED_KEYS = ["marriage_palace_star", "wealth_palace_star", "transformations"]
+
+def _safe_get(d, *path, default=None):
+    cur = d
+    for p in path:
+        if not isinstance(cur, dict) or p not in cur: return default
+        cur = cur[p]
+    return cur
+
+def normalize_from_wenmote(json_obj):
+    """
+    文墨天机导出 JSON → 标准结构
+    期望最少字段:
+      - name, gender ('男'/'女'), birth_time (ISO8601)
+      - 命盘结构里能找到：夫妻宫主星 / 财帛宫主星 / 飞化信息（化禄/化忌）
+    """
+    name = json_obj.get("name") or json_obj.get("姓名") or "未知"
+    gender = json_obj.get("gender") or json_obj.get("性别") or "未知"
+    birth_time = json_obj.get("birth_time") or json_obj.get("出生时间") or None
+
+    # 宫位 → 主星 映射（不同导出会有不同键名，这里尽量兜底）
+    palace_map = json_obj.get("palaces") or json_obj.get("宫位") or {}
+    def get_star_for(palace_key_candidates):
+        for k in palace_key_candidates:
+            v = palace_map.get(k)
+            if isinstance(v, dict) and v.get("main_star"):
+                return v["main_star"]
+            if isinstance(v, str):
+                return v
+        return None
+
+    marriage_star = get_star_for(["夫妻宫","鹖尾","Spouse","marriage"])
+    wealth_star   = get_star_for(["财帛宫","Treasury","Wealth","money"])
+
+    # 飞化
+    tf = json_obj.get("transformations") or {}
+    hualu = bool(tf.get("hualu") or tf.get("化禄"))
+    huaji = bool(tf.get("huaji") or tf.get("化忌"))
+
+    birth_data = {
+        "marriage_palace_star": marriage_star,
+        "wealth_palace_star": wealth_star,
+        "transformations": {
+            "hualu": hualu,
+            "huaji": huaji
+        }
+    }
+    return {
+        "name": name,
+        "gender": gender,
+        "birth_time": birth_time,
+        "birth_data": birth_data
+    }
+
+def normalize_from_ocr(ocr_result):
+    """
+    OCR 粗解析 → 人工确认后写入
+    ocr_result建议提供：name, gender, birth_time, marriage_palace_star, wealth_palace_star,
+                        transformations: {hualu: bool, huaji: bool}
+    """
+    name = ocr_result.get("name","未知")
+    gender = ocr_result.get("gender","未知")
+    birth_time = ocr_result.get("birth_time")
+    birth_data = {
+        "marriage_palace_star": ocr_result.get("marriage_palace_star"),
+        "wealth_palace_star": ocr_result.get("wealth_palace_star"),
+        "transformations": {
+            "hualu": bool(_safe_get(ocr_result,"transformations","hualu", default=False)),
+            "huaji": bool(_safe_get(ocr_result,"transformations","huaji", default=False)),
+        }
+    }
+    return {
+        "name": name,
+        "gender": gender,
+        "birth_time": birth_time,
+        "birth_data": birth_data
+    }
+PY
+
+# 3) 文墨 JSON 批量导入器（命令行 & HTTP 二用）
+cat > admin_dashboard/import_engine/import_wenmote_json.py <<'PY'
+import os, json, glob
+from supabase import create_client
+from .normalize_chart import normalize_from_wenmote
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def import_one_json(path):
+    with open(path, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+    norm = normalize_from_wenmote(raw)
+    resp = sb.table("birthcharts").insert({
+        "name": norm["name"],
+        "gender": norm["gender"],
+        "birth_time": norm["birth_time"],
+        "ziwei_palace": None,
+        "main_star": None,
+        "shen_palace": None,
+        "birth_data": norm["birth_data"]
+    }).execute()
+    return resp.data
+
+def import_dir_json(dirpath):
+    files = glob.glob(os.path.join(dirpath, "*.json"))
+    results = []
+    for fp in files:
+        try:
+            data = import_one_json(fp)
+            results.append({"file": os.path.basename(fp), "ok": True, "data": data})
+        except Exception as e:
+            results.append({"file": os.path.basename(fp), "ok": False, "error": str(e)})
+    return results
+
+if __name__ == "__main__":
+    import argparse
+    p = argparse.ArgumentParser(description="批量导入文墨 JSON → Supabase.birthcharts")
+    p.add_argument("--dir", required=True, help="包含文墨 JSON 的目录")
+    args = p.parse_args()
+    res = import_dir_json(args.dir)
+    ok = sum(1 for r in res if r["ok"])
+    fail = len(res) - ok
+    print(f"✅ 导入完成：成功 {ok}，失败 {fail}")
+    for r in res:
+        print(("✓" if r["ok"] else "✗"), r["file"], r.get("error",""))
+PY
+
+# 4) OCR 导入器（EasyOCR；带半自动解析 + 人工确认）
+cat > admin_dashboard/import_engine/ocr_importer.py <<'PY'
+import os, re, io, json
+from supabase import create_client
+from PIL import Image
+import easyocr
+from .normalize_chart import normalize_from_ocr
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+reader = easyocr.Reader(['ch_sim','en'], gpu=False)
+
+def ocr_extract_fields(image_bytes):
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    res = reader.readtext(np.array(img), detail=0) if False else reader.readtext(image_bytes, detail=0)
+    text = "\n".join(res)
+
+    def find(pattern, default=None):
+        m = re.search(pattern, text)
+        return m.group(1).strip() if m else default
+
+    # 简单规则：你可以按你的常用截图模板继续扩展关键词
+    name = find(r"(?:姓名|name)[:：]\s*([^\n]+)")
+    gender = find(r"(?:性别|gender)[:：]\s*([男女])")
+    birth_time = find(r"(?:出生|生辰|birth)[:：]\s*([0-9T:\- ]+)")
+    marriage_star = find(r"(?:夫妻宫)[:：]?\s*([^\s/，,]+)")
+    wealth_star = find(r"(?:财帛宫)[:：]?\s*([^\s/，,]+)")
+
+    # 飞化：识别到关键词就先标 True
+    hualu = bool(re.search(r"(化禄|HuaLu)", text))
+    huaji = bool(re.search(r"(化忌|HuaJi)", text))
+
+    return {
+        "name": name,
+        "gender": gender,
+        "birth_time": birth_time,
+        "marriage_palace_star": marriage_star,
+        "wealth_palace_star": wealth_star,
+        "transformations": {"hualu": hualu, "huaji": huaji},
+        "raw_text": text
+    }
+
+def save_record(ocr_obj):
+    norm = normalize_from_ocr(ocr_obj)
+    return sb.table("birthcharts").insert({
+        "name": norm["name"],
+        "gender": norm["gender"],
+        "birth_time": norm["birth_time"],
+        "ziwei_palace": None,
+        "main_star": None,
+        "shen_palace": None,
+        "birth_data": norm["birth_data"]
+    }).execute()
+
+# HTTP 路由会调用：传入 image bytes，返回抽取结果（前端可编辑后再提交）
+def process_image_bytes(image_bytes):
+    parsed = ocr_extract_fields(image_bytes)
+    return parsed
+PY
+
+# 5) 导入 API（Blueprint），前端页面 + 两个接口：/import/json, /import/ocr
+cat > admin_dashboard/import_engine/import_api.py <<'PY'
+import os, json
+from flask import Blueprint, request, jsonify, render_template
+from supabase import create_client
+from .import_wenmote_json import import_dir_json, import_one_json
+from .ocr_importer import process_image_bytes, save_record
+
+bp_import = Blueprint("bp_import", __name__, url_prefix="/admin/import")
+
+@bp_import.route("/", methods=["GET"])
+def page():
+    return render_template("import_ui.html")
+
+@bp_import.route("/json", methods=["POST"])
+def upload_json():
+    """
+    接收单个文墨 JSON 文件或 zip（你也可以扩展为 zip 解包）
+    """
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "error": "no file"}), 400
+    try:
+        content = f.read().decode("utf-8")
+        data = json.loads(content)
+        from .normalize_chart import normalize_from_wenmote
+        norm = normalize_from_wenmote(data)
+        # 直接写库
+        SUPABASE_URL = os.getenv("SUPABASE_URL")
+        SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+        sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+        resp = sb.table("birthcharts").insert({
+            "name": norm["name"],
+            "gender": norm["gender"],
+            "birth_time": norm["birth_time"],
+            "ziwei_palace": None,
+            "main_star": None,
+            "shen_palace": None,
+            "birth_data": norm["birth_data"]
+        }).execute()
+        return jsonify({"ok": True, "inserted": resp.data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@bp_import.route("/ocr/preview", methods=["POST"])
+def ocr_preview():
+    """
+    传图 → OCR → 抽取字段（不写库）→ 前端可让用户修正再提交
+    """
+    f = request.files.get("image")
+    if not f:
+        return jsonify({"ok": False, "error": "no image"}), 400
+    parsed = process_image_bytes(f.read())
+    return jsonify({"ok": True, "parsed": parsed})
+
+@bp_import.route("/ocr/confirm", methods=["POST"])
+def ocr_confirm():
+    """
+    前端把修正后的字段 JSON 传回 → 写库
+    """
+    try:
+        payload = request.get_json(force=True)
+        resp = save_record(payload)
+        return jsonify({"ok": True, "inserted": resp.data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+PY
+
+# 6) 前端上传页面（JSON 单文件上传 + 图像 OCR 预览/确认）
+cat > admin_dashboard/templates/import_ui.html <<'HTML'
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <title>命盘批量导入中心</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{background:#0b1220;color:#e6edf3;font-family:system-ui, -apple-system;}
+    .wrap{max-width:900px;margin:40px auto;padding:24px}
+    .card{background:#111a2b;border:1px solid #1f2a44;border-radius:16px;padding:20px;margin-bottom:20px}
+    h2{margin:0 0 12px 0}
+    input,button{padding:10px 14px;border-radius:10px;border:1px solid #2a3758;background:#0b1220;color:#e6edf3}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .ok{color:#40e0a8}
+    .err{color:#ff6b6b}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    textarea{width:100%;height:180px;background:#0b1220;border:1px solid #2a3758;color:#e6edf3;border-radius:10px;padding:10px}
+    label{opacity:.85}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2>文墨 JSON 导入</h2>
+    <div class="row">
+      <input type="file" id="jsonfile" accept=".json" />
+      <button onclick="uploadJSON()">上传并导入</button>
+      <span id="jsonStatus"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>截图 / PDF OCR 半自动导入</h2>
+    <div class="row">
+      <input type="file" id="imgfile" accept="image/*,.pdf" />
+      <button onclick="ocrPreview()">识别并预览</button>
+      <span id="ocrStatus"></span>
+    </div>
+    <div class="grid" style="margin-top:16px">
+      <div>
+        <label>识别结果（可编辑后提交）</label>
+        <textarea id="ocrJson" placeholder='{"name":"命主","gender":"女","birth_time":"1990-05-20T15:30:00","marriage_palace_star":"天府","wealth_palace_star":"武曲","transformations":{"hualu":true,"huaji":false}}'></textarea>
+        <div style="margin-top:10px">
+          <button onclick="ocrConfirm()">确认写入数据库</button>
+        </div>
+      </div>
+      <div>
+        <label>原始识别文本</label>
+        <textarea id="rawText" readonly></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function uploadJSON(){
+  const file = document.getElementById('jsonfile').files[0];
+  if(!file) return alert('请选择一个 JSON 文件');
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/admin/import/json', { method:'POST', body:fd });
+  const j = await r.json();
+  document.getElementById('jsonStatus').textContent = j.ok ? '✅ 导入成功' : ('❌ ' + j.error);
+}
+
+async function ocrPreview(){
+  const file = document.getElementById('imgfile').files[0];
+  if(!file) return alert('请选择一张图片或PDF');
+  const fd = new FormData();
+  fd.append('image', file);
+  const r = await fetch('/admin/import/ocr/preview', { method:'POST', body: fd });
+  const j = await r.json();
+  if(!j.ok){ document.getElementById('ocrStatus').textContent = '❌ ' + j.error; return; }
+  const p = j.parsed || {};
+  document.getElementById('ocrJson').value = JSON.stringify({
+    name: p.name || "",
+    gender: p.gender || "",
+    birth_time: p.birth_time || "",
+    marriage_palace_star: p.marriage_palace_star || "",
+    wealth_palace_star: p.wealth_palace_star || "",
+    transformations: p.transformations || {hualu:false, huaji:false}
+  }, null, 2);
+  document.getElementById('rawText').value = p.raw_text || '';
+  document.getElementById('ocrStatus').textContent = '✅ 识别完成，请检查字段后点击“确认写入”';
+}
+
+async function ocrConfirm(){
+  try{
+    const payload = JSON.parse(document.getElementById('ocrJson').value);
+    const r = await fetch('/admin/import/ocr/confirm', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    document.getElementById('ocrStatus').textContent = j.ok ? '✅ 写入成功' : ('❌ ' + j.error);
+  }catch(e){
+    alert('JSON 格式不正确：' + e.message);
+  }
+}
+</script>
+</body>
+</html>
+HTML
+
+# 7) 把导入 Blueprint 挂到现有 Flask 应用（app.py）
+# 如果 app.py 已存在，只需追加注册语句
+if grep -q "register_blueprint" admin_dashboard/app.py; then
+  # 追加导入与注册
+  cat >> admin_dashboard/app.py <<'PY'
+
+# === 导入「批量导入」蓝图 ===
+try:
+    from import_engine.import_api import bp_import
+    app.register_blueprint(bp_import)
+    print("✅ 已挂载 /admin/import 导入中心")
+except Exception as e:
+    print("⚠️ 导入中心挂载失败：", e)
+PY
+else
+  # 创建一个最小可运行 app.py（若你的项目已有就跳过此步）
+  cat > admin_dashboard/app.py <<'PY'
+import os
+from flask import Flask
+from flask_socketio import SocketIO
+
+app = Flask(__name__)
+app.secret_key = os.getenv("MASTER_VAULT_KEY","fallback_secret")
+socketio = SocketIO(app, async_mode='threading')
+
+# 首页跳到导入页
+@app.route("/")
+def idx():
+    return '<meta http-equiv="refresh" content="0;/admin/import/">'
+
+# 注册导入蓝图
+from import_engine.import_api import bp_import
+app.register_blueprint(bp_import)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+PY
+fi
+
+# 8) 依赖（OCR）
+pip install --upgrade pillow easyocr >/dev/null 2>&1 || true
+
+echo "✅ 安装完成：访问 /admin/import 进行导入"
