@@ -25,6 +25,44 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 sp = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 
+def save_verification_results(user_id, group_index, bazi_result, ziwei_result, life_events_count, sp):
+    """
+    存储AI验证结果到 user_verification_results 表
+    使用 upsert 策略：如果该用户的该组已有记录则更新，否则插入
+    """
+    try:
+        # 检查是否已存在该用户该组的记录
+        existing = sp.table("user_verification_results").select("id").eq("user_id", user_id).eq("group_index", group_index).execute()
+        
+        data = {
+            "user_id": user_id,
+            "group_index": group_index,
+            "bazi_score": float(bazi_result.get("score", 0)),
+            "bazi_matches": bazi_result.get("key_matches", []),
+            "bazi_mismatches": bazi_result.get("key_mismatches", []),
+            "bazi_summary": bazi_result.get("notes", ""),
+            "ziwei_score": float(ziwei_result.get("score", 0)),
+            "ziwei_matches": ziwei_result.get("key_matches", []),
+            "ziwei_mismatches": ziwei_result.get("key_mismatches", []),
+            "ziwei_summary": ziwei_result.get("notes", ""),
+            "life_events_count": life_events_count,
+            "updated_at": "now()"
+        }
+        
+        if existing.data and len(existing.data) > 0:
+            # 更新现有记录
+            record_id = existing.data[0]["id"]
+            sp.table("user_verification_results").update(data).eq("id", record_id).execute()
+            print(f"✅ 更新验证结果: user_id={user_id}, group={group_index}")
+        else:
+            # 插入新记录
+            sp.table("user_verification_results").insert(data).execute()
+            print(f"✅ 插入验证结果: user_id={user_id}, group={group_index}")
+        
+    except Exception as e:
+        print(f"❌ 存储验证结果失败: {e}")
+
+
 @bp.get("")
 def render_page():
     """
@@ -63,6 +101,7 @@ def preview():
     chart_type = data.get("chart_type", "bazi")  # 'bazi' 或 'ziwei'
     life_events = data.get("life_events", "")  # 用户讲述的人生事件
     user_id = data.get("user_id")
+    group_index = data.get("group_index", 0)  # 当前组索引（0/1/2）
     
     if not raw_text.strip():
         return jsonify({
@@ -95,17 +134,43 @@ def preview():
             "toast": f"识别成功！匹配评分：{score_result['score']:.2f}"
         }
         
-        # 5. (可选) 使用Child AI验证
-        if use_ai and life_events:
+        # 5. 自动触发AI验证：检测是否满足条件（命盘已上传 + 至少3条人生事件）
+        life_events_count = len([line for line in life_events.split('\n') if line.strip()]) if life_events else 0
+        auto_trigger_ai = life_events_count >= 3 and user_id
+        
+        if auto_trigger_ai or (use_ai and life_events):
             try:
                 # 获取用户的AI名字
                 _, bazi_name, ziwei_name = get_ai_names_from_db(user_id, sp) if sp and user_id else ("", "八字观察员", "星盘参谋")
-                ai_name = bazi_name if chart_type == "bazi" else ziwei_name
                 
-                # 调用Child AI验证 (同步版本)
-                ai_result = asyncio.run(verify_chart_with_ai(parsed, life_events, chart_type, ai_name))
-                response_data["ai_verification"] = ai_result
-                response_data["toast"] = f"AI验证完成！匹配度：{ai_result['score']:.2f}"
+                # 同时验证八字和紫微（如果是自动触发）
+                if auto_trigger_ai:
+                    # 调用两个Child AI验证
+                    bazi_result = asyncio.run(verify_chart_with_ai(parsed, life_events, "bazi", bazi_name))
+                    ziwei_result = asyncio.run(verify_chart_with_ai(parsed, life_events, "ziwei", ziwei_name))
+                    
+                    response_data["bazi_verification"] = bazi_result
+                    response_data["ziwei_verification"] = ziwei_result
+                    response_data["auto_verified"] = True
+                    response_data["toast"] = f"AI自动验证完成！八字匹配度：{bazi_result['score']:.2%}，紫微匹配度：{ziwei_result['score']:.2%}"
+                    
+                    # 存储验证结果到数据库
+                    if sp:
+                        save_verification_results(
+                            user_id=user_id,
+                            group_index=group_index,
+                            bazi_result=bazi_result,
+                            ziwei_result=ziwei_result,
+                            life_events_count=life_events_count,
+                            sp=sp
+                        )
+                else:
+                    # 单个验证（手动触发）
+                    ai_name = bazi_name if chart_type == "bazi" else ziwei_name
+                    ai_result = asyncio.run(verify_chart_with_ai(parsed, life_events, chart_type, ai_name))
+                    response_data["ai_verification"] = ai_result
+                    response_data["toast"] = f"AI验证完成！匹配度：{ai_result['score']:.2f}"
+                    
             except Exception as ai_error:
                 print(f"⚠️ AI验证失败，使用降级方案: {ai_error}")
                 # 降级到规则验证
