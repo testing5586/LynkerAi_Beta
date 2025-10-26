@@ -382,6 +382,25 @@ def chat():
             "message": "消息不能为空"
         }), 400
     
+    # 获取 AI 名称（从数据库 users 表）
+    primary_ai_name = "灵伴"  # 默认名称
+    bazi_name = "八字观察员"
+    ziwei_name = "星盘参谋"
+    
+    if sp:
+        try:
+            user_data = sp.table("users").select("primary_ai_name").eq("id", user_id).execute()
+            if user_data.data and len(user_data.data) > 0 and user_data.data[0].get("primary_ai_name"):
+                primary_ai_name = user_data.data[0]["primary_ai_name"]
+            
+            # 获取 Child AI 名称
+            ai_names = get_ai_names_from_db(sp)
+            if ai_names:
+                bazi_name = ai_names.get("bazi", "八字观察员")
+                ziwei_name = ai_names.get("ziwei", "星盘参谋")
+        except Exception as e:
+            print(f"⚠️ 获取 AI 名称失败，使用默认值: {e}")
+    
     try:
         # 获取Primary AI的系统Prompt（动态加载最新问卷）
         system_prompt = get_primary_ai_prompt()
