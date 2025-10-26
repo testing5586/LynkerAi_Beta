@@ -37,7 +37,9 @@ const state = {
             ziweiUploaded: false
         }
     ],
-    conversationState: 'waiting_bazi' // waiting_bazi | waiting_ziwei | ready_to_save | saved
+    conversationState: 'waiting_bazi', // waiting_bazi | waiting_ziwei | ready_to_save | saved
+    conversationHistory: [], // 对话历史记录
+    lifeEvents: "" // 用户讲述的人生事件
 };
 
 // 获取当前组的数据
@@ -325,6 +327,9 @@ async function processChartText(text, type) {
     statusSpan.className = "result-status processing";
     
     try {
+        // 如果有人生事件描述，使用AI验证
+        const useAI = state.lifeEvents.trim().length > 0;
+        
         const response = await fetch('/verify/api/preview', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -332,7 +337,11 @@ async function processChartText(text, type) {
                 raw_text: text,
                 wizard: {},
                 notes: "",
-                manual: {}
+                manual: {},
+                use_ai: useAI,
+                chart_type: type,
+                life_events: state.lifeEvents,
+                user_id: state.userId
             })
         });
         
@@ -376,31 +385,77 @@ async function processChartText(text, type) {
 function displayResult(data, type) {
     const resultContent = document.getElementById(`${type}ResultContent`);
     
-    const html = `
-        <div class="score-display">匹配评分：${(data.score * 100).toFixed(1)}%</div>
-        
-        <div class="detail-item">
-            <span class="detail-label">姓名：</span>
-            <span>${data.parsed?.name || '未识别'}</span>
-        </div>
-        
-        <div class="detail-item">
-            <span class="detail-label">性别：</span>
-            <span>${data.parsed?.gender || '未识别'}</span>
-        </div>
-        
-        <div class="detail-item">
-            <span class="detail-label">出生时间：</span>
-            <span>${data.parsed?.birth_time || '未识别'}</span>
-        </div>
-        
-        ${data.parsed?.main_star ? `
-        <div class="detail-item">
-            <span class="detail-label">主星：</span>
-            <span>${data.parsed.main_star}</span>
-        </div>
-        ` : ''}
-        
+    let html = '';
+    
+    // 如果有AI验证结果，优先显示AI结果
+    if (data.ai_verification) {
+        const aiResult = data.ai_verification;
+        html = `
+            <div class="ai-verification-result">
+                <div class="score-display" style="color: ${aiResult.score >= 0.7 ? '#28a745' : aiResult.score >= 0.4 ? '#ffc107' : '#dc3545'};">
+                    AI匹配度：${(aiResult.score * 100).toFixed(1)}%
+                </div>
+                
+                ${aiResult.key_matches && aiResult.key_matches.length > 0 ? `
+                <div class="detail-section" style="margin-top: 12px;">
+                    <strong style="color: #28a745;">✓ 吻合点：</strong>
+                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                        ${aiResult.key_matches.map(m => `<li>${m}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+                
+                ${aiResult.key_mismatches && aiResult.key_mismatches.length > 0 ? `
+                <div class="detail-section" style="margin-top: 12px;">
+                    <strong style="color: #dc3545;">✗ 不符点：</strong>
+                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                        ${aiResult.key_mismatches.map(m => `<li>${m}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+                
+                ${aiResult.notes ? `
+                <div class="detail-section" style="margin-top: 12px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                    <strong>总结：</strong>
+                    <p style="margin: 4px 0; font-size: 13px; line-height: 1.5;">${aiResult.notes}</p>
+                </div>
+                ` : ''}
+                
+                ${aiResult.fallback ? `
+                <p style="font-size: 12px; color: #6c757d; margin-top: 8px;">（使用规则验证）</p>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        // 降级到传统显示
+        html = `
+            <div class="score-display">匹配评分：${(data.score * 100).toFixed(1)}%</div>
+            
+            <div class="detail-item">
+                <span class="detail-label">姓名：</span>
+                <span>${data.parsed?.name || '未识别'}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">性别：</span>
+                <span>${data.parsed?.gender || '未识别'}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">出生时间：</span>
+                <span>${data.parsed?.birth_time || '未识别'}</span>
+            </div>
+            
+            ${data.parsed?.main_star ? `
+            <div class="detail-item">
+                <span class="detail-label">主星：</span>
+                <span>${data.parsed.main_star}</span>
+            </div>
+            ` : ''}
+        `;
+    }
+    
+    html += `
         <details style="margin-top: 16px;">
             <summary style="cursor: pointer; font-weight: 600;">查看完整 JSON</summary>
             <pre style="margin-top: 8px;">${JSON.stringify(data.parsed, null, 2)}</pre>
@@ -444,27 +499,50 @@ async function sendMessage() {
     addUserMessage(message);
     chatInput.value = '';
     
-    // 处理用户输入
-    if (message.includes('确认保存') || message.includes('保存')) {
-        if (state.conversationState === 'ready_to_save') {
-            await saveToDatabase();
-        } else if (!state.baziUploaded) {
-            addAIMessage("抱歉，你还没有上传八字命盘呢。请先上传左侧的八字命盘。");
-        } else if (!state.ziweiUploaded) {
-            addAIMessage("抱歉，你还没有上传紫微斗数命盘呢。请先上传右侧的紫微命盘。");
-        } else {
-            addAIMessage("系统状态异常，请刷新页面重试。");
+    // 记录用户人生事件描述（累积）
+    state.lifeEvents += message + "\n";
+    
+    // 调用Primary AI聊天API
+    try {
+        addAIMessage('<p class="thinking">正在思考...</p>');
+        
+        const response = await fetch('/verify/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: state.userId,
+                message: message,
+                history: state.conversationHistory
+            })
+        });
+        
+        const data = await response.json();
+        
+        // 移除"正在思考"消息
+        const messagesContainer = document.getElementById('chatMessages');
+        const thinkingMsg = messagesContainer.querySelector('.thinking');
+        if (thinkingMsg) {
+            thinkingMsg.closest('.message').remove();
         }
-    } else if (message.includes('帮助') || message.includes('怎么') || message.includes('如何')) {
-        addAIMessage(`
-            <p>我来帮你！使用步骤如下：</p>
-            <p>1️⃣ <strong>上传八字命盘</strong>：拖拽图片或粘贴文本到左侧上传框</p>
-            <p>2️⃣ <strong>上传紫微命盘</strong>：拖拽图片或粘贴文本到右侧上传框</p>
-            <p>3️⃣ <strong>确认保存</strong>：两份命盘都验证完成后，输入"确认保存"</p>
-        `);
-    } else {
-        // 简单的回复
-        addAIMessage("我收到你的消息了。如果需要帮助，请输入\"帮助\"。如果已经上传两份命盘，请输入\"确认保存\"。");
+        
+        if (data.ok) {
+            // 显示AI回复
+            addAIMessage(`<p>${data.message}</p>`);
+            
+            // 更新对话历史
+            state.conversationHistory.push({role: 'user', content: message});
+            state.conversationHistory.push({role: 'assistant', content: data.message});
+            
+            // 保持历史在合理长度（最近20条）
+            if (state.conversationHistory.length > 20) {
+                state.conversationHistory = state.conversationHistory.slice(-20);
+            }
+        } else {
+            addAIMessage(`<p style="color: #721c24;">抱歉，我现在有些不舒服。${data.message || ''}</p>`);
+        }
+    } catch (error) {
+        console.error("聊天失败:", error);
+        addAIMessage('<p style="color: #721c24;">抱歉，连接出现了问题，请稍后再试。</p>');
     }
 }
 

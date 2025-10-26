@@ -46,15 +46,23 @@ def render_page():
 def preview():
     """
     预览评分接口
-    接收：wizard + notes + 命盘文本/文件 + 手动字段
-    返回：parsed + score + candidates
+    接收：wizard + notes + 命盘文本/文件 + 手动字段 + (可选)use_ai + chart_type + life_events
+    返回：parsed + score + candidates + (可选)ai_verification
     """
+    import asyncio
+    
     data = request.json or {}
     
     wizard = data.get("wizard", {})
     notes = data.get("notes", "")
     raw_text = data.get("raw_text", "")
     manual = data.get("manual", {})
+    
+    # 新增：AI验证选项
+    use_ai = data.get("use_ai", False)
+    chart_type = data.get("chart_type", "bazi")  # 'bazi' 或 'ziwei'
+    life_events = data.get("life_events", "")  # 用户讲述的人生事件
+    user_id = data.get("user_id")
     
     if not raw_text.strip():
         return jsonify({
@@ -77,7 +85,7 @@ def preview():
         # 4. 执行匹配评分
         score_result = score_match(parsed, wizard, notes)
         
-        return jsonify({
+        response_data = {
             "ok": True,
             "parsed": parsed,
             "score": score_result["score"],
@@ -85,7 +93,27 @@ def preview():
             "signals": score_result["signals"],
             "candidates": score_result["candidates"],
             "toast": f"识别成功！匹配评分：{score_result['score']:.2f}"
-        })
+        }
+        
+        # 5. (可选) 使用Child AI验证
+        if use_ai and life_events:
+            try:
+                # 获取用户的AI名字
+                _, bazi_name, ziwei_name = get_ai_names_from_db(user_id, sp) if sp and user_id else ("", "八字观察员", "星盘参谋")
+                ai_name = bazi_name if chart_type == "bazi" else ziwei_name
+                
+                # 调用Child AI验证 (同步版本)
+                ai_result = asyncio.run(verify_chart_with_ai(parsed, life_events, chart_type, ai_name))
+                response_data["ai_verification"] = ai_result
+                response_data["toast"] = f"AI验证完成！匹配度：{ai_result['score']:.2f}"
+            except Exception as ai_error:
+                print(f"⚠️ AI验证失败，使用降级方案: {ai_error}")
+                # 降级到规则验证
+                ai_result = verify_chart_without_ai(parsed)
+                response_data["ai_verification"] = ai_result
+                response_data["ai_verification"]["fallback"] = True
+        
+        return jsonify(response_data)
     
     except Exception as e:
         return jsonify({
