@@ -134,6 +134,28 @@ body {
     max-width: 900px;
 }
 
+.page-title-center {
+    text-align: center;
+}
+
+.subtitle-center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ========== 时辰标题 ========== */
+.shichen-title {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.shichen-title h2 {
+    font-size: 20px;
+    color: #b366ff;
+    font-weight: 600;
+}
+
 /* ========== 上传区域 ========== */
 .upload-section {
     margin-bottom: 32px;
