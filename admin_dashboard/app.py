@@ -41,6 +41,14 @@ try:
 except Exception as e:
     print(f"⚠️ 真命盘验证中心挂载失败: {e}")
 
+# 注册问卷管理中心 Blueprint
+try:
+    from superintendent.questionnaire import bp_questionnaire
+    app.register_blueprint(bp_questionnaire)
+    print("✅ 问卷管理中心已注册: /superintendent/questionnaire")
+except Exception as e:
+    print(f"⚠️ 问卷管理中心挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")
