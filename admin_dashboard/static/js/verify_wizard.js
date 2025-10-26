@@ -1,358 +1,394 @@
 /**
  * 真命盘验证中心 - 前端逻辑
- * Wizard 7步问答 + 命盘导入 + 手动字段锁定
+ * 1个 AI 对话框 + 2个上传框 + 2个只读结果展示区
  */
 
 // 状态管理
 const state = {
-    currentStep: 1,
-    totalSteps: 7,
-    wizard: {},
-    notes: "",
-    manual: {
-        name: "",
-        gender: "",
-        name_locked: true
-    },
-    rawText: {
-        bazi: "",
-        ziwei: ""
-    },
-    currentTab: "bazi",
-    userId: null
+    userId: null,
+    baziUploaded: false,
+    ziweiUploaded: false,
+    baziResult: null,
+    ziweiResult: null,
+    conversationState: 'waiting_bazi' // waiting_bazi | waiting_ziwei | ready_to_save | saved
 };
 
-// 初始化
+// ========== 初始化 ==========
 document.addEventListener("DOMContentLoaded", () => {
-    // 从URL或DOM获取user_id
-    const urlParams = new URLSearchParams(window.location.search);
-    state.userId = urlParams.get("user_id") || document.querySelector("body").dataset.userId;
+    // 获取 user_id
+    state.userId = document.querySelector("body").dataset.userId;
     
-    initWizardNav();
-    initTabSwitch();
-    initFileUpload();
-    initPasteButtons();
-    initManualFields();
-    initPreviewButton();
-    initSaveButton();
-    initOCRButton();
-});
-
-// === Wizard 导航 ===
-function initWizardNav() {
-    const btnPrev = document.getElementById("btnPrev");
-    const btnNext = document.getElementById("btnNext");
-    
-    btnPrev.addEventListener("click", () => {
-        if (state.currentStep > 1) {
-            saveCurrentStep();
-            state.currentStep--;
-            updateWizardUI();
-        }
-    });
-    
-    btnNext.addEventListener("click", () => {
-        if (state.currentStep < state.totalSteps) {
-            saveCurrentStep();
-            state.currentStep++;
-            updateWizardUI();
-        }
-    });
-    
-    updateWizardUI();
-}
-
-function saveCurrentStep() {
-    const stepMap = {
-        1: "family",
-        2: "education",
-        3: "career",
-        4: "marriage",
-        5: "finance",
-        6: "health",
-        7: "major_events"
-    };
-    
-    const fieldId = `wizard_${stepMap[state.currentStep]}`;
-    const value = document.getElementById(fieldId).value.trim();
-    state.wizard[stepMap[state.currentStep]] = value;
-}
-
-function updateWizardUI() {
-    // 更新步骤显示
-    document.querySelectorAll(".wizard-step").forEach((el, idx) => {
-        el.classList.toggle("active", idx + 1 === state.currentStep);
-    });
-    
-    // 更新进度条
-    const progress = (state.currentStep / state.totalSteps) * 100;
-    document.getElementById("progressFill").style.width = `${progress}%`;
-    document.getElementById("progressText").textContent = `步骤 ${state.currentStep}/${state.totalSteps}`;
-    
-    // 更新按钮状态
-    document.getElementById("btnPrev").disabled = state.currentStep === 1;
-    document.getElementById("btnNext").textContent = state.currentStep === state.totalSteps ? "完成问答" : "下一步";
-}
-
-// === Tab 切换 ===
-function initTabSwitch() {
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const tab = btn.dataset.tab;
-            state.currentTab = tab;
-            
-            // 更新 Tab 按钮
-            document.querySelectorAll(".tab-btn").forEach(b => {
-                b.classList.toggle("active", b.dataset.tab === tab);
-            });
-            
-            // 更新 Tab 内容
-            document.querySelectorAll(".tab-content").forEach(content => {
-                content.classList.toggle("active", content.id === `tab_${tab}`);
-            });
-        });
-    });
-}
-
-// === 文件上传 ===
-function initFileUpload() {
-    const fileBazi = document.getElementById("file_bazi");
-    const fileZiwei = document.getElementById("file_ziwei");
-    
-    fileBazi.addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const text = await file.text();
-            document.getElementById("raw_bazi").value = text;
-            state.rawText.bazi = text;
-            showToast(`✅ 已加载文件：${file.name}`);
-        }
-    });
-    
-    fileZiwei.addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const text = await file.text();
-            document.getElementById("raw_ziwei").value = text;
-            state.rawText.ziwei = text;
-            showToast(`✅ 已加载文件：${file.name}`);
-        }
-    });
-}
-
-// === 粘贴按钮 ===
-function initPasteButtons() {
-    document.getElementById("btnPasteBazi").addEventListener("click", async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            document.getElementById("raw_bazi").value = text;
-            state.rawText.bazi = text;
-            showToast("✅ 已从剪贴板粘贴八字文本");
-        } catch (e) {
-            showToast("❌ 无法读取剪贴板，请使用 Ctrl+V 粘贴");
-        }
-    });
-    
-    document.getElementById("btnPasteZiwei").addEventListener("click", async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            document.getElementById("raw_ziwei").value = text;
-            state.rawText.ziwei = text;
-            showToast("✅ 已从剪贴板粘贴紫微文本");
-        } catch (e) {
-            showToast("❌ 无法读取剪贴板，请使用 Ctrl+V 粘贴");
-        }
-    });
-}
-
-// === 手动字段 ===
-function initManualFields() {
-    const inputName = document.getElementById("manual_name");
-    const inputGender = document.getElementById("manual_gender");
-    const lockCheckbox = document.getElementById("name_locked");
-    
-    inputName.addEventListener("input", (e) => {
-        state.manual.name = e.target.value.trim();
-    });
-    
-    inputGender.addEventListener("change", (e) => {
-        state.manual.gender = e.target.value;
-    });
-    
-    lockCheckbox.addEventListener("change", (e) => {
-        state.manual.name_locked = e.target.checked;
-    });
-}
-
-// === 预览按钮 ===
-function initPreviewButton() {
-    document.getElementById("btnPreview").addEventListener("click", async () => {
-        saveCurrentStep();
-        
-        // 获取当前 Tab 的命盘文本
-        const rawText = state.currentTab === "bazi" 
-            ? document.getElementById("raw_bazi").value.trim()
-            : document.getElementById("raw_ziwei").value.trim();
-        
-        if (!rawText) {
-            showToast("❌ 请先输入或上传命盘文本");
-            return;
-        }
-        
-        // 收集手写补充
-        state.notes = document.getElementById("notes").value.trim();
-        
-        showToast("⏳ 正在识别和评分...");
-        
-        try {
-            const response = await fetch("/verify/api/preview", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    wizard: state.wizard,
-                    notes: state.notes,
-                    raw_text: rawText,
-                    manual: state.manual
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (!result.ok) {
-                showToast(result.toast || "❌ 预览失败");
-                return;
-            }
-            
-            // 更新预览JSON
-            document.getElementById("previewJSON").textContent = JSON.stringify({
-                parsed: result.parsed,
-                score: result.score,
-                signals: result.signals,
-                candidates: result.candidates
-            }, null, 2);
-            
-            // 渲染候选命盘
-            renderCandidates(result.candidates);
-            
-            showToast(result.toast || `✅ 识别成功！评分：${result.score.toFixed(2)}`);
-        } catch (e) {
-            showToast(`❌ 网络错误：${e.message}`);
-        }
-    });
-}
-
-// === 保存按钮 ===
-function initSaveButton() {
-    document.getElementById("btnSave").addEventListener("click", async () => {
-        if (!state.userId) {
-            showToast("❌ 请先登录后再保存");
-            return;
-        }
-        
-        saveCurrentStep();
-        
-        // 获取当前 Tab 的命盘文本
-        const rawText = state.currentTab === "bazi" 
-            ? document.getElementById("raw_bazi").value.trim()
-            : document.getElementById("raw_ziwei").value.trim();
-        
-        if (!rawText) {
-            showToast("❌ 请先输入或上传命盘文本");
-            return;
-        }
-        
-        if (!confirm("确认保存为你的真命盘吗？")) {
-            return;
-        }
-        
-        showToast("⏳ 正在保存...");
-        
-        try {
-            const response = await fetch("/verify/api/submit", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: state.userId,
-                    wizard: state.wizard,
-                    notes: document.getElementById("notes").value.trim(),
-                    raw_text: rawText,
-                    manual: state.manual
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (!result.ok) {
-                showToast(result.toast || "❌ 保存失败");
-                return;
-            }
-            
-            // 渲染候选命盘
-            if (result.candidates) {
-                renderCandidates(result.candidates, result.record_id);
-            }
-            
-            showToast(result.toast || "✅ 保存成功！");
-        } catch (e) {
-            showToast(`❌ 网络错误：${e.message}`);
-        }
-    });
-}
-
-// === OCR 按钮 ===
-function initOCRButton() {
-    document.getElementById("btnOCR").addEventListener("click", async () => {
-        showToast("⚠️ 暂不启用 OCR 识别，请优先粘贴文本或上传 TXT 文件");
-    });
-}
-
-// === 复制 JSON ===
-document.getElementById("btnCopyJSON").addEventListener("click", async () => {
-    const json = document.getElementById("previewJSON").textContent;
-    try {
-        await navigator.clipboard.writeText(json);
-        showToast("✅ 已复制到剪贴板");
-    } catch (e) {
-        showToast("❌ 复制失败，请手动复制");
-    }
-});
-
-// === 渲染候选命盘 ===
-function renderCandidates(candidates, recordId = null) {
-    const grid = document.getElementById("candidatesGrid");
-    
-    if (!candidates || candidates.length === 0) {
-        grid.innerHTML = '<div class="candidate-card placeholder"><p>暂无候选命盘</p></div>';
+    if (!state.userId) {
+        console.error("❌ 未找到 user_id");
         return;
     }
     
-    grid.innerHTML = candidates.map((c, idx) => `
-        <div class="candidate-card">
-            <h3>候选 ${idx + 1}：${c.label}</h3>
-            <div class="score">${(c.score * 100).toFixed(1)}%</div>
-            <div class="explain">${c.explain}</div>
-            ${recordId ? `<button class="btn btn-primary" onclick="confirmCandidate(${recordId}, ${c.id})">✅ 已验证</button>` : ''}
-        </div>
-    `).join("");
+    initSidebar();
+    initDragDrop();
+    initFileInputs();
+    initTextInputs();
+    initChatbox();
+    
+    console.log("✅ 真命盘验证中心已初始化，user_id:", state.userId);
+});
+
+// ========== 侧边栏展开/收起 ==========
+function initSidebar() {
+    document.querySelectorAll('.nav-item.expandable').forEach(item => {
+        item.addEventListener('click', () => {
+            const menuName = item.dataset.menu;
+            const submenu = document.querySelector(`.nav-submenu[data-parent="${menuName}"]`);
+            
+            if (submenu) {
+                const isHidden = submenu.classList.contains('hidden');
+                submenu.classList.toggle('hidden');
+                item.classList.toggle('expanded', isHidden);
+            }
+        });
+    });
 }
 
-// === 确认候选 ===
-window.confirmCandidate = async function(recordId, chosenId) {
+// ========== Drag & Drop 上传 ==========
+function initDragDrop() {
+    const baziDropzone = document.getElementById('baziDropzone');
+    const ziweiDropzone = document.getElementById('ziweiDropzone');
+    
+    setupDropzone(baziDropzone, 'bazi');
+    setupDropzone(ziweiDropzone, 'ziwei');
+}
+
+function setupDropzone(dropzone, type) {
+    // 阻止默认行为
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    // 拖拽时高亮
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => {
+            dropzone.classList.add('dragover');
+        }, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => {
+            dropzone.classList.remove('dragover');
+        }, false);
+    });
+    
+    // 处理拖拽文件
+    dropzone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileUpload(files[0], type);
+        }
+    }, false);
+}
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+// ========== 文件输入处理 ==========
+function initFileInputs() {
+    const baziFile = document.getElementById('baziFile');
+    const ziweiFile = document.getElementById('ziweiFile');
+    
+    baziFile.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            handleFileUpload(e.target.files[0], 'bazi');
+        }
+    });
+    
+    ziweiFile.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            handleFileUpload(e.target.files[0], 'ziwei');
+        }
+    });
+}
+
+async function handleFileUpload(file, type) {
+    const textarea = document.getElementById(`${type}Text`);
+    const statusSpan = document.getElementById(`${type}Status`);
+    
+    statusSpan.textContent = "读取文件中...";
+    statusSpan.className = "result-status processing";
+    
     try {
-        const response = await fetch("/verify/api/confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ record_id: recordId, chosen_id: chosenId })
+        if (file.type.startsWith('image/')) {
+            // 图片文件 - 暂时提示用户
+            addAIMessage(`检测到图片文件 "${file.name}"，OCR 功能暂未启用。请先使用其他工具提取文本后再粘贴到输入框。`);
+            statusSpan.textContent = "等待文本输入...";
+            statusSpan.className = "result-status";
+        } else {
+            // 文本文件
+            const text = await file.text();
+            textarea.value = text;
+            statusSpan.textContent = "文件已加载";
+            statusSpan.className = "result-status success";
+            
+            // 自动触发验证
+            await processChartText(text, type);
+        }
+    } catch (error) {
+        console.error("文件读取失败:", error);
+        addAIMessage(`抱歉，读取文件 "${file.name}" 时出错了。请检查文件格式后重试。`);
+        statusSpan.textContent = "读取失败";
+        statusSpan.className = "result-status error";
+    }
+}
+
+// ========== 文本输入处理 ==========
+function initTextInputs() {
+    const baziText = document.getElementById('baziText');
+    const ziweiText = document.getElementById('ziweiText');
+    
+    // 失焦时自动验证
+    baziText.addEventListener('blur', async () => {
+        const text = baziText.value.trim();
+        if (text && !state.baziUploaded) {
+            await processChartText(text, 'bazi');
+        }
+    });
+    
+    ziweiText.addEventListener('blur', async () => {
+        const text = ziweiText.value.trim();
+        if (text && !state.ziweiUploaded) {
+            await processChartText(text, 'ziwei');
+        }
+    });
+    
+    // 粘贴时提示
+    [baziText, ziweiText].forEach(textarea => {
+        textarea.addEventListener('paste', () => {
+            addAIMessage("检测到粘贴内容，请确保完整后点击输入框外部，我会自动为你验证。");
+        });
+    });
+}
+
+// ========== 处理命盘文本 ==========
+async function processChartText(text, type) {
+    if (!text.trim()) return;
+    
+    const statusSpan = document.getElementById(`${type}Status`);
+    const resultContent = document.getElementById(`${type}ResultContent`);
+    
+    statusSpan.textContent = "验证中...";
+    statusSpan.className = "result-status processing";
+    
+    try {
+        const response = await fetch('/verify/api/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                raw_text: text,
+                wizard: {},
+                notes: "",
+                manual: {}
+            })
         });
         
-        const result = await response.json();
-        showToast(result.toast || (result.ok ? "✅ 确认成功" : "❌ 确认失败"));
-    } catch (e) {
-        showToast(`❌ 网络错误：${e.message}`);
+        const data = await response.json();
+        
+        if (data.ok) {
+            // 更新状态
+            if (type === 'bazi') {
+                state.baziUploaded = true;
+                state.baziResult = data;
+                state.conversationState = 'waiting_ziwei';
+            } else {
+                state.ziweiUploaded = true;
+                state.ziweiResult = data;
+                state.conversationState = 'ready_to_save';
+            }
+            
+            // 显示结果
+            displayResult(data, type);
+            statusSpan.textContent = "验证完成";
+            statusSpan.className = "result-status success";
+            
+            // AI 引导
+            updateAIGuidance();
+        } else {
+            throw new Error(data.toast || "验证失败");
+        }
+    } catch (error) {
+        console.error("验证失败:", error);
+        statusSpan.textContent = "验证失败";
+        statusSpan.className = "result-status error";
+        resultContent.innerHTML = `<p class="empty-state" style="color: #721c24;">验证失败：${error.message}</p>`;
+        addAIMessage(`抱歉，${type === 'bazi' ? '八字' : '紫微'}命盘验证失败了。错误信息：${error.message}`);
     }
-};
+}
 
-// === Toast 提示 ===
-function showToast(message) {
-    alert(message);
+// ========== 显示验证结果 ==========
+function displayResult(data, type) {
+    const resultContent = document.getElementById(`${type}ResultContent`);
+    
+    const html = `
+        <div class="score-display">匹配评分：${(data.score * 100).toFixed(1)}%</div>
+        
+        <div class="detail-item">
+            <span class="detail-label">姓名：</span>
+            <span>${data.parsed?.name || '未识别'}</span>
+        </div>
+        
+        <div class="detail-item">
+            <span class="detail-label">性别：</span>
+            <span>${data.parsed?.gender || '未识别'}</span>
+        </div>
+        
+        <div class="detail-item">
+            <span class="detail-label">出生时间：</span>
+            <span>${data.parsed?.birth_time || '未识别'}</span>
+        </div>
+        
+        ${data.parsed?.main_star ? `
+        <div class="detail-item">
+            <span class="detail-label">主星：</span>
+            <span>${data.parsed.main_star}</span>
+        </div>
+        ` : ''}
+        
+        <details style="margin-top: 16px;">
+            <summary style="cursor: pointer; font-weight: 600;">查看完整 JSON</summary>
+            <pre style="margin-top: 8px;">${JSON.stringify(data.parsed, null, 2)}</pre>
+        </details>
+    `;
+    
+    resultContent.innerHTML = html;
+}
+
+// ========== AI 引导对话 ==========
+function updateAIGuidance() {
+    if (state.conversationState === 'waiting_ziwei') {
+        addAIMessage("很好！八字命盘已经验证完成。接下来，请上传你的<strong>紫微斗数命盘</strong>。");
+    } else if (state.conversationState === 'ready_to_save') {
+        addAIMessage("太棒了！两份命盘都已验证完成。请确认以上信息无误后，在聊天框中输入 <strong>\"确认保存\"</strong>，我会帮你保存到数据库。");
+    }
+}
+
+// ========== 聊天框逻辑 ==========
+function initChatbox() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSendBtn');
+    
+    sendBtn.addEventListener('click', sendMessage);
+    
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+}
+
+async function sendMessage() {
+    const chatInput = document.getElementById('chatInput');
+    const message = chatInput.value.trim();
+    
+    if (!message) return;
+    
+    // 显示用户消息
+    addUserMessage(message);
+    chatInput.value = '';
+    
+    // 处理用户输入
+    if (message.includes('确认保存') || message.includes('保存')) {
+        if (state.conversationState === 'ready_to_save') {
+            await saveToDatabase();
+        } else if (!state.baziUploaded) {
+            addAIMessage("抱歉，你还没有上传八字命盘呢。请先上传左侧的八字命盘。");
+        } else if (!state.ziweiUploaded) {
+            addAIMessage("抱歉，你还没有上传紫微斗数命盘呢。请先上传右侧的紫微命盘。");
+        } else {
+            addAIMessage("系统状态异常，请刷新页面重试。");
+        }
+    } else if (message.includes('帮助') || message.includes('怎么') || message.includes('如何')) {
+        addAIMessage(`
+            <p>我来帮你！使用步骤如下：</p>
+            <p>1️⃣ <strong>上传八字命盘</strong>：拖拽图片或粘贴文本到左侧上传框</p>
+            <p>2️⃣ <strong>上传紫微命盘</strong>：拖拽图片或粘贴文本到右侧上传框</p>
+            <p>3️⃣ <strong>确认保存</strong>：两份命盘都验证完成后，输入"确认保存"</p>
+        `);
+    } else {
+        // 简单的回复
+        addAIMessage("我收到你的消息了。如果需要帮助，请输入\"帮助\"。如果已经上传两份命盘，请输入\"确认保存\"。");
+    }
+}
+
+function addUserMessage(text) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageEl = document.createElement('div');
+    messageEl.className = 'message user-message';
+    messageEl.innerHTML = `
+        <div class="message-avatar">👤</div>
+        <div class="message-content">
+            <p>${text}</p>
+        </div>
+    `;
+    messagesContainer.appendChild(messageEl);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function addAIMessage(html) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageEl = document.createElement('div');
+    messageEl.className = 'message ai-message';
+    messageEl.innerHTML = `
+        <div class="message-avatar">🤖</div>
+        <div class="message-content">
+            ${html}
+        </div>
+    `;
+    messagesContainer.appendChild(messageEl);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// ========== 保存到数据库 ==========
+async function saveToDatabase() {
+    if (!state.baziResult || !state.ziweiResult) {
+        addAIMessage("抱歉，需要两份命盘都验证完成后才能保存。");
+        return;
+    }
+    
+    addAIMessage("正在保存你的真命盘验证记录...");
+    
+    try {
+        // 合并两份命盘的数据
+        const combinedText = `【八字命盘】\n${document.getElementById('baziText').value}\n\n【紫微斗数命盘】\n${document.getElementById('ziweiText').value}`;
+        
+        const response = await fetch('/verify/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: state.userId,
+                raw_text: combinedText,
+                wizard: {},
+                notes: `八字评分: ${(state.baziResult.score * 100).toFixed(1)}%, 紫微评分: ${(state.ziweiResult.score * 100).toFixed(1)}%`,
+                manual: {
+                    name: state.baziResult.parsed?.name || state.ziweiResult.parsed?.name,
+                    gender: state.baziResult.parsed?.gender || state.ziweiResult.parsed?.gender
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+            state.conversationState = 'saved';
+            addAIMessage(`
+                <p>✅ <strong>保存成功！</strong></p>
+                <p>记录ID：${data.record_id}</p>
+                <p>综合评分：${(data.score * 100).toFixed(1)}%</p>
+                <p>你可以随时回到这个页面查看你的真命盘记录。</p>
+            `);
+        } else {
+            throw new Error(data.toast || "保存失败");
+        }
+    } catch (error) {
+        console.error("保存失败:", error);
+        addAIMessage(`抱歉，保存时出错了：${error.message}。请稍后重试。`);
+    }
 }

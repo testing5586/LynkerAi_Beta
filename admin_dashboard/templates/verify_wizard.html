@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的真命盘 - LynkerAI</title>
-    <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/verify.css">
 </head>
 <body data-user-id="{{ user_id }}">
@@ -18,176 +17,138 @@
             <a href="/dashboard" class="nav-item">
                 <span class="icon">📊</span> Dashboard
             </a>
-            <a href="/verify" class="nav-item active">
-                <span class="icon">🔐</span> 我的命盘
+            <a href="#" class="nav-item">
+                <span class="icon">🔍</span> Search
             </a>
-            <div class="nav-section-title">真命盘验证</div>
-            <a href="#" class="nav-sub-item">可能出生时间1</a>
-            <a href="#" class="nav-sub-item">可能出生时间2</a>
-            <a href="#" class="nav-sub-item">可能出生时间3</a>
+            
+            <!-- 我的命盘（可展开） -->
+            <div class="nav-item expandable active" data-menu="charts">
+                <span class="icon">🔐</span> 我的命盘
+                <span class="arrow">▼</span>
+            </div>
+            <div class="nav-submenu" data-parent="charts">
+                <a href="/verify?user_id={{ user_id }}" class="nav-sub-item">我的真命盘分析</a>
+                <a href="#" class="nav-sub-item">可能出生时辰1</a>
+                <a href="#" class="nav-sub-item">可能出生时辰2</a>
+                <a href="#" class="nav-sub-item">可能出生时辰3</a>
+            </div>
+            
+            <!-- NewChat（可展开） -->
+            <div class="nav-item expandable" data-menu="chat">
+                <span class="icon">💬</span> NewChat
+                <span class="arrow">▼</span>
+            </div>
+            <div class="nav-submenu hidden" data-parent="chat">
+                <a href="#" class="nav-sub-item">我的真命盘合盘分析</a>
+                <a href="#" class="nav-sub-item">可能出生时刻1</a>
+                <a href="#" class="nav-sub-item">可能出生时刻2</a>
+                <a href="#" class="nav-sub-item">可能出生时刻3</a>
+            </div>
         </nav>
     </aside>
 
-    <!-- 主内容区 -->
+    <!-- 中间主区域 -->
     <main class="main-content">
-        <!-- 顶部标题 -->
+        <!-- 页面标题 -->
         <header class="page-header">
             <h1>我的真命盘</h1>
-            <p class="subtitle">在这里还原真实的出生时辰。我会一步一步陪你找到答案，让我们组合3组可能的人生轨迹，再由你自己手动对比选择适合的那一个。</p>
-            <p class="tips">请不要害怕提供错误信息</p>
+            <p class="subtitle">在这里还原真实的出生时辰。输入3组经验的出生时辰后，让我们组合3组可能的人生轨迹，再由你亲自对比、选择最适合的那一个。本平台不提供算盘服务，请从其他平台拿到算盘的图片或文本后再验证。</p>
         </header>
 
-        <!-- 中间：候选命盘展示区 -->
-        <section class="candidates-section">
-            <h2 class="section-title">组合 1</h2>
-            <div id="candidatesGrid" class="candidates-grid">
-                <!-- 候选卡片将由 JS 动态生成 -->
-                <div class="candidate-card placeholder">
-                    <p>完成问答和命盘导入后，这里将展示3组可能的真命盘</p>
+        <!-- 两个并排上传框 -->
+        <section class="upload-section">
+            <div class="upload-grid">
+                <!-- 八字命盘上传框 -->
+                <div class="upload-card" id="baziCard">
+                    <h3>八字命盘</h3>
+                    <div class="dropzone" id="baziDropzone">
+                        <div class="dropzone-icon">☁️</div>
+                        <p class="dropzone-text">拖拽图片到这里 或</p>
+                        <button class="btn-upload" onclick="document.getElementById('baziFile').click()">选择文件</button>
+                        <input type="file" id="baziFile" accept="image/*,.txt" style="display:none;">
+                        <p class="dropzone-hint">也可以直接粘贴命盘文本</p>
+                    </div>
+                    <textarea 
+                        id="baziText" 
+                        class="chart-input" 
+                        placeholder="或者直接粘贴八字命盘文本..."
+                        rows="6"
+                    ></textarea>
+                </div>
+
+                <!-- 紫微斗数命盘上传框 -->
+                <div class="upload-card" id="ziweiCard">
+                    <h3>紫微斗数命盘</h3>
+                    <div class="dropzone" id="ziweiDropzone">
+                        <div class="dropzone-icon">☁️</div>
+                        <p class="dropzone-text">拖拽图片到这里 或</p>
+                        <button class="btn-upload" onclick="document.getElementById('ziweiFile').click()">选择文件</button>
+                        <input type="file" id="ziweiFile" accept="image/*,.txt" style="display:none;">
+                        <p class="dropzone-hint">也可以直接粘贴命盘文本</p>
+                    </div>
+                    <textarea 
+                        id="ziweiText" 
+                        class="chart-input" 
+                        placeholder="或者直接粘贴紫微斗数命盘文本..."
+                        rows="6"
+                    ></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- 两个只读结果展示区 -->
+        <section class="results-section">
+            <!-- 八字验证结果展示区 -->
+            <div class="result-box" id="baziResult">
+                <div class="result-header">
+                    <h4>📄 八字命盘验证结果</h4>
+                    <span class="result-status" id="baziStatus">等待上传...</span>
+                </div>
+                <div class="result-content" id="baziResultContent">
+                    <p class="empty-state">上传八字命盘后，验证结果将显示在这里</p>
+                </div>
+            </div>
+
+            <!-- 紫微斗数验证结果展示区 -->
+            <div class="result-box" id="ziweiResult">
+                <div class="result-header">
+                    <h4>📄 紫微斗数命盘验证结果</h4>
+                    <span class="result-status" id="ziweiStatus">等待上传...</span>
+                </div>
+                <div class="result-content" id="ziweiResultContent">
+                    <p class="empty-state">上传紫微命盘后，验证结果将显示在这里</p>
                 </div>
             </div>
         </section>
     </main>
 
-    <!-- 右侧：Wizard 问答 + 命盘导入 -->
-    <aside class="wizard-panel">
-        <div class="wizard-header">
-            <h3>引导式问答</h3>
-            <div class="progress-bar">
-                <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
-            </div>
-            <p id="progressText" class="progress-text">步骤 0/7</p>
+    <!-- 右侧：Primary Chatbox（唯一可对话的 AI） -->
+    <aside class="chatbox-panel">
+        <div class="chatbox-header">
+            <h3>💬 Child AI 助手</h3>
+            <p class="chatbox-subtitle">我会引导你完成命盘验证</p>
         </div>
-
-        <!-- Wizard 步骤容器 -->
-        <div id="wizardSteps" class="wizard-steps">
-            <!-- 步骤 1: 家庭 -->
-            <div class="wizard-step active" data-step="1">
-                <h4>谢谢你信任我，我们先从家庭开始，好吗？</h4>
-                <p class="step-hint">父母有什么成就？比如在事业上、学业上？他们的年龄差距大吗？不用担心说错，只需要分享你记得的。</p>
-                <textarea id="wizard_family" rows="4" placeholder="慢慢来，想到什么就写什么..."></textarea>
-            </div>
-
-            <!-- 步骤 2: 学业 -->
-            <div class="wizard-step" data-step="2">
-                <h4>很好，我们继续聊聊你的童年和学业...</h4>
-                <p class="step-hint">小时候是爱读书的孩子，还是比较贪玩呢？有没有出国留学的经历？拿到过什么学位吗？</p>
-                <textarea id="wizard_education" rows="4" placeholder="分享你的学习经历，不管好坏都可以..."></textarea>
-            </div>
-
-            <!-- 步骤 3: 事业 -->
-            <div class="wizard-step" data-step="3">
-                <h4>做得很好！现在聊聊你的工作和事业...</h4>
-                <p class="step-hint">你从事什么职业？有没有在某个特定年份（比如2006年、2010年）换过工作或去过大城市发展？</p>
-                <textarea id="wizard_career" rows="4" placeholder="工作的点点滴滴，我都想听..."></textarea>
-            </div>
-
-            <!-- 步骤 4: 婚姻 -->
-            <div class="wizard-step" data-step="4">
-                <h4>接下来，如果你愿意，可以聊聊婚姻和感情...</h4>
-                <p class="step-hint">你是什么时候结婚的？对方比你大还是比你小？有没有经历过分离或重新开始？这些都不是评判，只是帮助我们找到真相。</p>
-                <textarea id="wizard_marriage" rows="4" placeholder="感情的经历，无论甜蜜或艰难，都是你的故事..."></textarea>
-            </div>
-
-            <!-- 步骤 5: 财务 -->
-            <div class="wizard-step" data-step="5">
-                <h4>我们快要完成了，现在聊聊财务状况...</h4>
-                <p class="step-hint">有没有经历过特别富裕或特别困难的时期？某个年份突然发财或破产？这些波动都很正常，帮我了解就好。</p>
-                <textarea id="wizard_finance" rows="4" placeholder="财务的起起伏伏，我理解..."></textarea>
-            </div>
-
-            <!-- 步骤 6: 健康 -->
-            <div class="wizard-step" data-step="6">
-                <h4>还有一点，关于健康方面...</h4>
-                <p class="step-hint">有没有经历过重大疾病或手术？在哪一年？或者家人的健康状况对你影响很大？不要害怕分享这些，它们都是生命的一部分。</p>
-                <textarea id="wizard_health" rows="4" placeholder="健康的经历，无论好坏，都值得记录..."></textarea>
-            </div>
-
-            <!-- 步骤 7: 重大事件 -->
-            <div class="wizard-step" data-step="7">
-                <h4>最后，还有什么重大事件想告诉我吗？</h4>
-                <p class="step-hint">比如搬家、移民、亲人离世、意外事故...任何对你人生轨迹有重大影响的事情，都可以写下来。用逗号分隔就好。</p>
-                <textarea id="wizard_major_events" rows="4" placeholder="人生的转折点，我会认真倾听..."></textarea>
+        
+        <div class="chatbox-messages" id="chatMessages">
+            <!-- 初始欢迎消息 -->
+            <div class="message ai-message">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <p>你好！我是 Child AI 助手。</p>
+                    <p>请先上传你的<strong>八字命盘</strong>（可以拖拽图片或粘贴文本到左侧上传框）。</p>
+                    <p>上传后，我会帮你分析验证结果。</p>
+                </div>
             </div>
         </div>
-
-        <!-- 步骤导航按钮 -->
-        <div class="wizard-nav">
-            <button id="btnPrev" class="btn btn-secondary" disabled>上一步</button>
-            <button id="btnNext" class="btn btn-primary">下一步</button>
-        </div>
-
-        <!-- 手写补充 -->
-        <div class="notes-section">
-            <h4>手写补充</h4>
-            <textarea id="notes" rows="3" placeholder="还有什么想补充的，可以随时写在这里..."></textarea>
-        </div>
-
-        <!-- 命盘导入区 -->
-        <div class="chart-import-section">
-            <h4>命盘导入</h4>
-            
-            <!-- Tab 切换 -->
-            <div class="chart-tabs">
-                <button class="tab-btn active" data-tab="bazi">八字</button>
-                <button class="tab-btn" data-tab="ziwei">紫微</button>
-            </div>
-
-            <!-- 八字 Tab 内容 -->
-            <div id="tab_bazi" class="tab-content active">
-                <div class="upload-methods">
-                    <label for="file_bazi" class="file-label">📂 选择文件</label>
-                    <input type="file" id="file_bazi" accept=".txt" style="display:none;">
-                    <button id="btnPasteBazi" class="btn btn-sm">📋 粘贴文本</button>
-                    <button id="btnOCR" class="btn btn-sm">📷 OCR识别</button>
-                </div>
-                <textarea id="raw_bazi" rows="6" placeholder="粘贴八字文本..."></textarea>
-            </div>
-
-            <!-- 紫微 Tab 内容 -->
-            <div id="tab_ziwei" class="tab-content">
-                <div class="upload-methods">
-                    <label for="file_ziwei" class="file-label">📂 选择文件</label>
-                    <input type="file" id="file_ziwei" accept=".txt" style="display:none;">
-                    <button id="btnPasteZiwei" class="btn btn-sm">📋 粘贴文本</button>
-                </div>
-                <textarea id="raw_ziwei" rows="6" placeholder="粘贴紫微命盘文本..."></textarea>
-            </div>
-
-            <!-- 手动姓名/性别 -->
-            <div class="manual-fields">
-                <div class="field-group">
-                    <label>姓名：</label>
-                    <input type="text" id="manual_name" placeholder="请输入姓名">
-                </div>
-                <div class="field-group">
-                    <label>性别：</label>
-                    <select id="manual_gender">
-                        <option value="">请选择</option>
-                        <option value="男">男</option>
-                        <option value="女">女</option>
-                    </select>
-                </div>
-                <div class="field-group lock-group">
-                    <label>
-                        <input type="checkbox" id="name_locked" checked>
-                        <span>🔒 锁定姓名/性别（不被识别覆盖）</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- 识别预览 -->
-            <div class="preview-section">
-                <h5>识别结果</h5>
-                <pre id="previewJSON">{ }</pre>
-                <div class="preview-actions">
-                    <button id="btnPreview" class="btn btn-primary">🔍 识别并预览</button>
-                    <button id="btnCopyJSON" class="btn btn-secondary">📄 复制JSON</button>
-                </div>
-            </div>
-
-            <!-- 保存按钮 -->
-            <button id="btnSave" class="btn btn-save">💾 保存为我的真命盘</button>
+        
+        <div class="chatbox-input-area">
+            <textarea 
+                id="chatInput" 
+                class="chatbox-input" 
+                placeholder="输入你的问题或回复..."
+                rows="2"
+            ></textarea>
+            <button id="chatSendBtn" class="chatbox-send-btn">发送</button>
         </div>
     </aside>
 </div>
