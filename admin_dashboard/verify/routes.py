@@ -382,11 +382,8 @@ def chat():
         }), 400
     
     try:
-        # 获取用户自定义的AI名字
-        primary_ai_name, bazi_name, ziwei_name = get_ai_names_from_db(user_id, sp) if sp else ("灵伴", "八字观察员", "星盘参谋")
-        
-        # 获取Primary AI的系统Prompt（传递命盘上传状态）
-        system_prompt = get_primary_ai_prompt(primary_ai_name, chart_uploaded=chart_uploaded)
+        # 获取Primary AI的系统Prompt（动态加载最新问卷）
+        system_prompt = get_primary_ai_prompt()
         
         # 【知识检索增强】Primary AI 使用规则 + 模式
         knowledge_context = ""
