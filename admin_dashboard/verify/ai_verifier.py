@@ -52,14 +52,31 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
     knowledge_context = ""
     if KNOWLEDGE_BASE_AVAILABLE and life_events:
         try:
-            # 查询知识库
+            # 查询知识库（包含 rules 和 patterns）
             query = f"{chart_type} 命盘验证 {life_events[:100]}"  # 限制查询长度
-            knowledge = find_relevant_knowledge(query, categories=["rules"], max_results=2)
+            knowledge = find_relevant_knowledge(query, categories=["rules", "patterns"], max_results=3)
+            
+            # 整合规则和统计模式
+            knowledge_parts = []
             
             if knowledge.get("rules"):
-                knowledge_parts = ["【命理规则参考】"]
+                knowledge_parts.append("【命理规则参考】")
                 for rule in knowledge["rules"]:
-                    knowledge_parts.append(f"- {rule['content'][:300]}...")
+                    knowledge_parts.append(f"- {rule['content'][:200]}...")
+            
+            if knowledge.get("patterns"):
+                knowledge_parts.append("\n【统计规律参考】")
+                for pattern in knowledge["patterns"]:
+                    # patterns 是 JSON，提取关键信息
+                    pattern_data = pattern.get("content", {})
+                    if isinstance(pattern_data, dict):
+                        category = pattern_data.get("category", "未知")
+                        count = pattern_data.get("total_count", 0)
+                        knowledge_parts.append(f"- {category} 类规律（{count} 条统计）")
+                    else:
+                        knowledge_parts.append(f"- {pattern.get('source', '统计规律')}")
+            
+            if knowledge_parts:
                 knowledge_context = "\n".join(knowledge_parts) + "\n\n"
                 print(f"✅ 知识库增强已启用: {knowledge['summary']}")
         except Exception as e:
