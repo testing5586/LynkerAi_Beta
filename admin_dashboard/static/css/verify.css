@@ -110,6 +110,14 @@ body {
     color: #b0b0b0;
 }
 
+.nav-sub-item.active {
+    background-color: #1a1a1a;
+    color: #00ff9d;
+    font-weight: 500;
+    border-left: 2px solid #00ff9d;
+    padding-left: 50px;
+}
+
 /* ========== 中间主区域 ========== */
 .main-content {
     background-color: #1a1a1a;

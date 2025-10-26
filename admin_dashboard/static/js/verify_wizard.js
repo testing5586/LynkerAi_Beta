@@ -1,17 +1,49 @@
 /**
  * 真命盘验证中心 - 前端逻辑
  * 1个 AI 对话框 + 2个上传框 + 2个只读结果展示区
+ * 支持3组命盘数据切换
  */
 
-// 状态管理
+// 全局状态管理
 const state = {
     userId: null,
-    baziUploaded: false,
-    ziweiUploaded: false,
-    baziResult: null,
-    ziweiResult: null,
+    currentGroupIndex: 0, // 当前显示的组：0/1/2
+    chartGroups: [
+        // 组1 - 可能出生的时辰1
+        {
+            baziText: "",
+            ziweiText: "",
+            baziResult: null,
+            ziweiResult: null,
+            baziUploaded: false,
+            ziweiUploaded: false
+        },
+        // 组2 - 可能出生的时辰2
+        {
+            baziText: "",
+            ziweiText: "",
+            baziResult: null,
+            ziweiResult: null,
+            baziUploaded: false,
+            ziweiUploaded: false
+        },
+        // 组3 - 可能出生的时辰3
+        {
+            baziText: "",
+            ziweiText: "",
+            baziResult: null,
+            ziweiResult: null,
+            baziUploaded: false,
+            ziweiUploaded: false
+        }
+    ],
     conversationState: 'waiting_bazi' // waiting_bazi | waiting_ziwei | ready_to_save | saved
 };
+
+// 获取当前组的数据
+function getCurrentGroup() {
+    return state.chartGroups[state.currentGroupIndex];
+}
 
 // ========== 初始化 ==========
 document.addEventListener("DOMContentLoaded", () => {
@@ -24,10 +56,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     initSidebar();
+    initGroupSwitcher(); // 初始化组切换功能
     initDragDrop();
     initFileInputs();
     initTextInputs();
     initChatbox();
+    
+    // 加载初始数据（组1）
+    renderCurrentGroup();
     
     console.log("✅ 真命盘验证中心已初始化，user_id:", state.userId);
 });
@@ -46,6 +82,115 @@ function initSidebar() {
             }
         });
     });
+}
+
+// ========== 组切换功能 ==========
+function initGroupSwitcher() {
+    document.querySelectorAll('.group-switch').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const groupIndex = parseInt(item.dataset.groupIndex);
+            switchGroup(groupIndex);
+        });
+    });
+}
+
+// 切换到指定组
+function switchGroup(groupIndex) {
+    if (groupIndex < 0 || groupIndex > 2) return;
+    
+    // 保存当前组的数据到state
+    saveCurrentGroupState();
+    
+    // 更新当前组索引
+    state.currentGroupIndex = groupIndex;
+    
+    // 更新菜单高亮
+    document.querySelectorAll('.group-switch').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`.group-switch[data-group-index="${groupIndex}"]`).classList.add('active');
+    
+    // 渲染新组的数据
+    renderCurrentGroup();
+    
+    console.log(`✅ 已切换到组 ${groupIndex + 1}`);
+}
+
+// 保存当前组的UI状态到state
+function saveCurrentGroupState() {
+    const currentGroup = getCurrentGroup();
+    const baziText = document.getElementById('baziText');
+    const ziweiText = document.getElementById('ziweiText');
+    
+    if (baziText) currentGroup.baziText = baziText.value;
+    if (ziweiText) currentGroup.ziweiText = ziweiText.value;
+}
+
+// 渲染当前组的数据到UI
+function renderCurrentGroup() {
+    const currentGroup = getCurrentGroup();
+    const groupIndex = state.currentGroupIndex;
+    
+    // 更新时辰标题
+    const shichenTitle = document.querySelector('.shichen-title h2');
+    if (shichenTitle) {
+        shichenTitle.textContent = `可能出生的时辰${groupIndex + 1}`;
+    }
+    
+    // 恢复文本输入框内容
+    const baziText = document.getElementById('baziText');
+    const ziweiText = document.getElementById('ziweiText');
+    if (baziText) baziText.value = currentGroup.baziText || '';
+    if (ziweiText) ziweiText.value = currentGroup.ziweiText || '';
+    
+    // 恢复结果展示区
+    renderResult('bazi', currentGroup.baziResult, currentGroup.baziUploaded);
+    renderResult('ziwei', currentGroup.ziweiResult, currentGroup.ziweiUploaded);
+}
+
+// 渲染单个结果框
+function renderResult(type, result, uploaded) {
+    const resultBox = document.getElementById(`${type}Result`);
+    const statusElem = document.getElementById(`${type}Status`);
+    const contentElem = document.getElementById(`${type}ResultContent`);
+    
+    if (!resultBox || !statusElem || !contentElem) return;
+    
+    if (result) {
+        // 显示验证结果
+        statusElem.textContent = '验证完成';
+        statusElem.className = 'result-status completed';
+        contentElem.innerHTML = formatResultContent(result);
+    } else if (uploaded) {
+        // 已上传但未验证
+        statusElem.textContent = '已上传';
+        statusElem.className = 'result-status processing';
+        contentElem.innerHTML = '<p class="empty-state">等待验证...</p>';
+    } else {
+        // 未上传
+        statusElem.textContent = '等待上传...';
+        statusElem.className = 'result-status';
+        const typeName = type === 'bazi' ? '八字' : '紫微';
+        contentElem.innerHTML = `<p class="empty-state">上传${typeName}命盘后，验证结果将显示在这里</p>`;
+    }
+}
+
+// 格式化结果内容（复用现有逻辑）
+function formatResultContent(result) {
+    if (!result) return '<p class="empty-state">暂无数据</p>';
+    
+    let html = '';
+    if (result.score !== undefined) {
+        html += `<div class="score-display">评分: ${result.score}</div>`;
+    }
+    if (result.parsed) {
+        html += `<pre>${JSON.stringify(result.parsed, null, 2)}</pre>`;
+    }
+    if (result.message) {
+        html += `<p>${result.message}</p>`;
+    }
+    return html || '<p class="empty-state">暂无数据</p>';
 }
 
 // ========== Drag & Drop 上传 ==========
@@ -147,14 +292,16 @@ function initTextInputs() {
     // 失焦时自动验证
     baziText.addEventListener('blur', async () => {
         const text = baziText.value.trim();
-        if (text && !state.baziUploaded) {
+        const currentGroup = getCurrentGroup();
+        if (text && !currentGroup.baziUploaded) {
             await processChartText(text, 'bazi');
         }
     });
     
     ziweiText.addEventListener('blur', async () => {
         const text = ziweiText.value.trim();
-        if (text && !state.ziweiUploaded) {
+        const currentGroup = getCurrentGroup();
+        if (text && !currentGroup.ziweiUploaded) {
             await processChartText(text, 'ziwei');
         }
     });
@@ -192,14 +339,17 @@ async function processChartText(text, type) {
         const data = await response.json();
         
         if (data.ok) {
-            // 更新状态
+            // 更新当前组的状态
+            const currentGroup = getCurrentGroup();
             if (type === 'bazi') {
-                state.baziUploaded = true;
-                state.baziResult = data;
+                currentGroup.baziUploaded = true;
+                currentGroup.baziResult = data;
+                currentGroup.baziText = text;
                 state.conversationState = 'waiting_ziwei';
             } else {
-                state.ziweiUploaded = true;
-                state.ziweiResult = data;
+                currentGroup.ziweiUploaded = true;
+                currentGroup.ziweiResult = data;
+                currentGroup.ziweiText = text;
                 state.conversationState = 'ready_to_save';
             }
             
