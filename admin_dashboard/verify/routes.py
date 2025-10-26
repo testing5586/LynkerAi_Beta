@@ -332,9 +332,20 @@ def chat():
     Primary AI 聊天接口
     处理用户与温柔陪伴者AI的对话
     新增：检测问卷完成并触发AI验证
+    新增：知识检索增强 (Retrieval Router)
     """
     import asyncio
     from openai import OpenAI
+    
+    # 导入知识检索路由
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        from knowledge.retrieval_router import find_relevant_knowledge
+        from knowledge.access_control import allow_access
+        KNOWLEDGE_AVAILABLE = True
+    except ImportError:
+        print("⚠️ 知识检索模块未找到，Primary AI 将不使用知识库增强")
+        KNOWLEDGE_AVAILABLE = False
     
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
     
@@ -374,6 +385,26 @@ def chat():
         # 获取Primary AI的系统Prompt（传递命盘上传状态）
         system_prompt = get_primary_ai_prompt(primary_ai_name, chart_uploaded=chart_uploaded)
         
+        # 【知识检索增强】Primary AI 使用规则 + 模式
+        knowledge_context = ""
+        if KNOWLEDGE_AVAILABLE and user_message:
+            try:
+                results = find_relevant_knowledge(user_message)
+                if results:
+                    knowledge_parts = ["【命理知识参考】"]
+                    for ktype, fname, content in results:
+                        if allow_access("primary", ktype):
+                            if ktype == "rule":
+                                knowledge_parts.append(f"- 规则({fname}): {str(content)[:150]}...")
+                            elif ktype == "pattern":
+                                knowledge_parts.append(f"- 统计规律({fname}): {json.dumps(content, ensure_ascii=False)[:150]}...")
+                    
+                    if len(knowledge_parts) > 1:
+                        knowledge_context = "\n".join(knowledge_parts) + "\n\n"
+                        print(f"✅ Primary AI 知识库增强: {len(results)} 条匹配")
+            except Exception as e:
+                print(f"⚠️ 知识检索失败: {e}")
+        
         # 构建消息列表
         messages = [{"role": "system", "content": system_prompt}]
         
@@ -381,8 +412,9 @@ def chat():
         if conversation_history:
             messages.extend(conversation_history[-20:])  # 保留最近20条消息（10轮对话）
         
-        # 添加当前用户消息
-        messages.append({"role": "user", "content": user_message})
+        # 添加当前用户消息（带知识库增强）
+        enhanced_message = f"{knowledge_context}{user_message}" if knowledge_context else user_message
+        messages.append({"role": "user", "content": enhanced_message})
         
         # 调用OpenAI API
         response = client.chat.completions.create(

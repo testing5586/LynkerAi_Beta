@@ -9,14 +9,25 @@ from openai import OpenAI
 from .ai_prompts import get_bazi_child_ai_prompt, get_ziwei_child_ai_prompt
 
 # 添加项目根目录到 Python 路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from lkk_knowledge_base.retrieval_router import find_relevant_knowledge
+    # 优先使用简化版知识检索路由
+    from knowledge.retrieval_router import find_relevant_knowledge as find_knowledge_simple
+    from knowledge.access_control import allow_access
     KNOWLEDGE_BASE_AVAILABLE = True
+    USE_SIMPLE_ROUTER = True
 except ImportError:
-    print("⚠️ 知识库模块未找到，AI 验证将不使用知识库增强")
-    KNOWLEDGE_BASE_AVAILABLE = False
+    try:
+        # 回退到完整版
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        from lkk_knowledge_base.retrieval_router import find_relevant_knowledge
+        KNOWLEDGE_BASE_AVAILABLE = True
+        USE_SIMPLE_ROUTER = False
+    except ImportError:
+        print("⚠️ 知识库模块未找到，AI 验证将不使用知识库增强")
+        KNOWLEDGE_BASE_AVAILABLE = False
+        USE_SIMPLE_ROUTER = False
 
 # 初始化OpenAI客户端
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
@@ -52,33 +63,46 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
     knowledge_context = ""
     if KNOWLEDGE_BASE_AVAILABLE and life_events:
         try:
-            # 查询知识库（包含 rules 和 patterns）
-            query = f"{chart_type} 命盘验证 {life_events[:100]}"  # 限制查询长度
-            knowledge = find_relevant_knowledge(query, categories=["rules", "patterns"], max_results=3)
+            query = f"{chart_type} 命盘验证 {life_events[:100]}"
             
-            # 整合规则和统计模式
-            knowledge_parts = []
-            
-            if knowledge.get("rules"):
-                knowledge_parts.append("【命理规则参考】")
-                for rule in knowledge["rules"]:
-                    knowledge_parts.append(f"- {rule['content'][:200]}...")
-            
-            if knowledge.get("patterns"):
-                knowledge_parts.append("\n【统计规律参考】")
-                for pattern in knowledge["patterns"]:
-                    # patterns 是 JSON，提取关键信息
-                    pattern_data = pattern.get("content", {})
-                    if isinstance(pattern_data, dict):
-                        category = pattern_data.get("category", "未知")
-                        count = pattern_data.get("total_count", 0)
-                        knowledge_parts.append(f"- {category} 类规律（{count} 条统计）")
-                    else:
-                        knowledge_parts.append(f"- {pattern.get('source', '统计规律')}")
-            
-            if knowledge_parts:
-                knowledge_context = "\n".join(knowledge_parts) + "\n\n"
-                print(f"✅ 知识库增强已启用: {knowledge['summary']}")
+            if USE_SIMPLE_ROUTER:
+                # 使用简化版检索路由
+                results = find_knowledge_simple(query)
+                knowledge_parts = []
+                
+                for ktype, fname, content in results:
+                    # Child AI 只能访问 pattern 类型（根据 access_control.py）
+                    if allow_access("child", ktype):
+                        if ktype == "pattern":
+                            knowledge_parts.append(f"【统计规律】{fname}: {json.dumps(content, ensure_ascii=False)[:200]}...")
+                
+                if knowledge_parts:
+                    knowledge_context = "\n".join(knowledge_parts) + "\n\n"
+                    print(f"✅ Child AI 知识库增强: {len(knowledge_parts)} 条统计规律")
+            else:
+                # 使用完整版检索路由
+                knowledge = find_relevant_knowledge(query, categories=["rules", "patterns"], max_results=3)
+                knowledge_parts = []
+                
+                if knowledge.get("rules"):
+                    knowledge_parts.append("【命理规则参考】")
+                    for rule in knowledge["rules"]:
+                        knowledge_parts.append(f"- {rule['content'][:200]}...")
+                
+                if knowledge.get("patterns"):
+                    knowledge_parts.append("\n【统计规律参考】")
+                    for pattern in knowledge["patterns"]:
+                        pattern_data = pattern.get("content", {})
+                        if isinstance(pattern_data, dict):
+                            category = pattern_data.get("category", "未知")
+                            count = pattern_data.get("total_count", 0)
+                            knowledge_parts.append(f"- {category} 类规律（{count} 条统计）")
+                        else:
+                            knowledge_parts.append(f"- {pattern.get('source', '统计规律')}")
+                
+                if knowledge_parts:
+                    knowledge_context = "\n".join(knowledge_parts) + "\n\n"
+                    print(f"✅ 知识库增强已启用: {knowledge.get('summary', '匹配成功')}")
         except Exception as e:
             print(f"⚠️ 知识库查询失败: {e}")
     

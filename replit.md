@@ -1,68 +1,61 @@
 # Overview
 LynkerAI is an AI-powered task execution system designed to generate and execute code from natural language descriptions using OpenAI's API. It functions as an intelligent code generator, interpreting user requests to create and manage code files automatically. The project provides a robust platform for semantic-based analysis, including birth chart verification and soulmate matching, by leveraging advanced AI models for deeper compatibility insights, and a comprehensive system for managing and interacting with AI-generated content and user data.
 
-## Core Philosophy (核心愿景)
-LynkerAI 以"命理科学化、社交化、数据化"为核心愿景，建立能自我学习、验证、发现命运规律的智能体系。系统采用三层架构：Master AI（主控中枢）、Guru AI（导师助理）、Child AI（学徒助手），通过社交互动、智能匹配与验证系统，构建全球真命数据库（Global TrueTime Archive），目标收集100万条经验证的精准出生时间，推动"秒柱命理科学"体系发展。详见 `docs/lynker_ai_core_index_v2.docx`。
+LynkerAI's core vision is to establish a self-learning, self-validating intelligent system for "scientizing, socializing, and datafying" metaphysics. It aims to build a global database of verified birth times to advance "Second-Pillar Metaphysics" by collecting 1 million accurate birth times.
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
 # System Architecture
+The application utilizes a command-line interface (CLI) with an AI-driven code generation pipeline: Task Interpretation, AI Generation, and File Management. It employs a modular architecture with a central control engine coordinating various AI-powered components.
 
-## Core Design Pattern
-The application utilizes a command-line interface (CLI) with an AI-driven code generation pipeline:
-1.  **Task Interpretation Layer**: Processes natural language task descriptions.
-2.  **AI Generation Layer**: Generates code using OpenAI's chat completion API.
-3.  **File Management Layer**: Manages file creation and command execution via a bridge module.
+## UI/UX Decisions
+The system includes several web-based interfaces:
+-   A full-screen visual chat interface (`/tri-chat`) for real-time three-party conversation monitoring and interaction.
+-   An admin dashboard (`/admin`) with real-time system monitoring, database statistics, token consumption tracking, and an AI chatroom (`/chatroom`).
+-   A web-based batch import center (`/import`) with real-time progress tracking.
+-   A true-chart verification view (`/verify_view`) and a guided "True Birth Verification Wizard" (`/verify`).
+-   An admin-only questionnaire management center (`/superintendent/questionnaire`) for managing verification content.
 
-## Modular Architecture
--   **Main Control Engine (`main.py`)**: Centralized orchestration hub, coordinating all LynkerAI modules and managing a unified JSON logging system.
--   **Code Generator (`lynker_master_ai.py`)**: Handles AI-powered code generation, processes task descriptions, and interacts with the OpenAI API.
--   **Database Layer (`supabase_init.py`)**: Manages Supabase connections, including client initialization and automatic table creation for various features.
--   **TrueChart Verifier (`ai_truechart_verifier.py`)**: Performs semantic validation of birth charts against life events, supporting single and multi-chart verification, intelligent weight learning, and user life profile storage.
--   **Soulmate Matcher (`soulmate_matcher.py`)**: Identifies users with similar life experiences using semantic matching of `life_tags` and cosine similarity.
--   **Child AI Insight Generator (`child_ai_insight.py`)**: Generates independent, rule-based insights for match results using templates, with local JSON backup.
--   **Child AI Memory Vault (`child_ai_memory.py`)**: Manages user interaction history with matched partners, tracks memories and engagement, and provides data for a React frontend component.
--   **Google Drive Sync (`google_drive_sync.py`)**: Enables users to back up AI memories to their personal Google Drive via OAuth 2.0.
--   **OAuth Authorization Flow (`google_oauth_real_flow.py`, Flask API)**: Handles Google OAuth for token exchange, user info retrieval, and persistence of credentials to Supabase.
--   **Lynker Master Vault (`lynker_master_vault/`)**: An intelligent document management system for categorizing, indexing, and searching project documentation. Includes a CLI import tool, a unified Flask API for uploads and queries, and a React-based memory dashboard.
--   **Multi-Model AI Chat (`multi_model_ai.py`, Flask API integration)**: Provides a unified interface for multiple AI providers (ChatGPT, Gemini, ChatGLM, DeepSeek) with an automatic fallback mechanism and RAG integration. Includes performance monitoring and a visual dashboard.
--   **Message Hub / Conversation Bus (`conversation_bus.py`, Flask API integration)**: An event-driven, three-party collaboration system (Master AI ↔ Child AI ↔ User) for task delegation, conversation tracking, and async execution with callbacks. Includes a full-screen visual chat interface (`static/tri_chat.html`) accessible at `/tri-chat` for real-time three-party conversation monitoring and interaction.
--   **Domain Auto-Detection (`update_redirect_uri.py`)**: Dynamically detects Replit Sisko domain and provides guidance for updating Google OAuth redirect URIs.
--   **Bridge Module (`replit_bridge.py`)**: Abstracts file system operations and command execution for platform independence.
--   **Security Layer (`ai_guard_middleware.py`)**: Centralized access control for AI operations, checking user permissions, call limits, and service status.
--   **TMS - Trusted Metaphysics System (`master_ai/`)**: Global trusted chart verification network with pseudonym protection, signature verification, regional adaptation, confidence voting, and hierarchical validation architecture. Includes Master Validator API (port 8080), PostgreSQL database schema, and comprehensive documentation.
--   **Multi-Provider Manager (`master_ai/provider_manager.py`)**: Intelligent AI provider scheduling system for ChatGPT/Gemini/GLM/DeepSeek with automatic fallback, performance monitoring, statistical analysis, and web visualization dashboard.
--   **Master Vault Engine (`master_vault_engine.py`)**: Secure AES256 encryption system for protecting Master AI's learning knowledge. Supports Superintendent Admin-only decryption, PostgreSQL storage, and complete audit trails. See `master_ai/MASTER_VAULT_ENGINE_GUIDE.md` for details.
--   **Master AI Evolution Engine (`master_ai_evolution_engine.py`)**: Self-learning system that automatically analyzes birthchart patterns from Supabase database, discovers statistical insights, and encrypts findings into Master Vault. Implements pattern recognition, knowledge validation, and autonomous learning cycles.
--   **Master AI Reasoner (`master_ai_reasoner.py`)**: Advanced multi-source prediction engine integrating birthcharts, match results, and user feedback for explainable forecasting. Implements bilateral match statistics (processing both participants), normalized feedback scoring (0-5 range), and dual confidence tracking (base population ratio + adjusted confidence). Generates trait-rich predictions with time windows, evidence payloads documenting all data sources, and stores high-confidence insights (≥0.5) into encrypted Master Vault. Supports permission-based access control and graceful degradation when data sources are unavailable.
--   **Login AI Trigger (`on_user_login_api.py /login_refresh_ai`)**: Automated user login trigger system that invokes Master AI Reasoner for real-time predictions. When users log in, automatically generates personalized forecasts and conditionally refreshes the Top 10 soulmate recommendation list when prediction confidence ≥ 0.6. Includes complete activity logging to `logs/user_login_activity.log` for audit trails. See `LOGIN_AI_TRIGGER_GUIDE.md` for API documentation and usage examples.
--   **Multi-Model Dispatcher (`multi_model_dispatcher.py`)**: Intelligent AI model selection system that automatically assigns appropriate OpenAI models based on user tier (Free → gpt-4o-mini, Pro → gpt-4-turbo, Superintendent Admin → gpt-4-turbo). Dynamically loads configuration from `ai_rules` database table, supports hot updates without system restart, and intelligently routes API keys (user keys for regular users, LYNKER_MASTER_KEY for admins). See `MULTI_MODEL_DISPATCHER_GUIDE.md` for usage examples.
--   **Master AI Scheduler (`master_ai_scheduler.py`)**: Automated periodic learning system that runs Evolution Engine and Reasoner modules every N days (configurable via `ai_rules` table). Executes pattern discovery, user predictions, and encrypts results into Master Vault. Includes comprehensive logging to `logs/master_ai_scheduler.log`, error handling, and graceful degradation. See `MASTER_AI_SCHEDULER_GUIDE.md` for scheduling configuration and deployment options.
--   **Superintendent Command Center (`admin_dashboard/`)**: Web-based administration control center providing real-time system monitoring, database statistics, Token consumption tracking, and three-party AI collaboration chat (Master AI ↔ Group Leader ↔ Child AI). Features secure SHA256-based authentication using MASTER_VAULT_KEY, Socket.IO real-time communication, Plotly.js data visualization, and modern gradient UI design. Accessible at `/admin` with comprehensive dashboard at `/dashboard` and AI chatroom at `/chatroom`. See `ADMIN_DASHBOARD_GUIDE.md` for usage and configuration.
--   **Three-Party AI Collaboration Engine v2.0 (`admin_dashboard/ai_agents/`, `lynker_engine.py`)**: Intelligent multi-agent collaboration system with three-tier architecture: Master AI (主控推理层 - GPT-4 Turbo for deep reasoning and final decisions), Group Leader (任务协调层 - GPT-4o-mini for task decomposition and result integration), and Child AI (执行分析层 - GPT-4o-mini for database queries and pattern recognition). Integrates with Master Vault Engine, Supabase database, and provides real-time WebSocket communication via Flask-SocketIO. Features graceful degradation when dependencies are unavailable, configurable AI models via `config.json`, and comprehensive logging. See `AI_COLLABORATION_ENGINE_V2_GUIDE.md` for architecture and usage.
--   **Chart Batch Import Center (`admin_dashboard/import_engine/`)**: High-tolerance bulk import system supporting multiple formats (TXT plain text, JSON structured data, WenMote clipboard paste). Features dummy-proof design accepting minimal data (name only), auto-format detection, normalization engine, and SQLite local caching with Supabase sync. Accessible at `/import` with real-time progress tracking and detailed error reporting.
--   **True-Chart Verification System (`admin_dashboard/verification/`)**: AI-powered birth chart authenticity assessment using three-dimensional scoring: structure consistency (45%), event validation (35%), persona matching (20%). Implements GPT-4o-mini primary scoring with heuristic fallback (offline_score reaches 0.93 for complete charts), threshold-based acceptance (≥0.8), and dual persistence (birthcharts table + verification_log.jsonl). Accessible at `/verify_view` with clipboard paste, file upload, real-time scoring preview, and JSON export functionality. **True Birth Verification Wizard (`/verify`)**: Implements "Ask First, Verify Later" workflow with three-party AI collaboration (Primary AI "灵伴" for conversational guidance, Child AIs for chart verification). Users upload charts, complete a 7-step life questionnaire, then trigger dual AI verification (八字 + 紫微) via completion keywords ("完成"/"验证一下"). Features dynamic questionnaire loading from `data/true_birth_wizard_v1.txt`, multi-chart group support (3 possible birth hours), and result persistence to `user_verification_results` table. Verification trigger requires ≥3 life events and explicit user confirmation.
--   **Questionnaire Management Center (`admin_dashboard/superintendent/`)**: Admin-only questionnaire version control system for managing True Birth Verification Wizard content. Supports upload of new questionnaire files (.txt/.md), automatic version history backup to `data/questionnaires/history/`, version switching with rollback protection, and real-time preview. Current active questionnaire loaded from `data/true_birth_wizard_v1.txt`. Features drag-and-drop file upload, historical version management, and seamless integration with verification wizard system. Accessible at `/superintendent/questionnaire` with session-based authentication.
--   **LKK Knowledge Base (`lkk_knowledge_base/`)**: Three-tier intelligent knowledge management system for enhancing AI verification accuracy. Architecture includes: (1) `rules/` - manually curated classic theories (八字/紫微 core rules), (2) `patterns/` - auto-generated statistical insights from Evolution Engine, (3) `case_study/` - anonymized verification results exported from database. Features keyword-based retrieval via `retrieval_router.py`, role-based access control (USER → rules only, PRO → rules+patterns, SUPERINTENDENT → all layers), and seamless integration into Child AI verification prompts for context-enhanced analysis. Designed for future upgrade to embeddings-based RAG when case study count ≥ 2000. Evolution Engine outputs dual storage: encrypted to Master Vault + plaintext JSON to knowledge base patterns. See `lkk_knowledge_base/README.md` for maintenance guide.
+## Technical Implementations & Feature Specifications
+-   **Core AI Generation**: Handled by `lynker_master_ai.py` using OpenAI's chat completion API.
+-   **Database Management**: Supabase integration via `supabase_init.py` for various data storage.
+-   **Birth Chart Verification**: `ai_truechart_verifier.py` performs semantic validation.
+-   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
+-   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
+-   **User Memory & Interaction**: `child_ai_memory.py` tracks user interactions and engagement.
+-   **Google Drive Sync**: `google_drive_sync.py` and `google_oauth_real_flow.py` manage OAuth and data backup.
+-   **Intelligent Document Management**: `lynker_master_vault/` categorizes, indexes, and searches project documentation with a Flask API and React dashboard.
+-   **Multi-Model AI Chat**: `multi_model_ai.py` provides a unified interface for multiple AI providers with RAG integration.
+-   **Conversation Bus**: `conversation_bus.py` implements an event-driven, three-party collaboration system (Master AI ↔ Child AI ↔ User).
+-   **Security Layer**: `ai_guard_middleware.py` provides centralized access control.
+-   **Trusted Metaphysics System (TMS)**: `master_ai/` includes a global trusted chart verification network with pseudonym protection and hierarchical validation.
+-   **Master Vault Engine**: Secure AES256 encryption for Master AI's learning knowledge.
+-   **Master AI Evolution Engine**: Self-learning system for analyzing birthchart patterns, discovering statistical insights, and encrypting findings.
+-   **Master AI Reasoner**: Advanced multi-source prediction engine integrating birthcharts, match results, and user feedback.
+-   **Login AI Trigger**: `on_user_login_api.py` invokes Master AI Reasoner for real-time predictions on user login.
+-   **Multi-Model Dispatcher**: Dynamically assigns OpenAI models based on user tier and routes API keys.
+-   **Master AI Scheduler**: Automated periodic learning system for executing Evolution Engine and Reasoner modules.
+-   **Three-Party AI Collaboration Engine**: A multi-agent system (`admin_dashboard/ai_agents/`) with Master AI, Group Leader, and Child AI roles for deep reasoning, task decomposition, and database queries.
+-   **LKK Knowledge Base**: A three-tier intelligent knowledge management system (`lkk_knowledge_base/`) for rules, auto-generated patterns, and case studies, enhancing AI verification accuracy.
+-   **Knowledge Retrieval Router**: Lightweight RAG system for real-time knowledge enhancement for all three AI agents.
 
 ## Language & Runtime
 -   **Language**: Python 3.x
 -   **Execution Model**: Single-process, synchronous.
+-   **Platform**: Replit.
 
-## Prompt Engineering Strategy
-Utilizes structured prompt templates to ensure predictable and parseable AI responses.
-
-## Error Handling
-Includes environment validation, graceful degradation, and comprehensive output capture.
+## Design Choices
+-   **Prompt Engineering**: Utilizes structured prompt templates for predictable AI responses.
+-   **Error Handling**: Includes environment validation, graceful degradation, and comprehensive output capture.
 
 # External Dependencies
 
 ## Required Services
--   **OpenAI API**: Core AI code generation and chat completions.
+-   **OpenAI API**: For core AI code generation and chat completions.
 
 ## Optional Services
--   **Supabase**: Database and backend services for storing various project data (e.g., user profiles, verified charts, life events, soulmate matches, AI insights, memory data).
+-   **Supabase**: Database and backend services for storing user profiles, verified charts, life events, soulmate matches, AI insights, and memory data.
 -   **Google Drive API**: For user data backup to personal cloud storage.
 
 ## Python Package Dependencies
@@ -74,8 +67,3 @@ Includes environment validation, graceful degradation, and comprehensive output 
 -   `sentence-transformers`
 -   `psycopg2-binary`
 -   `cryptography`
--   Standard Python libraries for system operations, concurrency, JSON, and datetime.
-
-## Development Environment
--   **Platform**: Replit.
--   **Deployment Model**: Direct execution within the Replit environment.
