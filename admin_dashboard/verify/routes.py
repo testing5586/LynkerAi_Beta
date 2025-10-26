@@ -134,49 +134,52 @@ def preview():
             "toast": f"识别成功！匹配评分：{score_result['score']:.2f}"
         }
         
-        # 5. 自动触发AI验证：检测是否满足条件（命盘已上传 + 至少3条人生事件）
-        life_events_count = len([line for line in life_events.split('\n') if line.strip()]) if life_events else 0
-        auto_trigger_ai = life_events_count >= 3 and user_id
+        # 5. [禁用] 自动触发AI验证
+        # 新流程：验证移至问卷完成后在 /api/chat 中触发
+        # 此处仅负责返回"命盘成功上传"状态
         
-        if auto_trigger_ai or (use_ai and life_events):
-            try:
-                # 获取用户的AI名字
-                _, bazi_name, ziwei_name = get_ai_names_from_db(user_id, sp) if sp and user_id else ("", "八字观察员", "星盘参谋")
-                
-                # 同时验证八字和紫微（如果是自动触发）
-                if auto_trigger_ai:
-                    # 调用两个Child AI验证
-                    bazi_result = asyncio.run(verify_chart_with_ai(parsed, life_events, "bazi", bazi_name))
-                    ziwei_result = asyncio.run(verify_chart_with_ai(parsed, life_events, "ziwei", ziwei_name))
-                    
-                    response_data["bazi_verification"] = bazi_result
-                    response_data["ziwei_verification"] = ziwei_result
-                    response_data["auto_verified"] = True
-                    response_data["toast"] = f"AI自动验证完成！八字匹配度：{bazi_result['score']:.2%}，紫微匹配度：{ziwei_result['score']:.2%}"
-                    
-                    # 存储验证结果到数据库
-                    if sp:
-                        save_verification_results(
-                            user_id=user_id,
-                            group_index=group_index,
-                            bazi_result=bazi_result,
-                            ziwei_result=ziwei_result,
-                            life_events_count=life_events_count,
-                            sp=sp
-                        )
-                else:
-                    # 单个验证（手动触发）
-                    ai_name = bazi_name if chart_type == "bazi" else ziwei_name
-                    ai_result = asyncio.run(verify_chart_with_ai(parsed, life_events, chart_type, ai_name))
-                    response_data["ai_verification"] = ai_result
-                    response_data["toast"] = f"AI验证完成！匹配度：{ai_result['score']:.2f}"
-                    
-            except Exception as ai_error:
-                print(f"⚠️ AI验证失败，使用降级方案: {ai_error}")
-                # 降级到规则验证
-                ai_result = verify_chart_without_ai(parsed)
-                response_data["ai_verification"] = ai_result
-                response_data["ai_verification"]["fallback"] = True
+        # life_events_count = len([line for line in life_events.split('\n') if line.strip()]) if life_events else 0
+        # auto_trigger_ai = life_events_count >= 3 and user_id
+        
+        # if auto_trigger_ai or (use_ai and life_events):
+        #     try:
+        #         # 获取用户的AI名字
+        #         _, bazi_name, ziwei_name = get_ai_names_from_db(user_id, sp) if sp and user_id else ("", "八字观察员", "星盘参谋")
+        #         
+        #         # 同时验证八字和紫微（如果是自动触发）
+        #         if auto_trigger_ai:
+        #             # 调用两个Child AI验证
+        #             bazi_result = asyncio.run(verify_chart_with_ai(parsed, life_events, "bazi", bazi_name))
+        #             ziwei_result = asyncio.run(verify_chart_with_ai(parsed, life_events, "ziwei", ziwei_name))
+        #             
+        #             response_data["bazi_verification"] = bazi_result
+        #             response_data["ziwei_verification"] = ziwei_result
+        #             response_data["auto_verified"] = True
+        #             response_data["toast"] = f"AI自动验证完成！八字匹配度：{bazi_result['score']:.2%}，紫微匹配度：{ziwei_result['score']:.2%}"
+        #             
+        #             # 存储验证结果到数据库
+        #             if sp:
+        #                 save_verification_results(
+        #                     user_id=user_id,
+        #                     group_index=group_index,
+        #                     bazi_result=bazi_result,
+        #                     ziwei_result=ziwei_result,
+        #                     life_events_count=life_events_count,
+        #                     sp=sp
+        #                 )
+        #         else:
+        #             # 单个验证（手动触发）
+        #             ai_name = bazi_name if chart_type == "bazi" else ziwei_name
+        #             ai_result = asyncio.run(verify_chart_with_ai(parsed, life_events, chart_type, ai_name))
+        #             response_data["ai_verification"] = ai_result
+        #             response_data["toast"] = f"AI验证完成！匹配度：{ai_result['score']:.2f}"
+        #             
+        #     except Exception as ai_error:
+        #         print(f"⚠️ AI验证失败，使用降级方案: {ai_error}")
+        #         # 降级到规则验证
+        #         ai_result = verify_chart_without_ai(parsed)
+        #         response_data["ai_verification"] = ai_result
+        #         response_data["ai_verification"]["fallback"] = True
         
         return jsonify(response_data)
     
