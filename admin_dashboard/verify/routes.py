@@ -14,6 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from verification.verifier import verify_raw
 from verify.utils import merge_manual_fields, normalize_gender
 from verify.scorer import score_match
+from verify.ai_prompts import get_primary_ai_prompt, get_ai_names_from_db
+from verify.ai_verifier import verify_chart_with_ai, verify_chart_without_ai
 
 bp = Blueprint("verify_wizard", __name__, url_prefix="/verify")
 
@@ -226,3 +228,77 @@ def ocr_placeholder():
         "ok": False,
         "toast": "暂不启用 OCR 识别，请优先粘贴文本或上传 TXT 文件"
     }), 400
+
+
+@bp.post("/api/chat")
+def chat():
+    """
+    Primary AI 聊天接口
+    处理用户与温柔陪伴者AI的对话
+    """
+    import openai
+    
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not openai.api_key:
+        return jsonify({
+            "ok": False,
+            "message": "系统配置错误，请联系管理员"
+        }), 500
+    
+    data = request.json or {}
+    user_id = data.get("user_id")
+    user_message = data.get("message", "").strip()
+    conversation_history = data.get("history", [])  # 对话历史
+    
+    if not user_id:
+        return jsonify({
+            "ok": False,
+            "message": "缺少用户ID"
+        }), 400
+    
+    if not user_message:
+        return jsonify({
+            "ok": False,
+            "message": "消息不能为空"
+        }), 400
+    
+    try:
+        # 获取用户自定义的AI名字
+        primary_ai_name, _, _ = get_ai_names_from_db(user_id, sp) if sp else ("灵伴", "", "")
+        
+        # 获取Primary AI的系统Prompt
+        system_prompt = get_primary_ai_prompt(primary_ai_name)
+        
+        # 构建消息列表
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # 添加历史对话（最多保留最近10轮）
+        if conversation_history:
+            messages.extend(conversation_history[-20:])  # 保留最近20条消息（10轮对话）
+        
+        # 添加当前用户消息
+        messages.append({"role": "user", "content": user_message})
+        
+        # 调用OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        ai_reply = response.choices[0].message.content.strip()
+        
+        return jsonify({
+            "ok": True,
+            "message": ai_reply,
+            "ai_name": primary_ai_name
+        })
+    
+    except Exception as e:
+        print(f"❌ Primary AI 对话失败: {e}")
+        return jsonify({
+            "ok": False,
+            "message": f"抱歉，我现在有些不舒服，请稍后再试。（{str(e)}）"
+        }), 500
