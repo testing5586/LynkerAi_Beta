@@ -547,13 +547,22 @@ async function sendMessage() {
     try {
         addAIMessage('<p class="thinking">正在思考...</p>');
         
+        // 检查是否已上传命盘
+        const currentGroup = getCurrentGroup();
+        const chartUploaded = currentGroup.baziUploaded || currentGroup.ziweiUploaded;
+        const parsedChart = currentGroup.baziResult?.parsed || currentGroup.ziweiResult?.parsed || {};
+        
         const response = await fetch('/verify/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 user_id: state.userId,
                 message: message,
-                history: state.conversationHistory
+                history: state.conversationHistory,
+                chart_uploaded: chartUploaded,
+                group_index: state.currentGroupIndex,
+                life_events: state.lifeEvents,
+                parsed_chart: parsedChart
             })
         });
         
@@ -577,6 +586,51 @@ async function sendMessage() {
             // 保持历史在合理长度（最近20条）
             if (state.conversationHistory.length > 20) {
                 state.conversationHistory = state.conversationHistory.slice(-20);
+            }
+            
+            // 检测是否触发了验证
+            if (data.verification_triggered && data.bazi_verification && data.ziwei_verification) {
+                const currentGroup = getCurrentGroup();
+                
+                // 保留每个命盘自己的parsed数据，只添加AI验证结果
+                // 如果之前没有result，则创建新的
+                if (!currentGroup.baziResult) {
+                    currentGroup.baziResult = { parsed: {} };
+                }
+                if (!currentGroup.ziweiResult) {
+                    currentGroup.ziweiResult = { parsed: {} };
+                }
+                
+                // 添加AI验证结果，保留原有parsed数据
+                currentGroup.baziResult = {
+                    ...currentGroup.baziResult,
+                    ai_verification: data.bazi_verification
+                };
+                currentGroup.ziweiResult = {
+                    ...currentGroup.ziweiResult,
+                    ai_verification: data.ziwei_verification
+                };
+                
+                // 显示八字结果
+                displayResult(currentGroup.baziResult, 'bazi');
+                document.getElementById('baziStatus').textContent = "AI验证完成";
+                document.getElementById('baziStatus').className = "result-status success";
+                
+                // 显示紫微结果
+                displayResult(currentGroup.ziweiResult, 'ziwei');
+                document.getElementById('ziweiStatus').textContent = "AI验证完成";
+                document.getElementById('ziweiStatus').className = "result-status success";
+                
+                // 显示验证结果摘要
+                addAIMessage(`
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 8px; color: white; margin-top: 10px;">
+                        <h4 style="margin: 0 0 10px 0; font-size: 16px;">✨ 验证完成</h4>
+                        <p style="margin: 5px 0;"><strong>八字匹配度：</strong>${(data.bazi_verification.score * 100).toFixed(1)}%</p>
+                        <p style="margin: 5px 0;"><strong>紫微匹配度：</strong>${(data.ziwei_verification.score * 100).toFixed(1)}%</p>
+                    </div>
+                `);
+                
+                console.log('✅ 验证结果已更新到UI');
             }
         } else {
             addAIMessage(`<p style="color: #721c24;">抱歉，我现在有些不舒服。${data.message || ''}</p>`);
