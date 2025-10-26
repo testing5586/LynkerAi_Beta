@@ -341,34 +341,68 @@ async function processChartText(text, type) {
                 use_ai: useAI,
                 chart_type: type,
                 life_events: state.lifeEvents,
-                user_id: state.userId
+                user_id: state.userId,
+                group_index: state.currentGroupIndex
             })
         });
         
         const data = await response.json();
         
         if (data.ok) {
-            // 更新当前组的状态
             const currentGroup = getCurrentGroup();
-            if (type === 'bazi') {
+            
+            // 检测是否为自动AI验证（同时返回八字和紫微结果）
+            if (data.auto_verified && data.bazi_verification && data.ziwei_verification) {
+                // 自动验证：同时更新两个结果框
                 currentGroup.baziUploaded = true;
-                currentGroup.baziResult = data;
-                currentGroup.baziText = text;
-                state.conversationState = 'waiting_ziwei';
-            } else {
                 currentGroup.ziweiUploaded = true;
-                currentGroup.ziweiResult = data;
+                currentGroup.baziResult = {
+                    ...data,
+                    ai_verification: data.bazi_verification
+                };
+                currentGroup.ziweiResult = {
+                    ...data,
+                    ai_verification: data.ziwei_verification
+                };
+                currentGroup.baziText = text;
                 currentGroup.ziweiText = text;
+                
+                // 显示八字结果到 Secondary Box #1
+                displayResult(currentGroup.baziResult, 'bazi');
+                document.getElementById('baziStatus').textContent = "AI验证完成";
+                document.getElementById('baziStatus').className = "result-status success";
+                
+                // 显示紫微结果到 Secondary Box #2
+                displayResult(currentGroup.ziweiResult, 'ziwei');
+                document.getElementById('ziweiStatus').textContent = "AI验证完成";
+                document.getElementById('ziweiStatus').className = "result-status success";
+                
                 state.conversationState = 'ready_to_save';
+                addAIMessage(`太棒了！我已经同时验证了你的八字和紫微命盘：<br>
+                    八字匹配度：<strong>${(data.bazi_verification.score * 100).toFixed(1)}%</strong><br>
+                    紫微匹配度：<strong>${(data.ziwei_verification.score * 100).toFixed(1)}%</strong>`);
+            } else {
+                // 单个验证：只更新当前类型的结果
+                if (type === 'bazi') {
+                    currentGroup.baziUploaded = true;
+                    currentGroup.baziResult = data;
+                    currentGroup.baziText = text;
+                    state.conversationState = 'waiting_ziwei';
+                } else {
+                    currentGroup.ziweiUploaded = true;
+                    currentGroup.ziweiResult = data;
+                    currentGroup.ziweiText = text;
+                    state.conversationState = 'ready_to_save';
+                }
+                
+                // 显示结果
+                displayResult(data, type);
+                statusSpan.textContent = "验证完成";
+                statusSpan.className = "result-status success";
+                
+                // AI 引导
+                updateAIGuidance();
             }
-            
-            // 显示结果
-            displayResult(data, type);
-            statusSpan.textContent = "验证完成";
-            statusSpan.className = "result-status success";
-            
-            // AI 引导
-            updateAIGuidance();
         } else {
             throw new Error(data.toast || "验证失败");
         }
