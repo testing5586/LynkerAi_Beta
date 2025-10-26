@@ -384,9 +384,21 @@ async function processChartText(text, type) {
                 document.getElementById('ziweiStatus').textContent = "AI预测验证";
                 document.getElementById('ziweiStatus').className = "result-status success";
                 
+                // 格式化置信度显示
+                const formatConfidence = (verification) => {
+                    const confidence = verification.birth_time_confidence || verification.score;
+                    if (typeof confidence === 'string') return confidence;
+                    // 兼容旧格式：数值转文字
+                    if (confidence >= 0.8) return '高';
+                    if (confidence >= 0.65) return '中高';
+                    if (confidence >= 0.4) return '中';
+                    if (confidence >= 0.2) return '偏低';
+                    return '低';
+                };
+                
                 addAIMessage(`太棒了！基于你的人生经历，我已经推测出你的命盘特征：<br>
-                    八字推测匹配度：<strong>${(data.bazi_verification.score * 100).toFixed(1)}%</strong><br>
-                    紫微推测匹配度：<strong>${(data.ziwei_verification.score * 100).toFixed(1)}%</strong><br><br>
+                    八字出生时辰可信度：<strong>${formatConfidence(data.bazi_verification)}</strong><br>
+                    紫微出生时辰可信度：<strong>${formatConfidence(data.ziwei_verification)}</strong><br><br>
                     💡 这是基于你的人生经历的AI推测。你现在可以上传${type === 'bazi' ? '紫微' : '八字'}命盘进行实际验证。`);
             } else {
                 // 单个验证：只更新当前类型的结果
@@ -431,34 +443,78 @@ function displayResult(data, type) {
     // 如果有AI验证结果，优先显示AI结果
     if (data.ai_verification) {
         const aiResult = data.ai_verification;
+        const confidence = aiResult.birth_time_confidence || aiResult.score; // 兼容旧字段
+        
+        // 如果是旧的数值格式，转换为置信度等级
+        let confidenceLevel = confidence;
+        let confidenceColor = '#6c757d';
+        
+        if (typeof confidence === 'number') {
+            // 旧格式：数值转为文字
+            if (confidence >= 0.8) {
+                confidenceLevel = '高';
+                confidenceColor = '#28a745';
+            } else if (confidence >= 0.65) {
+                confidenceLevel = '中高';
+                confidenceColor = '#5cb85c';
+            } else if (confidence >= 0.4) {
+                confidenceLevel = '中';
+                confidenceColor = '#ffc107';
+            } else if (confidence >= 0.2) {
+                confidenceLevel = '偏低';
+                confidenceColor = '#ff8c00';
+            } else {
+                confidenceLevel = '低';
+                confidenceColor = '#dc3545';
+            }
+        } else {
+            // 新格式：直接使用置信度等级
+            if (confidence === '高') confidenceColor = '#28a745';
+            else if (confidence === '中高') confidenceColor = '#5cb85c';
+            else if (confidence === '中') confidenceColor = '#ffc107';
+            else if (confidence === '偏低') confidenceColor = '#ff8c00';
+            else confidenceColor = '#dc3545';
+        }
+        
+        // 检查是否有人生事件数据（判断是否完成问卷）
+        const hasLifeEvents = state.lifeEvents && state.lifeEvents.trim().length > 0;
+        
         html = `
             <div class="ai-verification-result">
-                <div class="score-display" style="color: ${aiResult.score >= 0.7 ? '#28a745' : aiResult.score >= 0.4 ? '#ffc107' : '#dc3545'};">
-                    AI匹配度：${(aiResult.score * 100).toFixed(1)}%
+                ${!hasLifeEvents ? `
+                <div class="detail-section" style="padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; margin-bottom: 12px;">
+                    <p style="margin: 0; font-size: 13px; color: #856404;">
+                        ⏳ 等待用户完成问卷以生成完整初步批命结果
+                    </p>
+                </div>
+                ` : ''}
+                
+                <div class="score-display" style="color: ${confidenceColor}; font-weight: 600; font-size: 16px;">
+                    出生时辰可信度：<span style="font-size: 20px;">${confidenceLevel}</span>
                 </div>
                 
-                ${aiResult.key_matches && aiResult.key_matches.length > 0 ? `
+                ${(aiResult.key_supporting_evidence || aiResult.key_matches)?.length > 0 ? `
                 <div class="detail-section" style="margin-top: 12px;">
-                    <strong style="color: #28a745;">✓ 吻合点：</strong>
-                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                        ${aiResult.key_matches.map(m => `<li>${m}</li>`).join('')}
+                    <strong style="color: #28a745;">✓ 关键吻合点：</strong>
+                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">
+                        ${(aiResult.key_supporting_evidence || aiResult.key_matches).map(m => `<li>${m}</li>`).join('')}
                     </ul>
                 </div>
                 ` : ''}
                 
-                ${aiResult.key_mismatches && aiResult.key_mismatches.length > 0 ? `
+                ${(aiResult.key_conflicts || aiResult.key_mismatches)?.length > 0 ? `
                 <div class="detail-section" style="margin-top: 12px;">
-                    <strong style="color: #dc3545;">✗ 不符点：</strong>
-                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                        ${aiResult.key_mismatches.map(m => `<li>${m}</li>`).join('')}
+                    <strong style="color: #dc3545;">✗ 关键冲突点：</strong>
+                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">
+                        ${(aiResult.key_conflicts || aiResult.key_mismatches).map(m => `<li>${m}</li>`).join('')}
                     </ul>
                 </div>
                 ` : ''}
                 
-                ${aiResult.notes ? `
-                <div class="detail-section" style="margin-top: 12px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
-                    <strong>总结：</strong>
-                    <p style="margin: 4px 0; font-size: 13px; line-height: 1.5;">${aiResult.notes}</p>
+                ${(aiResult.summary || aiResult.notes) ? `
+                <div class="detail-section" style="margin-top: 12px; padding: 10px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #667eea;">
+                    <strong style="color: #495057;">AI 总结：</strong>
+                    <p style="margin: 6px 0 0 0; font-size: 13px; line-height: 1.6; color: #212529;">${aiResult.summary || aiResult.notes}</p>
                 </div>
                 ` : ''}
                 
@@ -621,12 +677,36 @@ async function sendMessage() {
                 document.getElementById('ziweiStatus').textContent = "AI验证完成";
                 document.getElementById('ziweiStatus').className = "result-status success";
                 
+                // 格式化置信度显示
+                const formatConfidence = (verification) => {
+                    const confidence = verification.birth_time_confidence || verification.score;
+                    if (typeof confidence === 'string') return confidence;
+                    // 兼容旧格式：数值转文字
+                    if (confidence >= 0.8) return '高';
+                    if (confidence >= 0.65) return '中高';
+                    if (confidence >= 0.4) return '中';
+                    if (confidence >= 0.2) return '偏低';
+                    return '低';
+                };
+                
+                const baziConfidence = formatConfidence(data.bazi_verification);
+                const ziweiConfidence = formatConfidence(data.ziwei_verification);
+                
+                // 根据置信度设置颜色
+                const getConfidenceColor = (conf) => {
+                    if (conf === '高') return '#a8e6cf';
+                    if (conf === '中高') return '#dcedc1';
+                    if (conf === '中') return '#ffd3b6';
+                    if (conf === '偏低') return '#ffaaa5';
+                    return '#ff8b94';
+                };
+                
                 // 显示验证结果摘要
                 addAIMessage(`
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 8px; color: white; margin-top: 10px;">
                         <h4 style="margin: 0 0 10px 0; font-size: 16px;">✨ 验证完成</h4>
-                        <p style="margin: 5px 0;"><strong>八字匹配度：</strong>${(data.bazi_verification.score * 100).toFixed(1)}%</p>
-                        <p style="margin: 5px 0;"><strong>紫微匹配度：</strong>${(data.ziwei_verification.score * 100).toFixed(1)}%</p>
+                        <p style="margin: 5px 0;"><strong>八字出生时辰可信度：</strong><span style="background: ${getConfidenceColor(baziConfidence)}; color: #333; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${baziConfidence}</span></p>
+                        <p style="margin: 5px 0;"><strong>紫微出生时辰可信度：</strong><span style="background: ${getConfidenceColor(ziweiConfidence)}; color: #333; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${ziweiConfidence}</span></p>
                     </div>
                 `);
                 

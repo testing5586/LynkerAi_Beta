@@ -20,7 +20,7 @@ The system includes several web-based interfaces:
 ## Technical Implementations & Feature Specifications
 -   **Core AI Generation**: Handled by `lynker_master_ai.py` using OpenAI's chat completion API.
 -   **Database Management**: Supabase integration via `supabase_init.py` for various data storage.
--   **Birth Chart Verification**: `ai_truechart_verifier.py` performs semantic validation.
+-   **Birth Chart Verification**: `ai_truechart_verifier.py` and `admin_dashboard/verify/ai_verifier.py` perform semantic validation using qualitative confidence levels (高/中高/中/偏低/低) instead of numeric scores to align with traditional metaphysical practices.
 -   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
 -   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
 -   **User Memory & Interaction**: `child_ai_memory.py` tracks user interactions and engagement.
@@ -48,6 +48,7 @@ The system includes several web-based interfaces:
 ## Design Choices
 -   **Prompt Engineering**: Utilizes structured prompt templates for predictable AI responses.
 -   **Error Handling**: Includes environment validation, graceful degradation, and comprehensive output capture.
+-   **Verification Philosophy**: True Birth Chart Verification uses qualitative confidence assessments (高/中高/中/偏低/低) rather than numeric scores, avoiding over-quantification of metaphysical insights. Frontend displays color-coded confidence levels (green=高, yellow=中, red=偏低/低) with supporting evidence and conflicts.
 
 # External Dependencies
 
