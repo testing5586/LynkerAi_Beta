@@ -11,6 +11,13 @@ from .ai_prompts import get_bazi_child_ai_prompt, get_ziwei_child_ai_prompt
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 初始化变量
+KNOWLEDGE_BASE_AVAILABLE = False
+USE_SIMPLE_ROUTER = False
+find_knowledge_simple = None
+allow_access = None
+find_relevant_knowledge = None
+
 try:
     # 优先使用简化版知识检索路由
     from knowledge.retrieval_router import find_relevant_knowledge as find_knowledge_simple
@@ -26,8 +33,6 @@ except ImportError:
         USE_SIMPLE_ROUTER = False
     except ImportError:
         print("⚠️ 知识库模块未找到，AI 验证将不使用知识库增强")
-        KNOWLEDGE_BASE_AVAILABLE = False
-        USE_SIMPLE_ROUTER = False
 
 # 初始化OpenAI客户端
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
@@ -65,7 +70,7 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
         try:
             query = f"{chart_type} 命盘验证 {life_events[:100]}"
             
-            if USE_SIMPLE_ROUTER:
+            if USE_SIMPLE_ROUTER and find_knowledge_simple and allow_access:
                 # 使用简化版检索路由
                 results = find_knowledge_simple(query)
                 knowledge_parts = []
@@ -79,7 +84,7 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
                 if knowledge_parts:
                     knowledge_context = "\n".join(knowledge_parts) + "\n\n"
                     print(f"✅ Child AI 知识库增强: {len(knowledge_parts)} 条统计规律")
-            else:
+            elif find_relevant_knowledge:
                 # 使用完整版检索路由
                 knowledge = find_relevant_knowledge(query, categories=["rules", "patterns"], max_results=3)
                 knowledge_parts = []
@@ -130,7 +135,7 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
         )
         
         # 解析AI返回的JSON
-        ai_output = response.choices[0].message.content.strip()
+        ai_output = (response.choices[0].message.content or "").strip()
         
         # 尝试解析JSON
         result = json.loads(ai_output)

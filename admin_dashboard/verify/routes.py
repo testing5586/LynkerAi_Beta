@@ -339,13 +339,16 @@ def chat():
     
     # 导入知识检索路由
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    KNOWLEDGE_AVAILABLE = False
+    find_relevant_knowledge = None
+    allow_access = None
+    
     try:
         from knowledge.retrieval_router import find_relevant_knowledge
         from knowledge.access_control import allow_access
         KNOWLEDGE_AVAILABLE = True
     except ImportError:
         print("⚠️ 知识检索模块未找到，Primary AI 将不使用知识库增强")
-        KNOWLEDGE_AVAILABLE = False
     
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
     
@@ -387,7 +390,7 @@ def chat():
         
         # 【知识检索增强】Primary AI 使用规则 + 模式
         knowledge_context = ""
-        if KNOWLEDGE_AVAILABLE and user_message:
+        if KNOWLEDGE_AVAILABLE and user_message and find_relevant_knowledge and allow_access:
             try:
                 results = find_relevant_knowledge(user_message)
                 if results:
@@ -424,7 +427,7 @@ def chat():
             max_tokens=500
         )
         
-        ai_reply = response.choices[0].message.content.strip()
+        ai_reply = (response.choices[0].message.content or "").strip()
         
         # 检测是否触发验证
         trigger_verification = False
