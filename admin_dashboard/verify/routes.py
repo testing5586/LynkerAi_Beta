@@ -331,7 +331,9 @@ def chat():
     """
     Primary AI 聊天接口
     处理用户与温柔陪伴者AI的对话
+    新增：检测问卷完成并触发AI验证
     """
+    import asyncio
     from openai import OpenAI
     
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
@@ -347,6 +349,12 @@ def chat():
     user_message = data.get("message", "").strip()
     conversation_history = data.get("history", [])  # 对话历史
     
+    # 新增：命盘上传状态和当前组索引
+    chart_uploaded = data.get("chart_uploaded", False)
+    group_index = data.get("group_index", 0)
+    life_events = data.get("life_events", "")  # 累积的人生事件
+    parsed_chart = data.get("parsed_chart", {})  # 解析后的命盘数据
+    
     if not user_id:
         return jsonify({
             "ok": False,
@@ -361,10 +369,10 @@ def chat():
     
     try:
         # 获取用户自定义的AI名字
-        primary_ai_name, _, _ = get_ai_names_from_db(user_id, sp) if sp else ("灵伴", "", "")
+        primary_ai_name, bazi_name, ziwei_name = get_ai_names_from_db(user_id, sp) if sp else ("灵伴", "八字观察员", "星盘参谋")
         
-        # 获取Primary AI的系统Prompt
-        system_prompt = get_primary_ai_prompt(primary_ai_name)
+        # 获取Primary AI的系统Prompt（传递命盘上传状态）
+        system_prompt = get_primary_ai_prompt(primary_ai_name, chart_uploaded=chart_uploaded)
         
         # 构建消息列表
         messages = [{"role": "system", "content": system_prompt}]
@@ -386,10 +394,62 @@ def chat():
         
         ai_reply = response.choices[0].message.content.strip()
         
+        # 检测是否触发验证
+        trigger_verification = False
+        completion_keywords = ["完成", "验证一下", "我讲完了", "验证", "开始验证", "帮我验证"]
+        
+        if chart_uploaded and life_events and any(keyword in user_message for keyword in completion_keywords):
+            # 检查人生事件是否至少有3条
+            life_events_count = len([line for line in life_events.split('\n') if line.strip()]) if life_events else 0
+            
+            if life_events_count >= 3:
+                trigger_verification = True
+                
+                # 执行双子AI验证
+                try:
+                    print(f"🔍 触发AI验证: user_id={user_id}, group={group_index}, events={life_events_count}条")
+                    
+                    bazi_result = asyncio.run(verify_chart_with_ai(parsed_chart, life_events, "bazi", bazi_name))
+                    ziwei_result = asyncio.run(verify_chart_with_ai(parsed_chart, life_events, "ziwei", ziwei_name))
+                    
+                    # 存储验证结果
+                    if sp:
+                        save_verification_results(
+                            user_id=user_id,
+                            group_index=group_index,
+                            bazi_result=bazi_result,
+                            ziwei_result=ziwei_result,
+                            life_events_count=life_events_count,
+                            sp=sp
+                        )
+                    
+                    # 返回带验证结果的响应
+                    return jsonify({
+                        "ok": True,
+                        "message": ai_reply,
+                        "ai_name": primary_ai_name,
+                        "verification_triggered": True,
+                        "bazi_verification": bazi_result,
+                        "ziwei_verification": ziwei_result
+                    })
+                    
+                except Exception as verify_error:
+                    print(f"❌ 验证失败: {verify_error}")
+                    # 验证失败时仍返回对话，但提示验证失败
+                    return jsonify({
+                        "ok": True,
+                        "message": ai_reply + "\n\n抱歉，命盘验证遇到了一些问题，请稍后再试。",
+                        "ai_name": primary_ai_name,
+                        "verification_triggered": False,
+                        "verification_error": str(verify_error)
+                    })
+        
+        # 正常对话响应
         return jsonify({
             "ok": True,
             "message": ai_reply,
-            "ai_name": primary_ai_name
+            "ai_name": primary_ai_name,
+            "verification_triggered": False
         })
     
     except Exception as e:
