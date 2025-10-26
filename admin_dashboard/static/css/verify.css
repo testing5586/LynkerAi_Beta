@@ -238,7 +238,7 @@ body {
 }
 
 .result-box {
-    background-color: #00ff9d;
+    background-color: #2a2a2a;
     border-radius: 12px;
     padding: 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -256,15 +256,15 @@ body {
 
 .result-header h4 {
     font-size: 16px;
-    color: #000;
+    color: #e0e0e0;
 }
 
 .result-status {
     font-size: 13px;
     padding: 4px 12px;
     border-radius: 12px;
-    background-color: rgba(255, 255, 255, 0.6);
-    color: #000;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #a0a0a0;
 }
 
 .result-status.processing {
@@ -285,22 +285,22 @@ body {
 .result-content {
     font-size: 14px;
     line-height: 1.6;
-    color: #000;
+    color: #e0e0e0;
 }
 
 .empty-state {
     text-align: center;
-    color: rgba(0, 0, 0, 0.5);
+    color: #808080;
     padding: 60px 20px;
 }
 
 .result-content pre {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(0, 0, 0, 0.3);
     padding: 16px;
     border-radius: 6px;
     overflow-x: auto;
     font-size: 13px;
-    color: #000;
+    color: #b0b0b0;
     max-height: 400px;
     overflow-y: auto;
 }
@@ -308,20 +308,20 @@ body {
 .result-content .score-display {
     font-size: 24px;
     font-weight: bold;
-    color: #000;
+    color: #00ff9d;
     margin: 12px 0;
 }
 
 .result-content .detail-item {
     margin: 8px 0;
     padding: 8px 12px;
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
 }
 
 .result-content .detail-label {
     font-weight: 600;
-    color: #000;
+    color: #b0b0b0;
     margin-right: 8px;
 }
 
