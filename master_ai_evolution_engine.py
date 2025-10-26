@@ -1,7 +1,9 @@
 import os
 import time
+import json
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 from supabase import create_client, Client
 from master_vault_engine import insert_vault, get_db_connection
 
@@ -65,6 +67,58 @@ def check_vault_exists(title: str) -> bool:
         print(f"⚠️ 检查去重时出错: {e}")
         return False
 
+def store_to_knowledge_base(patterns):
+    """
+    📚 存入知识库 patterns/ 目录（明文JSON，供AI查询）
+    """
+    try:
+        patterns_dir = Path("lkk_knowledge_base/patterns")
+        patterns_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 按类型分组存储
+        pattern_groups = {}
+        for p in patterns:
+            # 简单分类：根据宫位名称
+            palace = p['pattern'].split('-')[0] if '-' in p['pattern'] else "general"
+            if palace not in pattern_groups:
+                pattern_groups[palace] = []
+            pattern_groups[palace].append(p)
+        
+        # 保存每个分组
+        for category, items in pattern_groups.items():
+            filename = f"{category}_patterns.json"
+            filepath = patterns_dir / filename
+            
+            # 加载现有数据（如果存在）
+            existing_data = {"category": category, "patterns": [], "last_updated": ""}
+            if filepath.exists():
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        existing_data = json.load(f)
+                except:
+                    pass
+            
+            # 合并新数据（简单去重：基于pattern名称）
+            existing_patterns = {p['pattern']: p for p in existing_data.get('patterns', [])}
+            for item in items:
+                existing_patterns[item['pattern']] = item
+            
+            # 保存
+            updated_data = {
+                "category": category,
+                "patterns": list(existing_patterns.values()),
+                "last_updated": datetime.now().isoformat(),
+                "total_count": len(existing_patterns)
+            }
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(updated_data, f, ensure_ascii=False, indent=2)
+            
+            print(f"📚 知识库已更新：{filename} ({len(existing_patterns)} 条规律)")
+        
+    except Exception as e:
+        print(f"⚠️ 知识库存储失败: {e}")
+
 def store_to_vault(patterns):
     """
     🔐 存入 Master Vault（加密，支持去重）
@@ -106,7 +160,9 @@ def learn_from_birthcharts():
 
         patterns = analyze_patterns(records)
         if patterns:
+            # 双重存储：加密到 Vault + 明文到知识库
             store_to_vault(patterns)
+            store_to_knowledge_base(patterns)
         else:
             print("ℹ️ 暂无可记录的新规律。")
     except ValueError as e:

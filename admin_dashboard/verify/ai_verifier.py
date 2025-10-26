@@ -4,8 +4,19 @@ AI命盘验证器
 """
 import os
 import json
+import sys
 from openai import OpenAI
 from .ai_prompts import get_bazi_child_ai_prompt, get_ziwei_child_ai_prompt
+
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+try:
+    from lkk_knowledge_base.retrieval_router import find_relevant_knowledge
+    KNOWLEDGE_BASE_AVAILABLE = True
+except ImportError:
+    print("⚠️ 知识库模块未找到，AI 验证将不使用知识库增强")
+    KNOWLEDGE_BASE_AVAILABLE = False
 
 # 初始化OpenAI客户端
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
@@ -37,9 +48,26 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
     else:
         raise ValueError(f"不支持的命盘类型: {chart_type}")
     
+    # 构建知识库增强上下文
+    knowledge_context = ""
+    if KNOWLEDGE_BASE_AVAILABLE and life_events:
+        try:
+            # 查询知识库
+            query = f"{chart_type} 命盘验证 {life_events[:100]}"  # 限制查询长度
+            knowledge = find_relevant_knowledge(query, categories=["rules"], max_results=2)
+            
+            if knowledge.get("rules"):
+                knowledge_parts = ["【命理规则参考】"]
+                for rule in knowledge["rules"]:
+                    knowledge_parts.append(f"- {rule['content'][:300]}...")
+                knowledge_context = "\n".join(knowledge_parts) + "\n\n"
+                print(f"✅ 知识库增强已启用: {knowledge['summary']}")
+        except Exception as e:
+            print(f"⚠️ 知识库查询失败: {e}")
+    
     # 构建用户输入
     user_message = f"""
-命盘数据：
+{knowledge_context}命盘数据：
 {json.dumps(chart_data, ensure_ascii=False, indent=2)}
 
 用户人生事件描述：
