@@ -264,11 +264,11 @@ def chat():
     Primary AI 聊天接口
     处理用户与温柔陪伴者AI的对话
     """
-    import openai
+    from openai import OpenAI
     
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
     
-    if not openai.api_key:
+    if not client.api_key:
         return jsonify({
             "ok": False,
             "message": "系统配置错误，请联系管理员"
@@ -309,7 +309,7 @@ def chat():
         messages.append({"role": "user", "content": user_message})
         
         # 调用OpenAI API
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
             temperature=0.7,

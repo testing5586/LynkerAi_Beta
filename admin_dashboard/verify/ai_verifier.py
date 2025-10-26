@@ -4,11 +4,11 @@ AI命盘验证器
 """
 import os
 import json
-import openai
+from openai import OpenAI
 from .ai_prompts import get_bazi_child_ai_prompt, get_ziwei_child_ai_prompt
 
 # 初始化OpenAI客户端
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
 
 
 async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: str, ai_name: str = None):
@@ -50,7 +50,7 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
     
     try:
         # 调用OpenAI API
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",  # 使用更经济的模型
             messages=[
                 {"role": "system", "content": system_prompt},
