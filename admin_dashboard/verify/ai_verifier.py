@@ -38,6 +38,17 @@ except ImportError:
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LYNKER_MASTER_KEY"))
 
 
+def get_current_uploaded_charts(user_id):
+    """
+    获取用户当前上传的命盘数据
+    返回 (bazi_chart, ziwei_chart)
+    如果未上传则返回 (None, None)
+    """
+    # TODO: 从数据库或session中获取用户上传的命盘
+    # 目前返回占位数据
+    return (None, None)
+
+
 async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: str, ai_name: str = None):
     """
     使用AI验证命盘

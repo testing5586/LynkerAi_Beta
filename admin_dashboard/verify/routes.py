@@ -15,7 +15,8 @@ from verification.verifier import verify_raw
 from verify.utils import merge_manual_fields, normalize_gender
 from verify.scorer import score_match
 from verify.ai_prompts import get_primary_ai_prompt, get_ai_names_from_db
-from verify.ai_verifier import verify_chart_with_ai, verify_chart_without_ai
+from verify.ai_verifier import verify_chart_with_ai, verify_chart_without_ai, get_current_uploaded_charts
+from verify.child_ai_hints import generate_child_ai_hint
 
 bp = Blueprint("verify_wizard", __name__, url_prefix="/verify")
 
@@ -425,6 +426,33 @@ def chat():
         )
         
         ai_reply = (response.choices[0].message.content or "").strip()
+        
+        # 【Child AI 智能提示】在验证触发之前，先让子AI提供更聪明的提问建议
+        # 获取已上传命盘数据
+        bazi_chart, ziwei_chart = get_current_uploaded_charts(user_id)
+        
+        # 调用子AI提示（child ai 不自行发言，仅提供暗示）
+        try:
+            # 构建对话记忆（最近的对话内容）
+            conversation_memory = "\n".join([
+                f"{msg.get('role', 'unknown')}: {msg.get('content', '')}" 
+                for msg in conversation_history[-10:] if msg.get('content')
+            ])
+            
+            hint_result = generate_child_ai_hint(bazi_chart, ziwei_chart, conversation_memory)
+            
+            # 尝试解析 hint 结果
+            if hint_result:
+                try:
+                    hint = json.loads(hint_result)
+                    if hint.get("should_ask") and hint.get("suggested_question"):
+                        # 使用 Child AI 建议的问题替代 Primary AI 的回答
+                        ai_reply = hint["suggested_question"]
+                        print(f"✅ Child AI 提供智能提示，引导更深入对话")
+                except json.JSONDecodeError:
+                    print(f"⚠️ Child AI hint 解析失败，使用原始 Primary AI 回答")
+        except Exception as hint_error:
+            print(f"⚠️ Child AI hint 生成失败: {hint_error}")
         
         # 检测是否触发验证
         trigger_verification = False
