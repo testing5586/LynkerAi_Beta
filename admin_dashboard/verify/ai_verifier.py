@@ -61,10 +61,10 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
     
     返回:
         {
-            "score": float,
-            "key_matches": list,
-            "key_mismatches": list,
-            "notes": str
+            "birth_time_confidence": str,  // 高/中高/中/偏低/低
+            "key_supporting_evidence": list,
+            "key_conflicts": list,
+            "summary": str
         }
     """
     # 获取对应的AI Prompt
@@ -152,23 +152,24 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
         result = json.loads(ai_output)
         
         # 验证必需字段
-        required_fields = ["score", "key_matches", "key_mismatches", "notes"]
+        required_fields = ["birth_time_confidence", "key_supporting_evidence", "key_conflicts", "summary"]
         for field in required_fields:
             if field not in result:
                 raise ValueError(f"AI返回缺少必需字段: {field}")
         
         # 验证数据类型
-        if not isinstance(result["score"], (int, float)) or not (0 <= result["score"] <= 1):
-            result["score"] = 0.0
+        valid_confidence_levels = ["高", "中高", "中", "偏低", "低"]
+        if result.get("birth_time_confidence") not in valid_confidence_levels:
+            result["birth_time_confidence"] = "低"
         
-        if not isinstance(result["key_matches"], list):
-            result["key_matches"] = []
+        if not isinstance(result["key_supporting_evidence"], list):
+            result["key_supporting_evidence"] = []
         
-        if not isinstance(result["key_mismatches"], list):
-            result["key_mismatches"] = []
+        if not isinstance(result["key_conflicts"], list):
+            result["key_conflicts"] = []
         
-        if not isinstance(result["notes"], str):
-            result["notes"] = ""
+        if not isinstance(result["summary"], str):
+            result["summary"] = ""
         
         return result
     
@@ -177,19 +178,19 @@ async def verify_chart_with_ai(chart_data: dict, life_events: str, chart_type: s
         print(f"AI原始输出: {ai_output}")
         # 返回默认结果
         return {
-            "score": 0.0,
-            "key_matches": [],
-            "key_mismatches": ["AI返回格式错误，无法解析"],
-            "notes": "验证失败，AI返回数据格式不正确"
+            "birth_time_confidence": "低",
+            "key_supporting_evidence": [],
+            "key_conflicts": ["AI返回格式错误，无法解析"],
+            "summary": "验证失败，AI返回数据格式不正确"
         }
     
     except Exception as e:
         print(f"❌ AI验证失败: {e}")
         return {
-            "score": 0.0,
-            "key_matches": [],
-            "key_mismatches": [f"验证过程出错: {str(e)}"],
-            "notes": "系统错误，请稍后重试"
+            "birth_time_confidence": "低",
+            "key_supporting_evidence": [],
+            "key_conflicts": [f"验证过程出错: {str(e)}"],
+            "summary": "系统错误，请稍后重试"
         }
 
 
@@ -198,40 +199,40 @@ def verify_chart_without_ai(chart_data: dict):
     降级方案：不使用AI时的简单验证
     基于规则的基础评分
     """
-    score = 0.0
+    confidence = "低"
     key_matches = []
     key_mismatches = []
     
     # 基础完整性检查
     if chart_data.get("name"):
-        score += 0.2
+        # 不再使用数值评分
         key_matches.append("命盘包含姓名信息")
     else:
         key_mismatches.append("命盘缺少姓名信息")
     
     if chart_data.get("birth_time"):
-        score += 0.3
+        # 不再使用数值评分
         key_matches.append("命盘包含出生时间")
     else:
         key_mismatches.append("命盘缺少出生时间")
     
     if chart_data.get("gender"):
-        score += 0.1
+        # 不再使用数值评分
         key_matches.append("命盘包含性别信息")
     
     # 命盘特有字段检查
     if chart_data.get("main_star") or chart_data.get("bazi_pillars"):
-        score += 0.4
+        # 不再使用数值评分
         key_matches.append("命盘数据结构完整")
     else:
-        score = max(score - 0.2, 0.0)
+        # 不再使用数值评分
         key_mismatches.append("命盘核心数据缺失")
     
-    notes = f"基于规则的基础验证，综合评分 {score:.2f}（满分1.0）"
+    notes = f"基于规则的基础验证"
     
     return {
-        "score": min(score, 1.0),
-        "key_matches": key_matches,
-        "key_mismatches": key_mismatches,
-        "notes": notes
+        "birth_time_confidence": "中",  # 默认置信度
+        "key_supporting_evidence": key_matches,
+        "key_conflicts": key_mismatches,
+        "summary": notes
     }

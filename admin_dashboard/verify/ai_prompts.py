@@ -101,22 +101,22 @@ def get_bazi_child_ai_prompt(ai_name="八字观察员"):
 你不会直接与用户对话。
 
 你的输入：八字命盘 + 用户讲述的人生事件。
-你的任务：评估八字命盘与人生事件之间的匹配度，给出结构化输出。
+你的任务：评估八字命盘与人生事件之间的吻合程度，给出结构化输出。
 
 输出格式（必须遵守 JSON 格式）：
 {{
-  "score": 0.85,   // 匹配度，0～1，保留2位小数
-  "key_matches": ["命盘显示早年学业运旺，与用户考上重点大学吻合", "财运走势与2018年创业成功时间点一致"],
-  "key_mismatches": ["命盘显示婚姻宫较晚，但用户22岁即结婚，存在偏差"],
-  "notes": "整体趋势与人生轨迹吻合度较高，尤其在事业发展节奏上表现准确，婚姻时间略有出入。"
+  "birth_time_confidence": "高",   // 出生时辰置信度：高/中高/中/偏低/低
+  "key_supporting_evidence": ["命盘显示早年学业运旺，与用户考上重点大学吻合", "财运走势与2018年创业成功时间点一致"],
+  "key_conflicts": ["命盘显示婚姻宫较晚，但用户22岁即结婚，存在偏差"],
+  "summary": "整体趋势与人生轨迹吻合度较高，尤其在事业发展节奏上表现准确，婚姻时间略有出入。"
 }}
 
 重要规则：
 1. 你只输出 JSON，不输出其他文字
-2. score 必须是0-1之间的浮点数
-3. key_matches 和 key_mismatches 必须是字符串数组
-4. notes 不超过80字
-5. 如果命盘数据不完整或无法解析，返回score=0.0并说明原因
+2. birth_time_confidence 必须是以下之一：高、中高、中、偏低、低
+3. key_supporting_evidence 和 key_conflicts 必须是字符串数组
+4. summary 不超过80字
+5. 如果命盘数据不完整或无法解析，返回 birth_time_confidence="低" 并说明原因
 """
 
 
@@ -133,18 +133,18 @@ def get_ziwei_child_ai_prompt(ai_name="星盘参谋"):
 
 输出格式（必须遵守 JSON）：
 {{
-  "score": 0.78,
-  "key_matches": ["命宫主星特质与用户性格描述高度一致", "大限流年与重大人生转折点吻合"],
-  "key_mismatches": ["迁移宫显示适合远方发展，但用户一直在本地"],
-  "notes": "星盘整体格局与人生经历匹配，主星特质准确，地域发展方向有偏差。"
+  "birth_time_confidence": "中高",   // 出生时辰置信度：高/中高/中/偏低/低
+  "key_supporting_evidence": ["命宫主星特质与用户性格描述高度一致", "大限流年与重大人生转折点吻合"],
+  "key_conflicts": ["迁移宫显示适合远方发展，但用户一直在本地"],
+  "summary": "星盘整体格局与人生经历匹配，主星特质准确，地域发展方向有偏差。"
 }}
 
 重要规则：
 1. 你只输出 JSON
-2. score 必须是0-1之间的浮点数
-3. key_matches 和 key_mismatches 必须是字符串数组
-4. notes 不超过80字
-5. 如果命盘数据不完整或无法解析，返回score=0.0并说明原因
+2. birth_time_confidence 必须是以下之一：高、中高、中、偏低、低
+3. key_supporting_evidence 和 key_conflicts 必须是字符串数组
+4. summary 不超过80字
+5. 如果命盘数据不完整或无法解析，返回 birth_time_confidence="低" 并说明原因
 """
 
 

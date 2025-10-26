@@ -38,14 +38,14 @@ def save_verification_results(user_id, group_index, bazi_result, ziwei_result, l
         data = {
             "user_id": user_id,
             "group_index": group_index,
-            "bazi_score": float(bazi_result.get("score", 0)),
-            "bazi_matches": bazi_result.get("key_matches", []),
-            "bazi_mismatches": bazi_result.get("key_mismatches", []),
-            "bazi_summary": bazi_result.get("notes", ""),
-            "ziwei_score": float(ziwei_result.get("score", 0)),
-            "ziwei_matches": ziwei_result.get("key_matches", []),
-            "ziwei_mismatches": ziwei_result.get("key_mismatches", []),
-            "ziwei_summary": ziwei_result.get("notes", ""),
+            "bazi_confidence": bazi_result.get("birth_time_confidence", "低"),
+            "bazi_supporting_evidence": bazi_result.get("key_supporting_evidence", []),
+            "bazi_conflicts": bazi_result.get("key_conflicts", []),
+            "bazi_summary": bazi_result.get("summary", ""),
+            "ziwei_confidence": ziwei_result.get("birth_time_confidence", "低"),
+            "ziwei_supporting_evidence": ziwei_result.get("key_supporting_evidence", []),
+            "ziwei_conflicts": ziwei_result.get("key_conflicts", []),
+            "ziwei_summary": ziwei_result.get("summary", ""),
             "life_events_count": life_events_count,
             "updated_at": "now()"
         }
