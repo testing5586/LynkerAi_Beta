@@ -353,9 +353,18 @@ async function processChartText(text, type) {
             
             // 检测是否为自动AI验证（同时返回八字和紫微结果）
             if (data.auto_verified && data.bazi_verification && data.ziwei_verification) {
-                // 自动验证：同时更新两个结果框
-                currentGroup.baziUploaded = true;
-                currentGroup.ziweiUploaded = true;
+                // 自动验证：只标记当前上传的命盘，不预填另一个命盘
+                if (type === 'bazi') {
+                    currentGroup.baziUploaded = true;
+                    currentGroup.baziText = text;
+                    state.conversationState = 'waiting_ziwei';
+                } else {
+                    currentGroup.ziweiUploaded = true;
+                    currentGroup.ziweiText = text;
+                    state.conversationState = 'waiting_bazi';
+                }
+                
+                // 存储AI验证结果（两个都存）
                 currentGroup.baziResult = {
                     ...data,
                     ai_verification: data.bazi_verification
@@ -364,23 +373,21 @@ async function processChartText(text, type) {
                     ...data,
                     ai_verification: data.ziwei_verification
                 };
-                currentGroup.baziText = text;
-                currentGroup.ziweiText = text;
                 
                 // 显示八字结果到 Secondary Box #1
                 displayResult(currentGroup.baziResult, 'bazi');
-                document.getElementById('baziStatus').textContent = "AI验证完成";
+                document.getElementById('baziStatus').textContent = "AI预测验证";
                 document.getElementById('baziStatus').className = "result-status success";
                 
                 // 显示紫微结果到 Secondary Box #2
                 displayResult(currentGroup.ziweiResult, 'ziwei');
-                document.getElementById('ziweiStatus').textContent = "AI验证完成";
+                document.getElementById('ziweiStatus').textContent = "AI预测验证";
                 document.getElementById('ziweiStatus').className = "result-status success";
                 
-                state.conversationState = 'ready_to_save';
-                addAIMessage(`太棒了！我已经同时验证了你的八字和紫微命盘：<br>
-                    八字匹配度：<strong>${(data.bazi_verification.score * 100).toFixed(1)}%</strong><br>
-                    紫微匹配度：<strong>${(data.ziwei_verification.score * 100).toFixed(1)}%</strong>`);
+                addAIMessage(`太棒了！基于你的人生经历，我已经推测出你的命盘特征：<br>
+                    八字推测匹配度：<strong>${(data.bazi_verification.score * 100).toFixed(1)}%</strong><br>
+                    紫微推测匹配度：<strong>${(data.ziwei_verification.score * 100).toFixed(1)}%</strong><br><br>
+                    💡 这是基于你的人生经历的AI推测。你现在可以上传${type === 'bazi' ? '紫微' : '八字'}命盘进行实际验证。`);
             } else {
                 // 单个验证：只更新当前类型的结果
                 if (type === 'bazi') {
