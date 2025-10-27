@@ -178,21 +178,18 @@ function renderResult(type, result, uploaded) {
     }
 }
 
-// 格式化结果内容（复用现有逻辑）
+// 格式化结果内容（已废弃，使用 displayResult 代替）
 function formatResultContent(result) {
-    if (!result) return '<p class="empty-state">暂无数据</p>';
+    if (!result) return '<p class="empty-state">⏳ 等待用户完成七步问卷以生成初步验证结果</p>';
     
     let html = '';
-    if (result.score !== undefined) {
-        html += `<div class="score-display">评分: ${result.score}</div>`;
-    }
     if (result.parsed) {
-        html += `<pre>${JSON.stringify(result.parsed, null, 2)}</pre>`;
+        html += `<pre style="font-size: 12px;">${JSON.stringify(result.parsed, null, 2)}</pre>`;
     }
     if (result.message) {
         html += `<p>${result.message}</p>`;
     }
-    return html || '<p class="empty-state">暂无数据</p>';
+    return html || '<p class="empty-state">⏳ 等待用户完成七步问卷以生成初步验证结果</p>';
 }
 
 // ========== Drag & Drop 上传 ==========
@@ -524,9 +521,14 @@ function displayResult(data, type) {
             </div>
         `;
     } else {
-        // 降级到传统显示
+        // 降级到传统显示（无AI验证结果时）
+        const typeName = type === 'bazi' ? '八字' : '紫微';
         html = `
-            <div class="score-display">匹配评分：${(data.score * 100).toFixed(1)}%</div>
+            <div class="detail-section" style="padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; margin-bottom: 12px;">
+                <p style="margin: 0; font-size: 13px; color: #856404;">
+                    ⏳ 等待用户完成七步问卷以生成${typeName}初步验证结果
+                </p>
+            </div>
             
             <div class="detail-item">
                 <span class="detail-label">姓名：</span>
@@ -762,6 +764,23 @@ async function saveToDatabase() {
         // 合并两份命盘的数据
         const combinedText = `【八字命盘】\n${document.getElementById('baziText').value}\n\n【紫微斗数命盘】\n${document.getElementById('ziweiText').value}`;
         
+        // 格式化置信度显示
+        const formatConfidence = (result) => {
+            const aiResult = result?.ai_verification;
+            if (!aiResult) return '未验证';
+            const confidence = aiResult.birth_time_confidence || aiResult.score;
+            if (typeof confidence === 'string') return confidence;
+            // 兼容旧格式：数值转文字
+            if (confidence >= 0.8) return '高';
+            if (confidence >= 0.65) return '中高';
+            if (confidence >= 0.4) return '中';
+            if (confidence >= 0.2) return '偏低';
+            return '低';
+        };
+        
+        const baziConfidence = formatConfidence(state.baziResult);
+        const ziweiConfidence = formatConfidence(state.ziweiResult);
+        
         const response = await fetch('/verify/api/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -769,7 +788,7 @@ async function saveToDatabase() {
                 user_id: state.userId,
                 raw_text: combinedText,
                 wizard: {},
-                notes: `八字评分: ${(state.baziResult.score * 100).toFixed(1)}%, 紫微评分: ${(state.ziweiResult.score * 100).toFixed(1)}%`,
+                notes: `八字出生时辰可信度: ${baziConfidence}, 紫微出生时辰可信度: ${ziweiConfidence}`,
                 manual: {
                     name: state.baziResult.parsed?.name || state.ziweiResult.parsed?.name,
                     gender: state.baziResult.parsed?.gender || state.ziweiResult.parsed?.gender
@@ -784,7 +803,7 @@ async function saveToDatabase() {
             addAIMessage(`
                 <p>✅ <strong>保存成功！</strong></p>
                 <p>记录ID：${data.record_id}</p>
-                <p>综合评分：${(data.score * 100).toFixed(1)}%</p>
+                <p>八字可信度：${baziConfidence} | 紫微可信度：${ziweiConfidence}</p>
                 <p>你可以随时回到这个页面查看你的真命盘记录。</p>
             `);
         } else {
