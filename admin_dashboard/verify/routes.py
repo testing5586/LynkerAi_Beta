@@ -125,9 +125,20 @@ def preview():
         # 4. 执行匹配评分
         score_result = score_match(parsed, wizard, notes)
         
+        # 5. 【重要】紫微命盘：移除错误的姓名/性别字段
+        # 紫微命盘解析不应该包含 name/gender 字段
+        # 这些字段常被误识别为命盘主星（巨门、天同、武曲等）
+        if chart_type == "ziwei":
+            parsed_for_display = {
+                k: v for k, v in parsed.items() 
+                if k not in ["name", "gender"]
+            }
+        else:
+            parsed_for_display = parsed
+        
         response_data = {
             "ok": True,
-            "parsed": parsed,
+            "parsed": parsed_for_display,
             "score": score_result["score"],
             "weights": score_result["weights"],
             "signals": score_result["signals"],

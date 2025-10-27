@@ -533,15 +533,19 @@ function displayResult(data, type) {
                 </p>
             </div>
             
+            ${data.parsed?.name ? `
             <div class="detail-item">
                 <span class="detail-label">姓名：</span>
-                <span>${data.parsed?.name || '未识别'}</span>
+                <span>${data.parsed.name}</span>
             </div>
+            ` : ''}
             
+            ${data.parsed?.gender ? `
             <div class="detail-item">
                 <span class="detail-label">性别：</span>
-                <span>${data.parsed?.gender || '未识别'}</span>
+                <span>${data.parsed.gender}</span>
             </div>
+            ` : ''}
             
             <div class="detail-item">
                 <span class="detail-label">出生时间：</span>
