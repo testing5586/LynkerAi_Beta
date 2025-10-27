@@ -454,8 +454,44 @@ def chat():
             print(f"⚠️ 获取 AI 名称失败，使用默认值: {e}")
     
     try:
-        # 获取Primary AI的系统Prompt（动态加载最新问卷）
-        system_prompt = get_primary_ai_prompt()
+        # 【获取 Child AI 验证结果】从数据库读取最新的验证结果
+        bazi_result = None
+        ziwei_result = None
+        
+        if sp:
+            try:
+                # 从 user_verification_results 表获取最新验证结果
+                verification_data = sp.table("user_verification_results") \
+                    .select("bazi_confidence, bazi_supporting_evidence, bazi_conflicts, bazi_summary, ziwei_confidence, ziwei_supporting_evidence, ziwei_conflicts, ziwei_summary") \
+                    .eq("user_id", user_id) \
+                    .eq("group_index", group_index) \
+                    .order("created_at", desc=True) \
+                    .limit(1) \
+                    .execute()
+                
+                if verification_data.data and len(verification_data.data) > 0:
+                    v = verification_data.data[0]
+                    
+                    # 构建八字验证结果文本
+                    if v.get("bazi_confidence"):
+                        bazi_result = f"""置信度: {v['bazi_confidence']}
+支持证据: {', '.join(v.get('bazi_supporting_evidence', []))}
+冲突点: {', '.join(v.get('bazi_conflicts', []))}
+总结: {v.get('bazi_summary', '')}"""
+                    
+                    # 构建紫微验证结果文本
+                    if v.get("ziwei_confidence"):
+                        ziwei_result = f"""置信度: {v['ziwei_confidence']}
+支持证据: {', '.join(v.get('ziwei_supporting_evidence', []))}
+冲突点: {', '.join(v.get('ziwei_conflicts', []))}
+总结: {v.get('ziwei_summary', '')}"""
+                        
+                    print(f"✅ 已加载 Child AI 验证结果: 八字={v.get('bazi_confidence')}, 紫微={v.get('ziwei_confidence')}")
+            except Exception as e:
+                print(f"⚠️ 获取验证结果失败: {e}")
+        
+        # 获取Primary AI的系统Prompt（动态加载最新问卷 + 注入 Child AI 验证结果）
+        system_prompt = get_primary_ai_prompt(bazi_result=bazi_result, ziwei_result=ziwei_result)
         
         # 【知识检索增强】Primary AI 使用规则 + 模式
         knowledge_context = ""
