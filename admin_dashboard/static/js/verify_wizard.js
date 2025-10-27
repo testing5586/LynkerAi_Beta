@@ -418,6 +418,9 @@ async function processChartText(text, type) {
                 
                 // AI 引导
                 updateAIGuidance();
+                
+                // 自动触发 Primary AI 问卷
+                triggerQuestionnaireStart();
             }
         } else {
             throw new Error(data.toast || "验证失败");
@@ -569,7 +572,46 @@ function updateAIGuidance() {
     if (state.conversationState === 'waiting_ziwei') {
         addAIMessage("很好！八字命盘已经验证完成。接下来，请上传你的<strong>紫微斗数命盘</strong>。");
     } else if (state.conversationState === 'ready_to_save') {
-        addAIMessage("太棒了！两份命盘都已验证完成。请确认以上信息无误后，在聊天框中输入 <strong>\"确认保存\"</strong>，我会帮你保存到数据库。");
+        // 不再自动提示保存，改为由问卷完成后触发
+        console.log('两份命盘已验证完成，等待问卷触发');
+    }
+}
+
+// ========== 自动触发问卷 ==========
+async function triggerQuestionnaireStart() {
+    try {
+        const response = await fetch('/verify/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: state.userId,
+                message: "__SYSTEM_TRIGGER_START_QUESTIONNAIRE__",
+                history: state.conversationHistory,
+                chart_uploaded: true,
+                group_index: state.currentGroupIndex,
+                life_events: state.lifeEvents,
+                parsed_chart: {}
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok && data.message) {
+            // 显示 Primary AI 的问卷第一句话
+            addAIMessage(`<p>${data.message}</p>`);
+            
+            // 更新对话历史
+            state.conversationHistory.push({
+                role: 'system',
+                content: 'Questionnaire started'
+            });
+            state.conversationHistory.push({
+                role: 'assistant',
+                content: data.message
+            });
+        }
+    } catch (error) {
+        console.error('触发问卷失败:', error);
     }
 }
 

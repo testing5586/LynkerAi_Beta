@@ -382,6 +382,47 @@ def chat():
             "message": "消息不能为空"
         }), 400
     
+    # 【特殊触发】检测系统触发问卷开始
+    if user_message == "__SYSTEM_TRIGGER_START_QUESTIONNAIRE__":
+        # 加载问卷第一句话
+        try:
+            from verify.wizard_loader import load_latest_wizard
+            questionnaire = load_latest_wizard()
+            
+            if questionnaire and questionnaire.get("questions"):
+                first_question = questionnaire["questions"][0]
+                question_text = first_question.get("question", "")
+                options_text = ""
+                
+                if first_question.get("options"):
+                    options_list = [f"({opt['id']}) {opt['text']}" for opt in first_question["options"]]
+                    options_text = "\n" + "\n".join(options_list)
+                
+                questionnaire_start_message = f"我们先从家庭背景开始吧。\n{question_text}{options_text}"
+                
+                return jsonify({
+                    "ok": True,
+                    "message": questionnaire_start_message,
+                    "ai_name": "灵伴",
+                    "questionnaire_started": True
+                })
+            else:
+                return jsonify({
+                    "ok": True,
+                    "message": "我们先从家庭背景开始吧。\n请告诉我，你的父母目前的状态是？\n(1) 双亲健在 (2) 父亡 (3) 母亡 (4) 离异 (5) 关系疏远",
+                    "ai_name": "灵伴",
+                    "questionnaire_started": True
+                })
+        except Exception as e:
+            print(f"⚠️ 加载问卷失败: {e}")
+            # 使用默认问卷第一句话
+            return jsonify({
+                "ok": True,
+                "message": "我们先从家庭背景开始吧。\n请告诉我，你的父母目前的状态是？\n(1) 双亲健在 (2) 父亡 (3) 母亡 (4) 离异 (5) 关系疏远",
+                "ai_name": "灵伴",
+                "questionnaire_started": True
+            })
+    
     # 获取 AI 名称（从数据库 users 表）
     primary_ai_name = "灵伴"  # 默认名称
     bazi_name = "八字观察员"
