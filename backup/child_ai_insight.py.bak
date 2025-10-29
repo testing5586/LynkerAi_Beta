@@ -13,14 +13,6 @@ LynkerAI Child AI Insight Generator - 子AI独立洞察生成器
 5. 节省主AI Token：使用规则模板替代大模型，降低运行成本
 """
 
-# -*- coding: utf-8 -*-
-import sys, io
-# Only wrap stdout/stderr if not already wrapped
-if not hasattr(sys.stdout, 'buffer'):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-if not hasattr(sys.stderr, 'buffer'):
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
 from datetime import datetime
 from typing import List, Optional
 import os
@@ -33,17 +25,17 @@ import json
 def init_insight_table(supabase):
     """自动检测并创建子AI洞察表"""
     if supabase is None:
-        print("[警告] Supabase 未连接，跳过子AI表检查。")
+        print("⚠️ Supabase 未连接，跳过子AI表检查。")
         return
     
     try:
         # 尝试查询表，检查是否存在
         supabase.table("child_ai_insights").select("id").limit(1).execute()
-        print("[成功] Table 'child_ai_insights' already exists.")
+        print("✅ Table 'child_ai_insights' already exists.")
     except Exception as e:
-        print("[警告] Table 'child_ai_insights' not found, it may need to be created manually.")
-        print("[信息] Please create it using the SQL editor in Supabase Dashboard if needed.")
-        print("[信息] SQL schema available in: supabase_tables_schema.sql")
+        print("🛠️ Table 'child_ai_insights' not found, it may need to be created manually.")
+        print("📋 Please create it using the SQL editor in Supabase Dashboard if needed.")
+        print("💡 SQL schema available in: supabase_tables_schema.sql")
 
 
 # ----------------------------------------------------------
@@ -92,22 +84,22 @@ def generate_child_insight(
     # 2️⃣ 定义规则模板（基于相似度分级）
     if similarity >= 0.9:
         relation = "命格高度共振，彼此能深刻理解"
-        level_emoji = "[高级]"
+        level_emoji = "💫"
     elif similarity >= 0.8:
         relation = "命盘共鸣强烈，适合合作或友谊"
-        level_emoji = "[良好]"
+        level_emoji = "✨"
     elif similarity >= 0.7:
         relation = "命理特征有一定相似性，适合轻交流"
-        level_emoji = "[中等]"
+        level_emoji = "🌟"
     else:
         relation = "命理有共通点，可能在特定领域产生共鸣"
-        level_emoji = "[一般]"
+        level_emoji = "💡"
     
     # 3️⃣ 组合 Insight 报告文本
     insight_text = (
         f"{level_emoji} 你与 {partner_id} 的命理相似度为 {similarity:.3f}。\n"
-        f"[特征] 共同特征：{tags_text}。\n"
-        f"[结论] → {relation}。"
+        f"📋 共同特征：{tags_text}。\n"
+        f"🔮 → {relation}。"
     )
     
     # 4️⃣ 保存到数据库（Supabase优先，失败则保存到本地JSON）
@@ -125,18 +117,18 @@ def generate_child_insight(
                 "insight_text": insight_text,
                 "created_at": datetime.now().isoformat()
             }).execute()
-           
-            print(f"[保存] 子AI Insight 已生成并保存到Supabase：{user_id} ↔ {partner_id} (相似度 {similarity:.3f})")
+            
+            print(f"💞 子AI Insight 已生成并保存到Supabase：{user_id} ↔ {partner_id} (相似度 {similarity:.3f})")
             saved = True
         except Exception as e:
-            print(f"[警告] Supabase保存失败，使用本地备份: {e}")
+            print(f"⚠️ Supabase保存失败，使用本地备份: {e}")
     
     # 如果Supabase失败，保存到本地JSON文件
     if not saved:
         try:
             os.makedirs("./data", exist_ok=True)
             backup_file = "./data/child_ai_insights_backup.jsonl"
-           
+            
             record = {
                 "user_id": user_id,
                 "partner_id": partner_id,
@@ -145,17 +137,17 @@ def generate_child_insight(
                 "insight_text": insight_text,
                 "created_at": datetime.now().isoformat()
             }
-           
+            
             with open(backup_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
-           
-            print(f"[保存] 子AI Insight 已生成并保存到本地文件：{user_id} ↔ {partner_id} (相似度 {similarity:.3f})")
+            
+            print(f"💞 子AI Insight 已生成并保存到本地文件：{user_id} ↔ {partner_id} (相似度 {similarity:.3f})")
             saved = True
         except Exception as e:
-            print(f"[警告] 本地文件保存失败: {e}")
+            print(f"⚠️ 本地文件保存失败: {e}")
     
     if not saved:
-        print(f"[信息] 子AI Insight 已生成（未保存）：{user_id} ↔ {partner_id}")
+        print(f"💞 子AI Insight 已生成（未保存）：{user_id} ↔ {partner_id}")
     
     return insight_text
 
@@ -220,7 +212,7 @@ def run_child_ai_insight(user_id: str, matches: list, supabase=None):
     返回：
         insights: 生成的洞察列表
     """
-    print("\n[启动] 正在启动子AI Insight生成器 ...")
+    print("\n🤖 正在启动子AI Insight生成器 ...")
     
     # 检查并初始化表
     init_insight_table(supabase)
@@ -228,7 +220,7 @@ def run_child_ai_insight(user_id: str, matches: list, supabase=None):
     # 批量生成Insight
     insights = batch_generate_insights(user_id, matches, supabase)
     
-    print(f"\n[完成] 子AI共生成 {len(insights)} 条洞察报告")
+    print(f"\n✅ 子AI共生成 {len(insights)} 条洞察报告")
     
     return insights
 
@@ -239,7 +231,7 @@ def run_child_ai_insight(user_id: str, matches: list, supabase=None):
 if __name__ == "__main__":
     from supabase_init import init_supabase
     
-    print("[测试] 测试子AI Insight生成器 ...")
+    print("🧪 测试子AI Insight生成器 ...")
     
     # 初始化Supabase
     supabase = init_supabase()
@@ -262,14 +254,7 @@ if __name__ == "__main__":
     insights = run_child_ai_insight("u_demo", test_matches, supabase)
     
     # 输出结果
-    print("\n[结果] 生成的Insight:")
+    print("\n📊 生成的Insight:")
     for insight in insights:
         print(f"\n{'-'*60}")
         print(insight["insight_text"])
-
-def safe_print(*args, **kwargs):
-    try:
-        print(*args, **kwargs)
-    except UnicodeEncodeError:
-        msg = " ".join(str(a) for a in args)
-        print(msg.encode('utf-8', 'replace').decode('utf-8'))

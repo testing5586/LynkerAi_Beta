@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Child AI Agent - 执行分析层
 负责：数据库检索、命盘模式识别、统计规律提取
@@ -13,14 +14,14 @@ try:
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False
-    print("⚠️ Supabase SDK 不可用，Child AI 使用模拟数据")
+    print("Warning: Supabase SDK not available, Child AI using mock data", flush=True)
 
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("⚠️ OpenAI SDK 不可用")
+    print("Warning: OpenAI SDK not available", flush=True)
 
 
 class ChildAgent:
@@ -62,7 +63,7 @@ class ChildAgent:
             resp = query.limit(self.config["database"]["max_query_results"]).execute()
             return resp.data or []
         except Exception as e:
-            print(f"❌ Child AI 查询失败: {e}")
+            print(f"Error: Child AI query failed: {e}", flush=True)
             return self._mock_birthcharts()
     
     def query_match_results(self, user_id: Optional[int] = None) -> List[Dict]:
@@ -79,7 +80,7 @@ class ChildAgent:
             resp = query.limit(50).execute()
             return resp.data or []
         except Exception as e:
-            print(f"❌ Child AI 查询匹配结果失败: {e}")
+            print(f"Error: Child AI match results query failed: {e}", flush=True)
             return []
     
     def analyze_pattern(self, task: str) -> Dict[str, Any]:
@@ -104,6 +105,13 @@ class ChildAgent:
         
         for chart in charts:
             birth_data = chart.get("birth_data", {})
+            
+            # 确保 birth_data 是字典类型
+            if isinstance(birth_data, str):
+                try:
+                    birth_data = json.loads(birth_data)
+                except:
+                    birth_data = {}
             
             star = birth_data.get("main_star") or chart.get("main_star")
             palace = birth_data.get("ziwei_palace") or chart.get("ziwei_palace")
@@ -176,7 +184,7 @@ class ChildAgent:
             
             return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"⚠️ Child AI 总结生成失败: {e}")
+            print(f"Warning: Child AI summary generation failed: {e}", flush=True)
             return self._simple_summary(patterns)
     
     def _extract_core_findings(self, patterns: Dict) -> List[str]:

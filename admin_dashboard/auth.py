@@ -1,5 +1,11 @@
+# -*- coding: utf-8 -*-
 import os
 import hashlib
+from dotenv import load_dotenv
+# Try to load .env from multiple possible locations
+load_dotenv(dotenv_path='../.env')
+load_dotenv(dotenv_path='.env')
+load_dotenv()
 
 MASTER_KEY = os.getenv("MASTER_VAULT_KEY")
 if not MASTER_KEY:
@@ -7,6 +13,10 @@ if not MASTER_KEY:
 
 def verify_login(password):
     token = hashlib.sha256(MASTER_KEY.encode()).hexdigest()[:16]
+    print(f"DEBUG: MASTER_KEY={MASTER_KEY}")
+    print(f"DEBUG: Expected token={token}")
+    print(f"DEBUG: Received password={password}")
+    print(f"DEBUG: Password match={password == token}")
     return password == token
 
 def get_access_token():

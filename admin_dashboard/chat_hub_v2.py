@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Chat Hub v2.0 - 真实 AI 协作推理系统
 替代旧的模拟系统，集成 Lynker Engine
@@ -15,9 +16,9 @@ def init_engine():
     if engine is None:
         try:
             engine = LynkerEngine()
-            print("✅ Lynker Engine v2.0 初始化成功")
+            print("OK: Lynker Engine v2.0 initialized successfully")
         except Exception as e:
-            print(f"❌ Lynker Engine 初始化失败: {e}")
+            print(f"ERROR: Lynker Engine initialization failed: {e}")
             engine = None
 
 
@@ -35,26 +36,26 @@ def process_message(message: str) -> List[str]:
     
     if engine is None:
         return [
-            "🤖 Child AI: 系统初始化中...",
-            "🧩 Group Leader: 系统初始化中...",
-            "🧠 Master AI: 系统初始化中..."
+            "Child AI: System initializing...",
+            "Group Leader: System initializing...",
+            "Master AI: System initializing..."
         ]
     
     try:
         responses = engine.process_query(message)
         
         return [
-            responses.get("child", "🤖 Child AI: 无响应"),
-            responses.get("leader", "🧩 Group Leader: 无响应"),
-            responses.get("master", "🧠 Master AI: 无响应")
+            responses.get("child", "Child AI: No response"),
+            responses.get("leader", "Group Leader: No response"),
+            responses.get("master", "Master AI: No response")
         ]
     
     except Exception as e:
-        print(f"❌ 处理消息失败: {e}")
+        print(f"ERROR: Message processing failed: {e}")
         return [
-            f"🤖 Child AI: 处理出错 ({str(e)})",
-            "🧩 Group Leader: 等待 Child AI 完成...",
-            "🧠 Master AI: 等待团队分析..."
+            f"Child AI: Processing error ({str(e)})",
+            "Group Leader: Waiting for Child AI to complete...",
+            "Master AI: Waiting for team analysis..."
         ]
 
 
@@ -64,13 +65,13 @@ def get_agent_info() -> Dict:
     
     if engine is None:
         return {
-            "master": {"name": "Master AI", "icon": "🧠", "model": "未知", "role": "主控推理"},
-            "leader": {"name": "Group Leader", "icon": "🧩", "model": "未知", "role": "任务协调"},
-            "child": {"name": "Child AI", "icon": "🤖", "model": "未知", "role": "执行分析"}
+            "master": {"name": "Master AI", "icon": "[Master]", "model": "Unknown", "role": "Main Control"},
+            "leader": {"name": "Group Leader", "icon": "[Leader]", "model": "Unknown", "role": "Task Coordination"},
+            "child": {"name": "Child AI", "icon": "[Child]", "model": "Unknown", "role": "Execution Analysis"}
         }
     
     try:
         return engine.get_agent_info()
     except Exception as e:
-        print(f"❌ 获取 Agent 信息失败: {e}")
+        print(f"ERROR: Failed to get Agent info: {e}")
         return {}

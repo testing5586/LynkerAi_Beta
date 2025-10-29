@@ -15,14 +15,6 @@ child_ai_feedback.py
 python child_ai_feedback.py
 """
 
-# -*- coding: utf-8 -*-
-import sys, io
-# Only wrap stdout/stderr if not already wrapped
-if not hasattr(sys.stdout, 'buffer'):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-if not hasattr(sys.stderr, 'buffer'):
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
 from datetime import datetime
 import json, os
 
@@ -31,7 +23,7 @@ try:
     supabase = get_supabase()
 except Exception as e:
     supabase = None
-    print(f"[警告] Supabase连接失败，本地模式启用：{e}")
+    print(f"⚠️ Supabase连接失败，本地模式启用：{e}")
 
 # ✅ 表名
 TABLE_NAME = "child_ai_feedback"
@@ -64,13 +56,13 @@ def save_feedback(user_id, partner_id, liked, comment=""):
     if supabase:
         try:
             supabase.table(TABLE_NAME).insert(record).execute()
-            feedback_type = '喜欢' if liked else '不喜欢'
-            print(f"[保存] 反馈已保存到 Supabase → {user_id} ↔ {partner_id} [{feedback_type}]")
+            print(f"💾 反馈已保存到 Supabase → {user_id} ↔ {partner_id} [{'👍' if liked else '👎']}")
         except Exception as e:
-            print(f"[警告] Supabase 写入失败，转为本地备份: {e}")
+            print(f"⚠️ Supabase 写入失败，转为本地备份: {e}")
             save_feedback_local(record)
     else:
         save_feedback_local(record)
+
 
 # ✅ 本地 JSON 备份
 def save_feedback_local(record):
@@ -78,23 +70,16 @@ def save_feedback_local(record):
     backup_file = "./data/child_ai_feedback_backup.jsonl"
     with open(backup_file, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    feedback_type = '喜欢' if record['liked'] else '不喜欢'
-    print(f"[保存] 已本地保存反馈：{record['user_id']} ↔ {record['partner_id']} [{feedback_type}]")
+    print(f"💾 已本地保存反馈：{record['user_id']} ↔ {record['partner_id']} [{'👍' if record['liked'] else '👎']}")
+
 
 # ✅ 测试函数（可选）
 def test_feedback_flow():
-    print("[测试] 测试反馈流程...")
-    save_feedback("u_demo", "u_test1", True, "感觉这个人命格很像我 [喜欢]")
-    save_feedback("u_demo", "u_test2", False, "命格太不同，不合适 [不喜欢]")
+    print("🧪 测试反馈流程...")
+    save_feedback("u_demo", "u_test1", True, "感觉这个人命格很像我 👍")
+    save_feedback("u_demo", "u_test2", False, "命格太不同，不合适 👎")
 
 if __name__ == "__main__":
-    print("[启动] 子AI反馈模块启动中...")
+    print("🚀 子AI反馈模块启动中...")
     test_feedback_flow()
-    print("[完成] 测试完成！")
-
-def safe_print(*args, **kwargs):
-    try:
-        print(*args, **kwargs)
-    except UnicodeEncodeError:
-        msg = " ".join(str(a) for a in args)
-        print(msg.encode('utf-8', 'replace').decode('utf-8'))
+    print("✅ 测试完成！")

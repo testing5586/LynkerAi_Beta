@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+import sys, io
+# Only wrap stdout/stderr if not already wrapped
+if not hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if not hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 """
 Lynker Engine v2.0 - 核心智能协作引擎
 负责：协调 Master AI、Group Leader、Child AI 三方协作
@@ -81,7 +89,7 @@ class LynkerEngine:
             }
         
         except Exception as e:
-            print(f"❌ Lynker Engine 处理失败: {e}")
+            print(f"ERROR: Lynker Engine processing failed: {e}", flush=True)
             import traceback
             traceback.print_exc()
             return self._fallback_response(user_query)
@@ -97,7 +105,7 @@ class LynkerEngine:
             entries = list_vault_entries(role="Superintendent Admin")
             
             if not entries:
-                print("ℹ️ Master Vault 暂无知识条目")
+                print("INFO: Master Vault has no knowledge entries", flush=True)
                 return None
             
             recent = entries[:3]
@@ -109,10 +117,10 @@ class LynkerEngine:
             
             return context
         except ImportError as e:
-            print(f"⚠️ Master Vault Engine 未安装: {e}")
+            print(f"WARNING: Master Vault Engine not installed: {e}", flush=True)
             return None
         except Exception as e:
-            print(f"⚠️ 无法获取 Vault 知识: {e}")
+            print(f"WARNING: Cannot get Vault knowledge: {e}", flush=True)
             return None
     
     def _save_to_vault(self, user_query: str, master_result: Dict, leader_report: Dict) -> bool:
@@ -146,11 +154,11 @@ Master AI 结论：
                 role="Superintendent Admin"
             )
             
-            print(f"✅ 已将高信度发现存入 Master Vault：{title}")
+            print(f"OK: Saved high confidence findings to Master Vault: {title}", flush=True)
             return True
             
         except Exception as e:
-            print(f"⚠️ Vault 存储失败: {e}")
+            print(f"WARNING: Vault storage failed: {e}", flush=True)
             return False
     
     def _notify_superintendent(self, master_result: Dict) -> bool:
@@ -161,7 +169,7 @@ Master AI 结论：
             new_discoveries = master_result.get("new_discoveries", [])
             
             notification = f"""
-🧠 新规律已验证！
+[新规律] 新规律已验证！
 
 置信度：{confidence:.2%}
 样本量：{sample_size} 份
@@ -170,12 +178,12 @@ Master AI 结论：
 请前往 Master Vault 查看完整报告。
 """
             
-            print(notification)
+            print(notification, flush=True)
             
             return True
             
         except Exception as e:
-            print(f"⚠️ Superintendent 通知失败: {e}")
+            print(f"WARNING: Superintendent notification failed: {e}", flush=True)
             return False
     
     def _fallback_response(self, user_query: str) -> Dict[str, Any]:

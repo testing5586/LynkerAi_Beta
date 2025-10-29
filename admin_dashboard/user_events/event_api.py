@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 用户事件追踪 API
 Event Tracking API Blueprint
@@ -69,7 +70,7 @@ def track_event():
         if hasattr(result, 'data') and result.data:  # type: ignore
             inserted_id = result.data[0].get("id")  # type: ignore
             
-            print(f"✅ 事件已记录: user_id={user_id}, type={event_type}, emotion={emotion_label}")
+            print(f"OK: Event recorded: user_id={user_id}, type={event_type}, emotion={emotion_label}")
             
             return jsonify({
                 "status": "ok",
@@ -83,7 +84,7 @@ def track_event():
             return jsonify({"error": "插入失败"}), 500
             
     except Exception as e:
-        print(f"❌ 事件追踪失败: {e}")
+        print(f"ERROR: Event tracking failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -103,7 +104,7 @@ def get_insights(user_id):
         
         if hasattr(result, 'data') and result.data:  # type: ignore
             insight = result.data[0]  # type: ignore
-            print(f"✅ 查询用户画像: user_id={user_id}")
+            print(f"OK: Queried user profile: user_id={user_id}")
             return jsonify(insight)
         else:
             # 返回默认空画像
@@ -115,11 +116,11 @@ def get_insights(user_id):
                 "push_ready": False,
                 "updated_at": None
             }
-            print(f"⚠️ 用户画像不存在，返回默认值: user_id={user_id}")
+            print(f"Warning: User profile does not exist, returning default values: user_id={user_id}")
             return jsonify(default_insight)
             
     except Exception as e:
-        print(f"❌ 查询用户画像失败: {e}")
+        print(f"ERROR: Failed to query user profile: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -168,5 +169,5 @@ def get_overview():
         })
         
     except Exception as e:
-        print(f"❌ 查询事件概览失败: {e}")
+        print(f"ERROR: Failed to query event overview: {e}")
         return jsonify({"error": str(e)}), 500
