@@ -1,0 +1,97 @@
+Replit 修复 Prompt（完整版，可直接贴入）
+Please patch the backend to fix the Bazi AI not reading pasted chart text (命盘数据不完整问题).
+
+📍 File: admin_dashboard/verify/routes_full_chart.py
+
+### STEP 1 — Import dependencies
+At the top of the file (after existing imports), ensure this is present:
+--------------------------------------------------
+import re
+import json
+--------------------------------------------------
+
+### STEP 2 — Add text parser function
+Place this helper anywhere above run_full_chart_ai():
+
+--------------------------------------------------
+def parse_bazi_text(text):
+    """解析用户粘贴的八字文本为JSON结构"""
+    if not text:
+        return {"parsed": None}
+
+    data = {}
+    lines = text.strip().split("\n")
+
+    # 四柱识别
+    for line in lines:
+        if "年柱" in line or "月柱" in line or "日柱" in line or "时柱" in line:
+            match = re.findall(r"([甲乙丙丁戊己庚辛壬癸])([子丑寅卯辰巳午未申酉戌亥])", line)
+            if match and len(match) >= 4:
+                data["year_pillar"], data["month_pillar"], data["day_pillar"], data["hour_pillar"] = match[:4]
+
+        if "阳历" in line or "出生" in line:
+            date = re.findall(r"(\d{4}[年\-\.]\d{1,2}[月\-\.]\d{1,2})", line)
+            if date:
+                data["birth_date"] = date[0]
+
+    # 天干地支表识别（例如行内包含 天干、地支）
+    if not data and ("天干" in text or "地支" in text):
+        match_all = re.findall(r"([甲乙丙丁戊己庚辛壬癸])([子丑寅卯辰巳午未申酉戌亥])", text)
+        if len(match_all) >= 4:
+            data["year_pillar"], data["month_pillar"], data["day_pillar"], data["hour_pillar"] = match_all[:4]
+
+    return {"parsed": data if data else None}
+--------------------------------------------------
+
+### STEP 3 — Inject into main analysis route
+Inside `run_full_chart_ai()`, locate where the request body is read:
+
+```python
+bazi_chart = data.get("bazi_chart")
+ziwei_chart = data.get("ziwei_chart")
+
+
+Immediately below that, insert this logic:
+
+Try to parse plain-text Bazi input
+
+if isinstance(bazi_chart, str):
+if not bazi_chart.strip().startswith("{"):
+parsed = parse_bazi_text(bazi_chart)
+bazi_data = parsed if parsed else {"parsed": None}
+else:
+try:
+bazi_data = json.loads(bazi_chart)
+except Exception:
+bazi_data = {"parsed": None}
+else:
+bazi_data = bazi_chart if bazi_chart else {"parsed": None}
+
+Ziwei JSON
+try:
+ziwei_data = json.loads(ziwei_chart) if ziwei_chart else {}
+except Exception:
+ziwei_data = {}
+STEP 4 — Keep existing AI flow unchanged
+
+Ensure the next few lines (that check for completeness) remain:
+
+if not bazi_data or not bazi_data.get("parsed"):
+    return {"summary": "命盘数据不完整，无法进行有效分析。", "confidence": "低"}
+
+STEP 5 — Restart Flask
+
+After saving, restart the server in Replit (Ctrl+C then python main.py).
+
+🧪 Test
+
+Paste your full Bazi text in the textarea (the same as screenshot).
+
+Click 「开始分析」 under Mode B.
+
+Observe backend logs — you should see:
+
+[Mode B] Parsed Bazi pillars: {'year_pillar': '庚辰', 'month_pillar': '己卯', 'day_pillar': '丁丑', 'hour_pillar': '甲辰'}
+
+
+“命盘数据不完整” will disappear and 八字 AI will join紫微分析输出。
