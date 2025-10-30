@@ -692,14 +692,24 @@ def run_full_chart_analysis():
         bazi_text = f"年柱:{data['year_pillar']} 月柱:{data['month_pillar']} 日柱:{data['day_pillar']} 时柱:{data['hour_pillar']}"
         print(f"[Mode B] 八字从主字段提取: {bazi_text}")
     
-    # 🧩 格式校验
-    if not re.search(r"年柱[:：].+月柱[:：].+日柱[:：].+时柱[:：]", bazi_text):
+    # 🧩 文本规范化：移除多余空白字符，统一换行符
+    if isinstance(bazi_text, str):
+        # 将所有换行符替换为空格，方便正则匹配
+        bazi_text_normalized = re.sub(r'\s+', ' ', bazi_text.strip())
+        print(f"[Mode B] 八字文本规范化: {bazi_text_normalized}")
+    else:
+        bazi_text_normalized = bazi_text
+    
+    # 🧩 格式校验（使用 re.DOTALL 支持多行）
+    if not re.search(r"年柱[:：].+?月柱[:：].+?日柱[:：].+?时柱[:：]", bazi_text_normalized, re.DOTALL):
+        print(f"[Mode B] ❌ 八字文本校验失败: {bazi_text_normalized}")
         return jsonify({
             "ok": False,
             "error": "八字文本解析失败，请检查格式是否正确。支持格式：年柱:甲子 月柱:丙寅 日柱:戊午 时柱:庚申"
         }), 400
     
-    print(f"[Mode B] ✅ 最终八字文本: {bazi_text}")
+    print(f"[Mode B] ✅ 最终八字文本: {bazi_text_normalized}")
+    bazi_text = bazi_text_normalized
     
     # ========== 1.2 解析八字文本为结构化数据 ==========
     parsed_result = parse_bazi_text(bazi_text)
