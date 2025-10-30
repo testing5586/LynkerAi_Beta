@@ -104,13 +104,17 @@ def render_page():
     渲染真命盘验证中心主页
     需要用户登录（从 session 获取 user_id）
     """
-    user_id = session.get("user_id") or request.args.get("user_id")
+    user_id = request.args.get("user_id") or session.get("user_id")
     
     if not user_id:
         return jsonify({
             "ok": False,
-            "toast": "请先登录后再使用真命盘验证功能"
+            "toast": "请先登录后再使用真命盘验证功能。请在URL中添加?user_id=你的用户ID"
         }), 401
+    
+    # 如果从 URL 参数获取user_id，同时存入session以便后续API调用
+    if request.args.get("user_id"):
+        session["user_id"] = user_id
     
     return render_template("verify_wizard.html", user_id=user_id)
 
