@@ -33,7 +33,7 @@ except ImportError:
     def create_validation_log(*args, **kwargs):
         return {}
 
-bp = Blueprint("verify_wizard", __name__, url_prefix="/verify")
+bp = Blueprint("verify_wizard", __name__, url_prefix="/verify", template_folder='../templates')
 
 # 初始化 Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")

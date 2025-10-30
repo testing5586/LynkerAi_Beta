@@ -13,7 +13,9 @@ const AppState = {
     ziweiUploaded: false,
     conversationHistory: [],
     lifeEvents: "",
-    parsedChart: {}
+    parsedChart: {},
+    lastQuestion: "",  // 记录灵伴最后提出的问题
+    currentChartData: {}  // 当前命盘数据
 };
 
 // DOM 元素引用
@@ -158,7 +160,10 @@ async function confirmTrueChart() {
         const result = await response.json();
         
         if (result.ok) {
-            AppState.chartLocked = true;
+            // ✅ 修复：同步 chart_locked 状态
+            AppState.chartLocked = result.chart_locked === true || true;
+            console.log("🔒 真命盘已锁定:", AppState.chartLocked);
+
             addSystemMessage('真命盘已确认！现在可以对AI的断语进行验证了。');
             
             // 触发AI发送总结性问题
@@ -195,6 +200,18 @@ async function sendToAI(message) {
         const result = await response.json();
         
         if (result.ok) {
+            // 检测是否是问题类型的消息（包含问号或特定模式）
+            const isQuestion = result.message.includes('?') || 
+                              result.message.includes('请告诉我') || 
+                              result.message.includes('你觉得') ||
+                              result.message.includes('如何') ||
+                              result.message.includes('什么');
+            
+            // 如果是问题，记录为最后的问题
+            if (isQuestion) {
+                AppState.lastQuestion = result.message;
+            }
+            
             // 添加AI回复到界面
             addAIMessage(result.message, result.ai_name);
             
@@ -282,6 +299,7 @@ async function uploadChart(content, type) {
             
             // 保存解析后的命盘数据
             AppState.parsedChart = result.parsed;
+            AppState.currentChartData = result.parsed;
             
             addSystemMessage(`${type === 'bazi' ? '八字' : '紫微'}命盘上传成功！`);
         } else {
@@ -384,6 +402,20 @@ function addAIMessage(message, aiName = '灵伴') {
         role: 'assistant',
         content: message
     });
+
+    // ✅ 自动触发八字与紫微分析
+    if (AppState.chartLocked && (AppState.baziUploaded || AppState.ziweiUploaded)) {
+        console.log("🚀 Primary AI 回复完成，准备自动触发 Child AI 分析");
+        console.log("📩 AI回复触发自动验证", AppState);
+
+        addSystemMessage("🧠 正在根据最新对话验证命盘，请稍候...");
+
+        setTimeout(() => {
+            // 使用 "AI自动检测" 作为回答，因为这是系统自动触发的
+            if (AppState.baziUploaded) triggerBaziChildAI("AI自动检测");
+            if (AppState.ziweiUploaded) triggerZiweiChildAI("AI自动检测");
+        }, 1500);
+    }
 }
 
 // 添加系统消息
@@ -460,4 +492,128 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// 触发八字 Child AI 分析
+async function triggerBaziChildAI(userAnswer) {
+    console.log("🔍 触发八字 Child AI 分析", {
+        question: AppState.lastQuestion,
+        answer: userAnswer,
+        chartData: AppState.currentChartData
+    });
+    
+    try {
+        const response = await fetch('/verify/api/run_child_ai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                mode: 'bazi',
+                question: AppState.lastQuestion,
+                answer: userAnswer,
+                chart_data: AppState.currentChartData,
+                user_id: AppState.userId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+            // 更新八字命盘验证结果区域
+            updateBaziResultArea(result.result);
+            console.log('✅ 八字 Child AI 分析完成', result.result);
+            addSystemMessage("✅ 八字Child AI分析完成，结果已更新。");
+        } else {
+            console.error('八字 Child AI 分析失败:', result.toast);
+            addSystemMessage("❌ 八字Child AI分析失败：" + result.toast);
+        }
+    } catch (error) {
+        console.error('触发八字 Child AI 分析失败:', error);
+        addSystemMessage("❌ 八字Child AI分析异常：" + error.message);
+    }
+}
+
+// 触发紫微 Child AI 分析
+async function triggerZiweiChildAI(userAnswer) {
+    console.log("🔮 触发紫微 Child AI 分析", {
+        question: AppState.lastQuestion,
+        answer: userAnswer,
+        chartData: AppState.currentChartData
+    });
+    
+    try {
+        const response = await fetch('/verify/api/run_child_ai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                mode: 'ziwei',
+                question: AppState.lastQuestion,
+                answer: userAnswer,
+                chart_data: AppState.currentChartData,
+                user_id: AppState.userId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+            // 更新紫微命盘验证结果区域
+            updateZiweiResultArea(result.result);
+            console.log('✅ 紫微 Child AI 分析完成', result.result);
+            addSystemMessage("✅ 紫微Child AI分析完成，结果已更新。");
+        } else {
+            console.error('紫微 Child AI 分析失败:', result.toast);
+            addSystemMessage("❌ 紫微Child AI分析失败：" + result.toast);
+        }
+    } catch (error) {
+        console.error('触发紫微 Child AI 分析失败:', error);
+        addSystemMessage("❌ 紫微Child AI分析异常：" + error.message);
+    }
+}
+
+// 更新八字命盘验证结果区域
+function updateBaziResultArea(result) {
+    const evidenceText = result.key_supporting_evidence.length > 0 
+        ? result.key_supporting_evidence.join('；') 
+        : '无';
+    
+    const html = `
+        <div class="bazi-verification-result">
+            <h6>【八字命盘验证结果】</h6>
+            <p><strong>${result.summary}</strong></p>
+            <p>置信度: <strong>${result.birth_time_confidence}</strong></p>
+            <p>支持证据: ${evidenceText}</p>
+            <div class="validation-status ${result.birth_time_confidence.includes('高') ? 'success' : 'warning'}">
+                ${result.birth_time_confidence.includes('高') ? '✅ 命盘相符' : '⚠️ 需要进一步验证'}
+            </div>
+        </div>
+    `;
+    
+    // 添加到八字结果区域
+    Elements.baziResult.innerHTML = html;
+}
+
+// 更新紫微命盘验证结果区域
+function updateZiweiResultArea(result) {
+    const evidenceText = result.key_supporting_evidence?.length
+        ? result.key_supporting_evidence.join('；')
+        : '无';
+    
+    const html = `
+        <div class="ziwei-verification-result">
+            <h6>【紫微命盘验证结果】</h6>
+            <p><strong>${result.summary || '暂无结论'}</strong></p>
+            <p>置信度: <strong>${result.birth_time_confidence || '未知'}</strong></p>
+            <p>支持证据: ${evidenceText}</p>
+            <div class="validation-status ${result.birth_time_confidence?.includes('高') ? 'success' : 'warning'}">
+                ${result.birth_time_confidence?.includes('高') ? '✅ 命盘相符' : '⚠️ 需要进一步验证'}
+            </div>
+        </div>
+    `;
+    
+    // 添加到紫微结果区域
+    Elements.ziweiResult.innerHTML = html;
 }

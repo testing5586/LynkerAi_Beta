@@ -12,7 +12,11 @@ from chat_hub_v2 import process_message, get_agent_info
 
 import os
 
-app = Flask(__name__)
+# Correctly configure paths relative to the instance folder
+app = Flask(__name__, instance_relative_config=True)
+app.config.from_mapping(
+    STATIC_FOLDER=os.path.join(app.instance_path, '..', 'static')
+)
 app.secret_key = os.getenv("MASTER_VAULT_KEY")
 if not app.secret_key:
     raise ValueError("MASTER_VAULT_KEY environment variable must be set for secure session management")
@@ -46,6 +50,14 @@ try:
     print("[OK] 真命盘验证中心（Wizard）已注册: /verify, /verify/api/preview, /verify/api/submit")
 except Exception as e:
     print(f"[WARN] 真命盘验证中心挂载失败: {e}")
+
+# 注册 Mode B 全盘验证 Blueprint
+try:
+    from verify.routes_full_chart import bp as full_chart_bp
+    app.register_blueprint(full_chart_bp)
+    print("[OK] Mode B 全盘验证已注册: /verify/full_chart, /verify/api/run_full_chart_ai")
+except Exception as e:
+    print(f"[WARN] Mode B 全盘验证挂载失败: {e}")
 
 # 注册问卷管理中心 Blueprint
 try:

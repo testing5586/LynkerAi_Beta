@@ -507,6 +507,10 @@ async function processChartText(text, type) {
                     八字出生时辰可信度：<strong>${formatConfidence(data.bazi_verification)}</strong><br>
                     紫微出生时辰可信度：<strong>${formatConfidence(data.ziwei_verification)}</strong><br><br>
                     💡 这是基于你的人生经历的AI推测。你现在可以上传${type === 'bazi' ? '紫微' : '八字'}命盘进行实际验证。`);
+
+                // ⚠️ Mode B Integration: Check if both charts are ready (auto-verified case)
+                checkModeBActivation();
+                checkModeBReadiness();
             } else {
                 // 单个验证：只更新当前类型的结果
                 if (type === 'bazi') {
@@ -525,12 +529,16 @@ async function processChartText(text, type) {
                 displayResult(data, type);
                 statusSpan.textContent = "验证完成";
                 statusSpan.className = "result-status success";
-                
+
                 // AI 引导
                 updateAIGuidance();
-                
+
                 // 自动触发 Primary AI 问卷
                 triggerQuestionnaireStart();
+
+                // ⚠️ Mode B Integration: Check if both charts are ready
+                checkModeBActivation();
+                checkModeBReadiness();
             }
         } else {
             throw new Error(data.toast || "验证失败");
@@ -1001,3 +1009,381 @@ async function saveToDatabase() {
         addAIMessage(`抱歉，保存时出错了：${error.message}。请稍后重试。`);
     }
 }
+
+// ==================== Mode B Integration ====================
+// Show Mode B section when both charts are uploaded
+// This replaces the one-by-one verification flow with parallel AI analysis
+
+// Mode B state (separate from main wizard state)
+const modeBState = {
+    sopTemplate: null,
+    analysisStarted: false,
+    analysisCompleted: false
+};
+
+// Check if Mode B should be activated
+function checkModeBActivation() {
+    const currentGroup = getCurrentGroup();
+    const bothChartsUploaded = currentGroup.baziUploaded && currentGroup.ziweiUploaded;
+
+    console.log('[Mode B] Checking activation:', {
+        baziUploaded: currentGroup.baziUploaded,
+        ziweiUploaded: currentGroup.ziweiUploaded,
+        bothReady: bothChartsUploaded
+    });
+
+    const modeBSection = document.getElementById('modeBSection');
+
+    if (bothChartsUploaded && modeBSection) {
+        // Show Mode B section with fade-in effect
+        modeBSection.style.display = 'block';
+        modeBSection.style.opacity = '0';
+        setTimeout(() => {
+            modeBSection.style.transition = 'opacity 0.5s ease-in';
+            modeBSection.style.opacity = '1';
+        }, 10);
+
+        console.log('[Mode B] ✅ Activated - Both charts uploaded!');
+
+        // Add AI message to guide user
+        addAIMessage(`
+            <p>🎉 <strong>两份命盘已上传完成！</strong></p>
+            <p>现在可以使用 Mode B 进行全盘验证分析。</p>
+            <p>请在下方选择 SOP 分析模板，然后点击"开始分析"按钮。</p>
+        `);
+    } else if (modeBSection) {
+        // Hide Mode B section
+        modeBSection.style.display = 'none';
+    }
+}
+
+// Initialize Mode B SOP selector
+function initModeBSOPSelector() {
+    const sopSelect = document.getElementById('sopTemplate');
+    if (sopSelect) {
+        sopSelect.addEventListener('change', (e) => {
+            modeBState.sopTemplate = e.target.value;
+            console.log('[Mode B] SOP selected:', modeBState.sopTemplate);
+            checkModeBReadiness();
+        });
+    }
+}
+
+// Check if Mode B analysis can start
+function checkModeBReadiness() {
+    const btn = document.getElementById('startAnalysisBtn');
+    if (!btn) return;
+
+    const currentGroup = getCurrentGroup();
+    const hasBothCharts = currentGroup.baziUploaded && currentGroup.ziweiUploaded;
+    const hasSOP = !!modeBState.sopTemplate;
+    const notStarted = !modeBState.analysisStarted;
+
+    const isReady = hasBothCharts && hasSOP && notStarted;
+
+    btn.disabled = !isReady;
+
+    if (!hasBothCharts) {
+        btn.textContent = '请先上传两份命盘';
+    } else if (!hasSOP) {
+        btn.textContent = '请选择 SOP 分析模板';
+    } else if (modeBState.analysisStarted) {
+        btn.innerHTML = '<span class="loading-spinner"></span> 分析中...';
+    } else {
+        btn.textContent = '开始分析';
+    }
+}
+
+// Upload custom SOP template
+function uploadCustomSOP() {
+    const input = document.getElementById('sopFileInput');
+    if (input) {
+        input.click();
+    }
+}
+
+// Handle SOP file upload
+document.addEventListener('DOMContentLoaded', () => {
+    const sopInput = document.getElementById('sopFileInput');
+    if (sopInput) {
+        sopInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/verify/api/upload_sop', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    // Reload templates and select the new one
+                    const sopSelect = document.getElementById('sopTemplate');
+                    const option = document.createElement('option');
+                    option.value = result.template_id;
+                    option.textContent = result.template_id;
+                    option.selected = true;
+                    sopSelect.appendChild(option);
+
+                    modeBState.sopTemplate = result.template_id;
+                    checkModeBReadiness();
+                    addAIMessage(`✅ SOP 模板上传成功！`);
+                } else {
+                    throw new Error(result.toast || '上传失败');
+                }
+            } catch (error) {
+                console.error('[Mode B] SOP upload failed:', error);
+                addAIMessage(`❌ SOP 模板上传失败：${error.message}`);
+            }
+        });
+    }
+
+    // Initialize Mode B
+    initModeBSOPSelector();
+});
+
+// Start full chart analysis (Mode B)
+async function startFullChartAnalysis() {
+    // ⚠️ Click prevention check
+    if (modeBState.analysisStarted) {
+        console.warn('[Mode B] Analysis already started');
+        return;
+    }
+
+    const currentGroup = getCurrentGroup();
+
+    if (!currentGroup.baziResult || !currentGroup.ziweiResult) {
+        addAIMessage('请先验证两份命盘后再进行全盘分析');
+        return;
+    }
+
+    if (!modeBState.sopTemplate) {
+        addAIMessage('请选择 SOP 分析模板');
+        return;
+    }
+
+    // Mark as started immediately
+    modeBState.analysisStarted = true;
+    console.log('[Mode B] Starting full chart analysis...');
+
+    // Update button
+    const btn = document.getElementById('startAnalysisBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> 分析中...';
+
+    // Show results section
+    const resultsDiv = document.getElementById('analysisResults');
+    if (resultsDiv) {
+        resultsDiv.classList.add('visible');
+    }
+
+    try {
+        // Call backend API
+        const response = await fetch('/verify/api/run_full_chart_ai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                mode: 'full_chart',
+                sop_template_id: modeBState.sopTemplate,
+                bazi_chart: currentGroup.baziResult.parsed,
+                ziwei_chart: currentGroup.ziweiResult.parsed,
+                user_id: state.userId,
+                lang: 'zh'
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+            console.log('[Mode B] Analysis completed successfully');
+            modeBState.analysisCompleted = true;
+
+            // Render results
+            renderModeBResults(result.data);
+
+            // Update AI message
+            addAIMessage(`
+                <p>✅ <strong>全盘验证分析完成！</strong></p>
+                <p>一致性评分：${result.data.consistency_score}/100</p>
+                <p>请查看下方的详细分析结果。</p>
+            `);
+
+            // Update button
+            btn.textContent = '分析完成';
+            btn.style.background = '#00ff9d';
+
+        } else {
+            throw new Error(result.toast || '分析失败');
+        }
+
+    } catch (error) {
+        console.error('[Mode B] Analysis failed:', error);
+        addAIMessage(`❌ 全盘分析失败：${error.message}`);
+
+        // Allow retry
+        modeBState.analysisStarted = false;
+        btn.disabled = false;
+        btn.textContent = '重新分析';
+        btn.style.background = 'linear-gradient(135deg, #00ff9d 0%, #00d4aa 100%)';
+    }
+}
+
+// Render Mode B analysis results
+function renderModeBResults(data) {
+    const { bazi_analysis, ziwei_analysis, primary_ai_summary, consistency_score } = data;
+
+    // Render Bazi results
+    renderAIColumn('baziAnalysisResults', bazi_analysis, '八字');
+
+    // Render Ziwei results
+    renderAIColumn('ziweiAnalysisResults', ziwei_analysis, '紫微');
+
+    // Render comparison table
+    renderComparisonTable(bazi_analysis, ziwei_analysis);
+
+    // Render AI summary
+    renderAISummary(primary_ai_summary, consistency_score);
+}
+
+// Render AI column (Bazi or Ziwei)
+function renderAIColumn(elementId, analysis, typeName) {
+    const column = document.getElementById(elementId);
+    if (!column) return;
+
+    let html = `<h3>${typeName} AI 分析</h3>`;
+
+    if (analysis.modules && analysis.modules.length > 0) {
+        analysis.modules.forEach(module => {
+            const confidenceClass = module.confidence === '高' ? 'confidence-high' :
+                                   module.confidence === '中' ? 'confidence-medium' :
+                                   'confidence-low';
+
+            html += `
+                <div class="module-result">
+                    <h4>${module.module_name}</h4>
+                    <div class="summary">${module.summary || '无分析内容'}</div>
+                    <span class="confidence-badge ${confidenceClass}">${module.confidence}</span>
+                    ${module.supporting_evidence && module.supporting_evidence.length > 0 ? `
+                        <ul class="evidence-list">
+                            ${module.supporting_evidence.map(e => `<li>✓ ${e}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    ${module.conflicts && module.conflicts.length > 0 ? `
+                        <ul class="evidence-list">
+                            ${module.conflicts.map(c => `<li>✗ ${c}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            `;
+        });
+    } else {
+        html += '<p style="color: #888; text-align: center; padding: 40px;">暂无分析结果</p>';
+    }
+
+    column.innerHTML = html;
+}
+
+// Render comparison table
+function renderComparisonTable(baziAnalysis, ziweiAnalysis) {
+    const tbody = document.getElementById('comparisonBody');
+    if (!tbody) return;
+
+    let html = '';
+
+    const baziModules = baziAnalysis.modules || [];
+    const ziweiModules = ziweiAnalysis.modules || [];
+
+    // Match modules by module_id
+    const moduleMap = {};
+    baziModules.forEach(m => {
+        moduleMap[m.module_id] = { bazi: m };
+    });
+    ziweiModules.forEach(m => {
+        if (moduleMap[m.module_id]) {
+            moduleMap[m.module_id].ziwei = m;
+        } else {
+            moduleMap[m.module_id] = { ziwei: m };
+        }
+    });
+
+    Object.values(moduleMap).forEach(pair => {
+        const moduleName = pair.bazi?.module_name || pair.ziwei?.module_name;
+        const baziSummary = pair.bazi?.summary || '无';
+        const ziweiSummary = pair.ziwei?.summary || '无';
+
+        // Simple consistency check (could be enhanced)
+        const consistency = (pair.bazi && pair.ziwei) ? '75%' : '50%';
+
+        html += `
+            <tr>
+                <td><strong>${moduleName}</strong></td>
+                <td>${baziSummary.substring(0, 100)}${baziSummary.length > 100 ? '...' : ''}</td>
+                <td>${ziweiSummary.substring(0, 100)}${ziweiSummary.length > 100 ? '...' : ''}</td>
+                <td>${consistency}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+// Render AI summary
+function renderAISummary(summary, consistencyScore) {
+    const summarySection = document.getElementById('aiSummarySection');
+    const summaryContent = document.getElementById('summaryContent');
+
+    if (!summarySection || !summaryContent) return;
+
+    let html = `
+        <div style="margin-bottom: 20px;">
+            <h4 style="margin-bottom: 12px;">一致性评分</h4>
+            <div style="font-size: 32px; font-weight: bold; color: #fff;">
+                ${consistencyScore}/100
+            </div>
+        </div>
+    `;
+
+    if (summary.consistent_points && summary.consistent_points.length > 0) {
+        html += `
+            <div style="margin-bottom: 16px;">
+                <h4 style="margin-bottom: 8px;">✓ 核心一致点</h4>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                    ${summary.consistent_points.map(p => `<li>${p}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (summary.divergent_points && summary.divergent_points.length > 0) {
+        html += `
+            <div style="margin-bottom: 16px;">
+                <h4 style="margin-bottom: 8px;">⚠️ 主要分歧点</h4>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                    ${summary.divergent_points.map(p => `<li>${p}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (summary.summary_text) {
+        html += `
+            <div style="margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h4 style="margin-bottom: 8px;">综合评述</h4>
+                <p style="margin: 0; line-height: 1.8;">${summary.summary_text}</p>
+            </div>
+        `;
+    }
+
+    summaryContent.innerHTML = html;
+    summarySection.style.display = 'block';
+}
+
+// Mode B integration is triggered directly from processChartText()
+// No need for hooks - activation happens automatically after charts are verified
