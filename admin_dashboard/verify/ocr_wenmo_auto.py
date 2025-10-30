@@ -285,21 +285,8 @@ def ocr_wenmo_auto_from_image(img_path: str) -> Dict[str, Any]:
         return {"error": "GEMINI_API_KEY is not set"}
 
     try:
-        # 尝试多个模型名称，按优先级排序
-        model_names = ["gemini-1.5-flash", "gemini-pro-vision", "gemini-1.5-pro"]
-        model = None
-        last_error = None
-        
-        for model_name in model_names:
-            try:
-                model = genai.GenerativeModel(model_name)
-                break
-            except Exception as e:
-                last_error = str(e)
-                continue
-        
-        if model is None:
-            return {"error": f"无法初始化 Gemini 模型。请检查 API 密钥是否正确。错误: {last_error}"}
+        # 使用旧版稳定模型 gemini-pro-vision
+        model = genai.GenerativeModel("gemini-pro-vision")
         
         with open(img_path, "rb") as f:
             img_bytes = f.read()
