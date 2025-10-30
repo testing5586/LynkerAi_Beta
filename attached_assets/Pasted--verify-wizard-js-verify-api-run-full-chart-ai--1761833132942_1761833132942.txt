@@ -1,0 +1,95 @@
+✅ 一、前端修复（verify_wizard.js）
+
+在你调用 /verify/api/run_full_chart_ai 之前，插入以下函数与替换逻辑👇
+
+// === 在文件顶部或函数体前加入：格式转换函数 ===
+function formatBaziForAPI(baziData) {
+  if (!baziData) return "";
+  if (typeof baziData === "string") return baziData; // 已经是文本格式
+
+  const y = baziData.year_pillar || "";
+  const m = baziData.month_pillar || "";
+  const d = baziData.day_pillar || "";
+  const h = baziData.hour_pillar || "";
+  return `年柱:${y} 月柱:${m} 日柱:${d} 时柱:${h}`;
+}
+
+
+然后在你调用接口时（大概在 startFullChartAnalysis() 函数里）
+把发送体替换成：
+
+// 假设 baziData 是你左侧 JSON 区的数据对象
+// 假设 ziweiData 是右侧 JSON 区的数据对象
+const baziFormatted = formatBaziForAPI(baziData);
+const ziweiText = JSON.stringify(ziweiData, null, 2); // 原样发过去也行
+
+const payload = {
+  user_id: currentUserId || 1,
+  bazi_text: baziFormatted,
+  ziwei_text: ziweiText,
+  sop_template: selectedSOP || "standard_v1"
+};
+
+console.log("[Mode B] Sending payload:", payload);
+
+const response = await fetch("/verify/api/run_full_chart_ai", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload)
+});
+
+
+📌 效果：
+即便用户上传的八字是 JSON，也会自动变成：
+
+年柱:庚辰 月柱:己卯 日柱:丁丑 时柱:甲辰
+
+
+后端旧逻辑完全能理解。
+
+✅ 二、后端修复（run_full_chart_ai.py）
+
+在 /verify/api/run_full_chart_ai 里找到这几行（大概在函数开头）：
+
+data = request.get_json()
+bazi_text = data.get("bazi_text", "")
+
+
+替换成以下智能判断逻辑👇
+
+data = request.get_json() or {}
+bazi_text = data.get("bazi_text", "")
+
+# 🧩 如果前端传来的是 JSON（非字符串）
+if isinstance(bazi_text, dict):
+    y = bazi_text.get("year_pillar", "")
+    m = bazi_text.get("month_pillar", "")
+    d = bazi_text.get("day_pillar", "")
+    h = bazi_text.get("hour_pillar", "")
+    bazi_text = f"年柱:{y} 月柱:{m} 日柱:{d} 时柱:{h}"
+
+# 🧩 若为空但主字段存在
+if not bazi_text and all(k in data for k in ["year_pillar", "month_pillar", "day_pillar", "hour_pillar"]):
+    bazi_text = f"年柱:{data.get('year_pillar','')} 月柱:{data.get('month_pillar','')} 日柱:{data.get('day_pillar','')} 时柱:{data.get('hour_pillar','')}"
+
+# 🧩 校验格式
+if not re.search(r"年柱[:：].+月柱[:：].+日柱[:：].+时柱[:：]", bazi_text):
+    return jsonify({
+        "ok": False,
+        "error": "八字文本解析失败，请检查格式是否正确。支持格式：年柱:甲子 月柱:丙寅 日柱:戊午 时柱:庚申"
+    }), 400
+
+✅ 三、可选：日志输出（调试更方便）
+
+在同一函数加上：
+
+print("[Mode B] Received 八字文本:", bazi_text)
+
+
+这样 Replit Console 会打印每次传入的四柱，方便你验证。
+
+✅ 四、最终效果
+阶段	原问题	修复结果
+前端	发送 JSON 导致 400	自动转格式成“年柱:… 时柱:…”
+后端	无法识别 JSON 格式	自动容错 + 提示
+整体	“全盘验证失败”	✅ 可识别并进入分析流程
