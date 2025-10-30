@@ -284,7 +284,7 @@ def ocr_wenmo_auto_from_image(img_path: str) -> Dict[str, Any]:
     if not GEMINI_API_KEY:
         return {"error": "GEMINI_API_KEY is not set"}
 
-    model = genai.GenerativeModel("gemini-1.5-pro-latest")
+    model = genai.GenerativeModel("gemini-1.5-pro")
     with open(img_path, "rb") as f:
         img_bytes = f.read()
 
