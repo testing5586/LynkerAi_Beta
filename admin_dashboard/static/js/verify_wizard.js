@@ -1432,3 +1432,159 @@ function renderAISummary(summary, consistencyScore) {
 
 // Mode B integration is triggered directly from processChartText()
 // No need for hooks - activation happens automatically after charts are verified
+
+// ========== 文墨天机 OCR 自动识别 ==========
+// 增强八字文件上传，使用文墨天机 OCR 解析器
+document.addEventListener('DOMContentLoaded', function() {
+    const baziFileInput = document.getElementById('baziFile');
+    
+    if (baziFileInput) {
+        // 移除原有的 change 监听器，添加文墨 OCR 监听器
+        baziFileInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const currentGroup = getCurrentGroup();
+            const statusSpan = document.getElementById('baziStatus');
+            const resultContent = document.getElementById('baziResultContent');
+            
+            // 1. 显示识别中状态
+            if (statusSpan) {
+                statusSpan.textContent = "文墨OCR识别中...";
+                statusSpan.className = "result-status processing";
+            }
+            if (resultContent) {
+                resultContent.innerHTML = '<p class="empty-state">正在识别命盘图，调用文墨天机OCR...</p>';
+            }
+            addAIMessage('检测到文墨天机命盘图片，正在使用智能OCR识别...');
+            
+            // 2. 发送到文墨 OCR 端点
+            const fd = new FormData();
+            fd.append('file', file);
+            
+            try {
+                const resp = await fetch('/verify/api/ocr_wenmo_auto', {
+                    method: 'POST',
+                    body: fd
+                });
+                const json = await resp.json();
+                
+                if (json.ok && json.data) {
+                    const data = json.data;
+                    console.log('[文墨OCR] 识别结果:', data);
+                    
+                    // 3. 根据类型处理结果
+                    if (data.type === 'bazi') {
+                        // 八字命盘 - 提取标准字段
+                        const parsed = {
+                            year_pillar: data.四柱?.年柱?.pillar || '',
+                            month_pillar: data.四柱?.月柱?.pillar || '',
+                            day_pillar: data.四柱?.日柱?.pillar || '',
+                            hour_pillar: data.四柱?.时柱?.pillar || '',
+                            birth_date: data.birth_info?.钟表时间 || data.birth_info?.真太阳时 || ''
+                        };
+                        
+                        // 保存完整数据
+                        currentGroup.baziResult = {
+                            parsed: parsed,
+                            wenmo_full_data: data  // 保存完整的文墨数据
+                        };
+                        
+                        // 生成文本用于后续验证
+                        const textForVerify = `
+年柱:${parsed.year_pillar} 月柱:${parsed.month_pillar} 日柱:${parsed.day_pillar} 时柱:${parsed.hour_pillar}
+出生时间:${parsed.birth_date}
+                        `.trim();
+                        
+                        currentGroup.baziText = textForVerify;
+                        
+                        // 显示结果
+                        displayResult(currentGroup.baziResult, 'bazi');
+                        
+                        if (statusSpan) {
+                            statusSpan.textContent = "验证完成";
+                            statusSpan.className = "result-status success";
+                        }
+                        
+                        addAIMessage(`✅ 文墨天机八字命盘识别完成！
+<br>年柱：<strong>${parsed.year_pillar}</strong>
+<br>月柱：<strong>${parsed.month_pillar}</strong>
+<br>日柱：<strong>${parsed.day_pillar}</strong>
+<br>时柱：<strong>${parsed.hour_pillar}</strong>
+<br>出生时间：${parsed.birth_date}`);
+                        
+                        // Mode B 激活检查
+                        checkModeBActivation();
+                        checkModeBReadiness();
+                        
+                    } else if (data.type === 'ziwei') {
+                        // 紫微命盘 - 提取基本信息
+                        const baseInfo = data.基本信息 || {};
+                        const parsed = {
+                            name: baseInfo.性别 ? '文墨用户' : '',
+                            gender: baseInfo.性别 || '',
+                            birth_time: baseInfo.钟表时间 || baseInfo.真太阳时 || '',
+                            main_star: '',
+                            ziwei_palace: ''
+                        };
+                        
+                        // 提取命宫主星
+                        const mingGong = data.命盘十二宫?.命宮 || data.命盘十二宫?.命宫;
+                        if (mingGong) {
+                            parsed.main_star = mingGong.主星?.join(', ') || '';
+                            parsed.ziwei_palace = mingGong.宫支 || '';
+                        }
+                        
+                        currentGroup.ziweiResult = {
+                            parsed: parsed,
+                            wenmo_full_data: data
+                        };
+                        
+                        // 生成文本
+                        const textForVerify = `
+主星:${parsed.main_star}
+命宫:${parsed.ziwei_palace}
+出生时间:${parsed.birth_time}
+                        `.trim();
+                        
+                        currentGroup.ziweiText = textForVerify;
+                        
+                        displayResult(currentGroup.ziweiResult, 'ziwei');
+                        
+                        const ziweiStatus = document.getElementById('ziweiStatus');
+                        if (ziweiStatus) {
+                            ziweiStatus.textContent = "验证完成";
+                            ziweiStatus.className = "result-status success";
+                        }
+                        
+                        addAIMessage(`✅ 文墨天机紫微命盘识别完成！<br>主星：<strong>${parsed.main_star}</strong>`);
+                        
+                        checkModeBActivation();
+                        checkModeBReadiness();
+                        
+                    } else {
+                        // 类型未知
+                        if (resultContent) {
+                            resultContent.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                        }
+                        addAIMessage('⚠️ 无法确定命盘类型，请检查上传的图片格式');
+                    }
+                    
+                } else {
+                    throw new Error(json.error || '识别失败');
+                }
+                
+            } catch (err) {
+                console.error('[文墨OCR] 识别失败:', err);
+                if (statusSpan) {
+                    statusSpan.textContent = "识别失败";
+                    statusSpan.className = "result-status error";
+                }
+                if (resultContent) {
+                    resultContent.innerHTML = `<p class="empty-state" style="color: #721c24;">识别失败：${err.message}</p>`;
+                }
+                addAIMessage(`❌ 文墨OCR识别失败：${err.message}<br>请尝试手动粘贴文本或上传清晰的命盘截图。`);
+            }
+        }, true);  // Use capture phase to override existing listeners
+    }
+});

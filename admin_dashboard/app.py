@@ -67,6 +67,14 @@ try:
 except Exception as e:
     print(f"[WARN] 问卷管理中心挂载失败: {e}")
 
+# 注册文墨天机 OCR 自动识别 Blueprint
+try:
+    from verify.routes_ocr_auto import ocr_auto_bp
+    app.register_blueprint(ocr_auto_bp, url_prefix="/verify")
+    print("[OK] 文墨天机 OCR 已注册: /verify/api/ocr_wenmo_auto")
+except Exception as e:
+    print(f"[WARN] 文墨天机 OCR 挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")

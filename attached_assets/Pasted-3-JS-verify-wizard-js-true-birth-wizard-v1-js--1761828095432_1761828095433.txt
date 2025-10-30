@@ -1,0 +1,98 @@
+3. 前端：挂到你现在的「八字命盘」上传框
+
+你现在这个页面其实已经有个 JS 在管上传了（名字可能是 verify_wizard.js / true_birth_wizard_v1.js 这种），我们只要在八字这块的 file input 上加一段监听就好。
+
+下面这段是增量（你贴给 Replit/Claude 就说“这是增加的监听，不要删原来的逻辑”）：
+
+// 假设你的八字上传 input 是这个id，如果不是就改成你的：
+const baziUploadInput = document.querySelector("#bazi-upload-input, #bazi-file-input, [data-role='bazi-upload']");
+
+if (baziUploadInput) {
+  baziUploadInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 1. UI 上先显示“识别中…”
+    const resultBox = document.querySelector("#bazi-result-json, .bazi-json-view, [data-role='bazi-json']");
+    const statusBar = document.querySelector("#bazi-verify-status, .bazi-status");
+    if (statusBar) {
+      statusBar.innerText = "正在识别命盘图，调用文墨OCR...";
+    }
+    if (resultBox) {
+      resultBox.textContent = "识别中...";
+    }
+
+    // 2. 发给后端
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      const resp = await fetch("/verify/api/ocr_wenmo_auto", {
+        method: "POST",
+        body: fd
+      });
+      const json = await resp.json();
+
+      if (json.ok) {
+        const data = json.data;
+        // 3. 判断是八字还是紫微 → 渲染到对应的框
+        if (data.type === "bazi") {
+          // 左边这个“八字命盘验证结果”的黑框，一般都会有这个容器
+          const pre = document.querySelector("#bazi-json-view, #bazi-json, .bazi-json-pre, #bazi_result_json");
+          if (pre) {
+            pre.textContent = JSON.stringify(data, null, 2);
+          }
+          const status = document.querySelector("#bazi-verify-status-btn, #bazi-verify-status");
+          if (status) {
+            status.innerText = "验证完成";
+          }
+        } else if (data.type === "ziwei") {
+          const pre = document.querySelector("#ziwei-json-view, #ziwei-json, .ziwei-json-pre, #ziwei_result_json");
+          if (pre) {
+            pre.textContent = JSON.stringify(data, null, 2);
+          }
+          const status = document.querySelector("#ziwei-verify-status-btn, #ziwei-verify-status");
+          if (status) {
+            status.innerText = "验证完成";
+          }
+        } else {
+          // 不确定类型就先塞左边
+          if (resultBox) {
+            resultBox.textContent = JSON.stringify(data, null, 2);
+          }
+        }
+      } else {
+        if (resultBox) {
+          resultBox.textContent = "识别失败：" + (json.error || "未知错误");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      if (resultBox) {
+        resultBox.textContent = "识别失败（网络/后端错误）";
+      }
+    }
+  });
+}
+
+
+注意：上面我用了好几个选择器（#bazi-json-view, #bazi-json, .bazi-json-pre...）是因为我现在看不到你前端真正的 id，你只要把它换成你截图里的那个“查看完整 JSON”里 <pre> 的 id 就好。
+你截图里看起来像是：<pre> 在「八字命盘验证结果」下面，所以你可能叫它 #bazi-json 或者你检查一下 HTML。
+
+4. 为什么之前这里是空的？
+
+你最后截图里是：
+
+{
+  "birth_date": "",
+  "day_pillar": "",
+  "gender": "",
+  "hour_pillar": "",
+  "month_pillar": "",
+  "name": "",
+  "year_pillar": ""
+}
+
+
+这是因为你原来的后端只会给一个极简 schema，而你现在贴进来的文墨文本是表格型（藏干/副星/神煞都在一行里），原来的解析器根本没去抓这三行，所以前端只能显示一堆空。
+现在我们写的这一套，就是专门吃文墨格式的，上传完马上能看到一大坨 JSON，而不是空的。
