@@ -284,34 +284,60 @@ def ocr_wenmo_auto_from_image(img_path: str) -> Dict[str, Any]:
     if not GEMINI_API_KEY:
         return {"error": "GEMINI_API_KEY is not set"}
 
-    model = genai.GenerativeModel("gemini-1.5-pro")
-    with open(img_path, "rb") as f:
-        img_bytes = f.read()
+    try:
+        # 尝试多个模型名称，按优先级排序
+        model_names = ["gemini-1.5-flash", "gemini-pro-vision", "gemini-1.5-pro"]
+        model = None
+        last_error = None
+        
+        for model_name in model_names:
+            try:
+                model = genai.GenerativeModel(model_name)
+                break
+            except Exception as e:
+                last_error = str(e)
+                continue
+        
+        if model is None:
+            return {"error": f"无法初始化 Gemini 模型。请检查 API 密钥是否正确。错误: {last_error}"}
+        
+        with open(img_path, "rb") as f:
+            img_bytes = f.read()
 
-    prompt = (
-        "这是一张文墨天机生成的命理命盘截图，可能是八字命盘也可能是紫微斗数命盘。\n"
-        "请先判断是哪一类：\n"
-        "- 如果是紫微斗数，请完整按文墨天机的文字结构把12宫内容转成纯文本（保留树形格式）。\n"
-        "- 如果是八字命盘，请完整转成含藏干, 副星, 神煞列的纯文本，就像你从文墨里复制出来的一样。\n"
-        "不要加解释，不要多写，保持原有的字段名。"
-    )
+        prompt = (
+            "这是一张文墨天机生成的命理命盘截图，可能是八字命盘也可能是紫微斗数命盘。\n"
+            "请先判断是哪一类：\n"
+            "- 如果是紫微斗数，请完整按文墨天机的文字结构把12宫内容转成纯文本（保留树形格式）。\n"
+            "- 如果是八字命盘，请完整转成含藏干, 副星, 神煞列的纯文本，就像你从文墨里复制出来的一样。\n"
+            "不要加解释，不要多写，保持原有的字段名。"
+        )
 
-    res = model.generate_content([prompt, {"mime_type": "image/png", "data": img_bytes}])
-    txt = res.text.strip()
+        res = model.generate_content([prompt, {"mime_type": "image/png", "data": img_bytes}])
+        txt = res.text.strip()
 
-    # 自动判断类型
-    if looks_like_ziwei(txt):
-        parsed = parse_wenmo_ziwei_text(txt)
-    elif looks_like_bazi(txt):
-        parsed = parse_wenmo_bazi_text(txt)
-    else:
-        # 无法判断就都给
-        parsed = {
-            "type": "unknown",
-            "raw": txt
-        }
-    parsed["from"] = "gemini_vision"
-    return parsed
+        # 自动判断类型
+        if looks_like_ziwei(txt):
+            parsed = parse_wenmo_ziwei_text(txt)
+        elif looks_like_bazi(txt):
+            parsed = parse_wenmo_bazi_text(txt)
+        else:
+            # 无法判断就都给
+            parsed = {
+                "type": "unknown",
+                "raw": txt
+            }
+        parsed["from"] = "gemini_vision"
+        return parsed
+        
+    except Exception as e:
+        # 返回详细错误信息
+        error_msg = str(e)
+        if "404" in error_msg and "model" in error_msg.lower():
+            return {"error": "Gemini API 模型不可用。请检查您的 API 密钥是否有效，或者该 API 密钥是否有权限访问 Gemini 视觉模型。"}
+        elif "401" in error_msg or "unauthorized" in error_msg.lower():
+            return {"error": "Gemini API 密钥无效或未授权。请检查 GEMINI_API_KEY 环境变量。"}
+        else:
+            return {"error": f"Gemini Vision 识别失败: {error_msg}"}
 
 
 # --------- 统一入口（文本 or 图片）---------

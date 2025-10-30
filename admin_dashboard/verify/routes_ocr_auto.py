@@ -20,17 +20,32 @@ def api_ocr_wenmo_auto():
     - 如果有 text → 当成文墨文本 → 走文本解析
     返回一定是文墨风格的 JSON
     """
-    if "file" in request.files:
-        f = request.files["file"]
-        save_path = os.path.join(UPLOAD_DIR, f.filename)
-        f.save(save_path)
-        data = ocr_wenmo_auto_from_image(save_path)
-        return jsonify({"ok": True, "data": data})
+    try:
+        if "file" in request.files:
+            f = request.files["file"]
+            save_path = os.path.join(UPLOAD_DIR, f.filename)
+            f.save(save_path)
+            data = ocr_wenmo_auto_from_image(save_path)
+            
+            # 检查是否返回错误
+            if "error" in data:
+                return jsonify({"ok": False, "error": data["error"]}), 400
+            
+            return jsonify({"ok": True, "data": data})
 
-    data = request.get_json(silent=True) or {}
-    text = data.get("text", "").strip()
-    if text:
-        parsed = ocr_wenmo_auto_from_text(text)
-        return jsonify({"ok": True, "data": parsed})
+        data = request.get_json(silent=True) or {}
+        text = data.get("text", "").strip()
+        if text:
+            parsed = ocr_wenmo_auto_from_text(text)
+            
+            # 检查是否返回错误
+            if "error" in parsed:
+                return jsonify({"ok": False, "error": parsed["error"]}), 400
+            
+            return jsonify({"ok": True, "data": parsed})
 
-    return jsonify({"ok": False, "error": "no file or text"}), 400
+        return jsonify({"ok": False, "error": "no file or text"}), 400
+    
+    except Exception as e:
+        # 捕获所有异常，返回友好的 JSON 错误
+        return jsonify({"ok": False, "error": str(e)}), 500
