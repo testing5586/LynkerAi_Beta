@@ -22,9 +22,50 @@ WEIGHTS = {
     "persona_match": 0.20            # 人格断宫一致性
 }
 
-def parse_basic_fields(raw: str) -> Dict[str, Any]:
+def parse_bazi_fields(raw: str) -> Dict[str, Any]:
     """
-    从文墨天机 TXT 格式中提取基本字段
+    从八字文本中提取基本字段
+    支持四柱格式：年柱、月柱、日柱、时柱
+    """
+    d = {
+        "year_pillar": "",
+        "month_pillar": "",
+        "day_pillar": "",
+        "hour_pillar": "",
+        "birth_date": ""
+    }
+    
+    # 提取年柱
+    m = re.search(r"(?:年柱|年)\s*[:：]\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", raw)
+    d["year_pillar"] = m.group(1) if m else ""
+    
+    # 提取月柱
+    m = re.search(r"(?:月柱|月)\s*[:：]\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", raw)
+    d["month_pillar"] = m.group(1) if m else ""
+    
+    # 提取日柱
+    m = re.search(r"(?:日柱|日)\s*[:：]\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", raw)
+    d["day_pillar"] = m.group(1) if m else ""
+    
+    # 提取时柱
+    m = re.search(r"(?:时柱|时)\s*[:：]\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", raw)
+    d["hour_pillar"] = m.group(1) if m else ""
+    
+    # 提取出生日期（阳历或农历）
+    m = re.search(r"(?:阳历|公历|出生日期|出生时间)\s*[:：]\s*([0-9年月日时分\-\s:]+)", raw)
+    if m:
+        d["birth_date"] = m.group(1)
+    else:
+        m = re.search(r"(?:农历)\s*[:：]\s*([0-9年月日时分\-\s:]+)", raw)
+        if m:
+            d["birth_date"] = "农历 " + m.group(1)
+    
+    return d
+
+
+def parse_ziwei_fields(raw: str) -> Dict[str, Any]:
+    """
+    从紫微命盘文本中提取基本字段
     轻量级解析器，支持多种格式
     """
     d = {
@@ -65,6 +106,17 @@ def parse_basic_fields(raw: str) -> Dict[str, Any]:
     d["shen_palace"] = m.group(1) if m else ""
     
     return d
+
+
+def parse_basic_fields(raw: str, chart_type: str = "ziwei") -> Dict[str, Any]:
+    """
+    根据命盘类型选择正确的解析器
+    chart_type: 'bazi' 或 'ziwei'
+    """
+    if chart_type == "bazi":
+        return parse_bazi_fields(raw)
+    else:
+        return parse_ziwei_fields(raw)
 
 
 def offline_score(raw: str, parsed: Dict[str, Any]) -> Dict[str, Any]:
@@ -172,12 +224,13 @@ def llm_score(raw: str, parsed: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def verify_raw(raw_text: str) -> Dict[str, Any]:
+def verify_raw(raw_text: str, chart_type: str = "ziwei") -> Dict[str, Any]:
     """
     完整验证流程：解析 + 评分
+    chart_type: 'bazi' 或 'ziwei'
     返回：{"parsed": {...}, "score": {...}}
     """
-    parsed = parse_basic_fields(raw_text)
+    parsed = parse_basic_fields(raw_text, chart_type)
     score = llm_score(raw_text, parsed)
     
     return {

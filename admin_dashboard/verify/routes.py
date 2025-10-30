@@ -190,8 +190,8 @@ def preview():
         }), 400
     
     try:
-        # 1. 调用现有解析器
-        result = verify_raw(raw_text)
+        # 1. 调用现有解析器 - 根据 chart_type 选择正确的解析器
+        result = verify_raw(raw_text, chart_type)
         parsed = result["parsed"]
         
         # 2. 标准化性别
