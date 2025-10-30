@@ -724,13 +724,36 @@ def run_full_chart_analysis():
         }), 400
     
     # ========== 1.3 解析紫微数据 ==========
-    try:
-        ziwei_data = json.loads(ziwei_text) if isinstance(ziwei_text, str) else ziwei_text
-        print(f"[Mode B] ✅ 紫微数据解析成功")
-    except json.JSONDecodeError:
+    # 🧩 智能检测紫微数据格式：支持 JSON 或原始文本
+    if isinstance(ziwei_text, str):
+        # 检测是否为 JSON 格式
+        ziwei_text_stripped = ziwei_text.strip()
+        if ziwei_text_stripped.startswith('{') or ziwei_text_stripped.startswith('['):
+            # 尝试解析 JSON
+            try:
+                ziwei_data = json.loads(ziwei_text)
+                print(f"[Mode B] ✅ 紫微数据解析成功 (JSON 格式)")
+            except json.JSONDecodeError as e:
+                print(f"[Mode B] ⚠️ JSON 解析失败: {e}")
+                return jsonify({
+                    "ok": False,
+                    "error": f"紫微命盘 JSON 格式错误: {str(e)}"
+                }), 400
+        else:
+            # 原始文本格式，包装为简单结构
+            ziwei_data = {
+                "raw_text": ziwei_text,
+                "source": "wenmo_tianji_ocr",
+                "format": "text"
+            }
+            print(f"[Mode B] ✅ 紫微数据接受为原始文本 (长度: {len(ziwei_text)} 字符)")
+    elif isinstance(ziwei_text, dict):
+        ziwei_data = ziwei_text
+        print(f"[Mode B] ✅ 紫微数据已为 dict 格式")
+    else:
         return jsonify({
             "ok": False,
-            "error": "紫微命盘格式错误，无法解析 JSON"
+            "error": f"紫微数据格式不支持: {type(ziwei_text)}"
         }), 400
 
     # ========== 1.4 参数验证 ==========
