@@ -32,3 +32,10 @@ google-auth-httplib2>=0.2.0
 
 # Env convenience (optional)
 python-dotenv>=1.0.1
+docx
+faiss-cpu
+postgrest
+schedule
+tencentcloud-sdk-python
+torch
+werkzeug
