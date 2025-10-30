@@ -1250,21 +1250,26 @@ async function startFullChartAnalysis() {
     }
 
     try {
-        // ⚠️ IMPORTANT: Send raw text, not parsed objects
-        // Backend parse_bazi_text() will handle text conversion
+        // 🔧 格式转换：支持 JSON 和文本两种格式
+        // 优先使用 baziText/ziweiText，如果为空则从 Result 对象提取
+        let baziFormatted = currentGroup.baziText || formatBaziForAPI(currentGroup.baziResult);
+        let ziweiFormatted = currentGroup.ziweiText || formatZiweiForAPI(currentGroup.ziweiResult);
+        
+        const payload = {
+            user_id: state.userId,
+            bazi_text: baziFormatted,
+            ziwei_text: ziweiFormatted,
+            sop_template: modeBState.sopTemplate || "standard_v1"
+        };
+        
+        console.log('[Mode B] Sending payload:', payload);
+        
         const response = await fetch('/verify/api/run_full_chart_ai', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                mode: 'full_chart',
-                sop_template_id: modeBState.sopTemplate,
-                bazi_chart: currentGroup.baziText,   // Send raw pasted text
-                ziwei_chart: currentGroup.ziweiText, // Send raw pasted text
-                user_id: state.userId,
-                lang: 'zh'
-            })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
