@@ -654,33 +654,77 @@ function displayResult(data, type) {
                     ⏳ 等待用户完成七步问卷以生成${typeName}初步验证结果
                 </p>
             </div>
-            
-            ${data.parsed?.name ? `
-            <div class="detail-item">
-                <span class="detail-label">姓名：</span>
-                <span>${data.parsed.name}</span>
-            </div>
-            ` : ''}
-            
-            ${data.parsed?.gender ? `
-            <div class="detail-item">
-                <span class="detail-label">性别：</span>
-                <span>${data.parsed.gender}</span>
-            </div>
-            ` : ''}
-            
-            <div class="detail-item">
-                <span class="detail-label">出生时间：</span>
-                <span>${data.parsed?.birth_time || '未识别'}</span>
-            </div>
-            
-            ${data.parsed?.main_star ? `
-            <div class="detail-item">
-                <span class="detail-label">主星：</span>
-                <span>${data.parsed.main_star}</span>
-            </div>
-            ` : ''}
         `;
+        
+        // ⚠️ BAZI vs ZIWEI: Display different fields based on chart type
+        if (type === 'bazi') {
+            // 八字命盘：显示四柱
+            html += `
+                ${data.parsed?.year_pillar ? `
+                <div class="detail-item">
+                    <span class="detail-label">年柱：</span>
+                    <span style="font-weight: 600; color: #495057;">${data.parsed.year_pillar}</span>
+                </div>
+                ` : ''}
+                
+                ${data.parsed?.month_pillar ? `
+                <div class="detail-item">
+                    <span class="detail-label">月柱：</span>
+                    <span style="font-weight: 600; color: #495057;">${data.parsed.month_pillar}</span>
+                </div>
+                ` : ''}
+                
+                ${data.parsed?.day_pillar ? `
+                <div class="detail-item">
+                    <span class="detail-label">日柱：</span>
+                    <span style="font-weight: 600; color: #495057;">${data.parsed.day_pillar}</span>
+                </div>
+                ` : ''}
+                
+                ${data.parsed?.hour_pillar ? `
+                <div class="detail-item">
+                    <span class="detail-label">时柱：</span>
+                    <span style="font-weight: 600; color: #495057;">${data.parsed.hour_pillar}</span>
+                </div>
+                ` : ''}
+                
+                ${data.parsed?.birth_date ? `
+                <div class="detail-item">
+                    <span class="detail-label">出生日期：</span>
+                    <span>${data.parsed.birth_date}</span>
+                </div>
+                ` : ''}
+            `;
+        } else {
+            // 紫微命盘：显示传统字段
+            html += `
+                ${data.parsed?.name ? `
+                <div class="detail-item">
+                    <span class="detail-label">姓名：</span>
+                    <span>${data.parsed.name}</span>
+                </div>
+                ` : ''}
+                
+                ${data.parsed?.gender ? `
+                <div class="detail-item">
+                    <span class="detail-label">性别：</span>
+                    <span>${data.parsed.gender}</span>
+                </div>
+                ` : ''}
+                
+                <div class="detail-item">
+                    <span class="detail-label">出生时间：</span>
+                    <span>${data.parsed?.birth_time || '未识别'}</span>
+                </div>
+                
+                ${data.parsed?.main_star ? `
+                <div class="detail-item">
+                    <span class="detail-label">主星：</span>
+                    <span>${data.parsed.main_star}</span>
+                </div>
+                ` : ''}
+            `;
+        }
     }
     
     html += `
