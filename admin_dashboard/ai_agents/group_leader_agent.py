@@ -1,10 +1,17 @@
+# -*- coding: utf-8 -*-
+import sys, io
+# Only wrap stdout/stderr if not already wrapped
+if not hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if not hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 """
 Group Leader Agent - 任务协调层
 负责：分配子任务、整合 Child AI 结果、向 Master AI 汇报、比对历史规律
 """
 
 import os
-import sys
 from typing import Dict, List, Any, Optional
 
 try:
@@ -12,7 +19,7 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("⚠️ OpenAI SDK 不可用")
+    print("警告: OpenAI SDK 不可用")
 
 
 class GroupLeaderAgent:
@@ -91,7 +98,7 @@ Child AI 提交的分析：
             
             summary = response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"⚠️ Group Leader AI 协调失败: {e}")
+            print(f"警告: Group Leader AI 协调失败: {e}")
             summary = self._simple_coordination(child_results)
         
         return {
@@ -121,7 +128,7 @@ Child AI 提交的分析：
             
             return history
         except Exception as e:
-            print(f"⚠️ Group Leader 无法访问 Vault: {e}")
+            print(f"警告: Group Leader 无法访问 Vault: {e}")
             return []
     
     def _extract_child_summary(self, child_results: List[Any]) -> str:

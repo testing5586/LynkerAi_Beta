@@ -13,6 +13,14 @@ child_ai_learning.py
 python child_ai_learning.py
 """
 
+# -*- coding: utf-8 -*-
+import sys, io
+# Only wrap stdout/stderr if not already wrapped
+if not hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if not hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from datetime import datetime
 import json, os
 import statistics
@@ -22,7 +30,7 @@ try:
     supabase = get_supabase()
 except Exception as e:
     supabase = None
-    print(f"⚠️ Supabase连接失败，转为本地模式: {e}")
+    print(f"[警告] Supabase连接失败，转为本地模式: {e}")
 
 
 # ✅ 本地 JSON 备份
@@ -30,25 +38,25 @@ def save_local_backup(filename, data):
     os.makedirs("./data", exist_ok=True)
     with open(f"./data/{filename}", "a", encoding="utf-8") as f:
         f.write(json.dumps(data, ensure_ascii=False) + "\n")
-    print(f"💾 本地备份 → {filename}")
+    print(f"[保存] 本地备份 → {filename}")
 
 
 # ✅ 获取反馈统计
 def fetch_feedback_summary(user_id):
     if not supabase:
-        print("⚠️ 无法连接 Supabase，使用本地模式。")
+        print("[警告] 无法连接 Supabase，使用本地模式。")
         return None
 
     resp = supabase.table("child_ai_feedback").select("*").eq("user_id", user_id).execute()
     data = resp.data if resp and resp.data else []
     if not data:
-        print("⚠️ 没有反馈记录。")
+        print("[警告] 没有反馈记录。")
         return None
 
     likes = [r for r in data if r["liked"]]
     dislikes = [r for r in data if not r["liked"]]
 
-    print(f"📊 反馈统计：{len(likes)} 👍 | {len(dislikes)} 👎")
+    print(f"[统计] 反馈统计：{len(likes)} [喜欢] | {len(dislikes)} [不喜欢]")
     return {
         "total": len(data),
         "likes": len(likes),
@@ -60,7 +68,7 @@ def fetch_feedback_summary(user_id):
 # ✅ 获取并更新人格设定
 def update_ai_profile(user_id, feedback_summary):
     if not feedback_summary:
-        print("⚠️ 无可更新内容。")
+        print("[警告] 无可更新内容。")
         return
 
     ratio = feedback_summary["ratio"]
@@ -85,23 +93,30 @@ def update_ai_profile(user_id, feedback_summary):
 
     try:
         supabase.table("child_ai_profiles").upsert(profile).execute()
-        print(f"🌿 AI人格已成长 → empathy: {profile['empathy_level']} | logic: {profile['logic_level']}")
+        print(f"[更新] AI人格已成长 → empathy: {profile['empathy_level']} | logic: {profile['logic_level']}")
     except Exception as e:
-        print(f"⚠️ Supabase更新失败，保存至本地。{e}")
+        print(f"[警告] Supabase更新失败，保存至本地。{e}")
         save_local_backup("child_ai_profiles_backup.jsonl", profile)
 
 
 # ✅ 主运行函数
 def run_ai_learning(user_id="u_demo"):
-    print(f"🧠 子AI学习启动中：{user_id}")
+    print(f"[启动] 子AI学习启动中：{user_id}")
     summary = fetch_feedback_summary(user_id)
     if summary:
         update_ai_profile(user_id, summary)
     else:
-        print("⚠️ 没有有效反馈可学习。")
+        print("[警告] 没有有效反馈可学习。")
 
 
 # ✅ 测试执行
 if __name__ == "__main__":
     run_ai_learning("u_demo")
-    print("✅ 学习流程完成。")
+    print("[完成] 学习流程完成。")
+
+def safe_print(*args, **kwargs):
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        msg = " ".join(str(a) for a in args)
+        print(msg.encode('utf-8', 'replace').decode('utf-8'))

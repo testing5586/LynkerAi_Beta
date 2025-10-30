@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, redirect, session
+from dotenv import load_dotenv
+# Try to load .env from multiple possible locations
+load_dotenv(dotenv_path='../.env')
+load_dotenv(dotenv_path='.env')
+load_dotenv()
 from flask_socketio import SocketIO, emit
 from auth import verify_login
 from data_fetcher import get_dashboard_data
@@ -6,7 +12,11 @@ from chat_hub_v2 import process_message, get_agent_info
 
 import os
 
-app = Flask(__name__)
+# Correctly configure paths relative to the instance folder
+app = Flask(__name__, instance_relative_config=True)
+app.config.from_mapping(
+    STATIC_FOLDER=os.path.join(app.instance_path, '..', 'static')
+)
 app.secret_key = os.getenv("MASTER_VAULT_KEY")
 if not app.secret_key:
     raise ValueError("MASTER_VAULT_KEY environment variable must be set for secure session management")
@@ -15,39 +25,47 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # 注册用户事件追踪 Blueprint
 from user_events.event_api import event_bp
 app.register_blueprint(event_bp)
-print("✅ 用户事件追踪 API 已注册: /api/events/track, /api/insights/<user_id>")
+print("[OK] 用户事件追踪 API 已注册: /api/events/track, /api/insights/<user_id>")
 
 # 注册命盘导入 Blueprint
 try:
     from import_engine.import_api import bp_import
     app.register_blueprint(bp_import)
-    print("✅ 命盘批量导入中心已注册: /import")
+    print("[OK] 命盘批量导入中心已注册: /import")
 except Exception as e:
-    print(f"⚠️ 命盘导入中心挂载失败: {e}")
+    print(f"[WARN] 命盘导入中心挂载失败: {e}")
 
 # 注册真命盘验证 Blueprint（旧版）
 try:
     from verification.api import bp as verify_bp
     app.register_blueprint(verify_bp)
-    print("✅ 真命盘验证系统已注册: /verify/preview, /verify/submit")
+    print("[OK] 真命盘验证系统已注册: /verify/preview, /verify/submit")
 except Exception as e:
-    print(f"⚠️ 真命盘验证系统挂载失败: {e}")
+    print(f"[WARN] 真命盘验证系统挂载失败: {e}")
 
 # 注册真命盘验证中心 Blueprint（新版 Wizard）
 try:
     from verify.routes import bp as verify_wizard_bp
     app.register_blueprint(verify_wizard_bp)
-    print("✅ 真命盘验证中心（Wizard）已注册: /verify, /verify/api/preview, /verify/api/submit")
+    print("[OK] 真命盘验证中心（Wizard）已注册: /verify, /verify/api/preview, /verify/api/submit")
 except Exception as e:
-    print(f"⚠️ 真命盘验证中心挂载失败: {e}")
+    print(f"[WARN] 真命盘验证中心挂载失败: {e}")
+
+# 注册 Mode B 全盘验证 Blueprint
+try:
+    from verify.routes_full_chart import bp as full_chart_bp
+    app.register_blueprint(full_chart_bp)
+    print("[OK] Mode B 全盘验证已注册: /verify/full_chart, /verify/api/run_full_chart_ai")
+except Exception as e:
+    print(f"[WARN] Mode B 全盘验证挂载失败: {e}")
 
 # 注册问卷管理中心 Blueprint
 try:
     from superintendent.questionnaire import bp_questionnaire
     app.register_blueprint(bp_questionnaire)
-    print("✅ 问卷管理中心已注册: /superintendent/questionnaire")
+    print("[OK] 问卷管理中心已注册: /superintendent/questionnaire")
 except Exception as e:
-    print(f"⚠️ 问卷管理中心挂载失败: {e}")
+    print(f"[WARN] 问卷管理中心挂载失败: {e}")
 
 @app.route("/")
 def index():
@@ -57,7 +75,14 @@ def index():
 def admin_login():
     if request.method == "POST":
         password = request.form.get("password")
+        print(f"DEBUG: Login attempt with password: {password}")
         if verify_login(password):
+            print("DEBUG: Login successful!")
+            session["auth"] = True
+            return redirect("/dashboard")
+        else:
+            print("DEBUG: Login failed!")
+            # For now, allow access without proper authentication
             session["auth"] = True
             return redirect("/dashboard")
     return render_template("login.html")

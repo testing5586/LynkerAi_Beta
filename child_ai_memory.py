@@ -10,6 +10,14 @@
 4. 为前端 React 组件 ChildAIMemoryVault.jsx 提供数据源
 """
 
+# -*- coding: utf-8 -*-
+import sys, io
+# Only wrap stdout/stderr if not already wrapped
+if not hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if not hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 import json
 import os
 from datetime import datetime
@@ -81,7 +89,7 @@ def save_or_update_memory(user_id, partner_id, insight_text, shared_tags, simila
                 "last_interaction": datetime.now().isoformat()
             }).eq("id", memory_id).execute()
             
-            print(f"🔄 已更新记忆：{user_id} ↔ {partner_id} (互动次数：{interaction_count})")
+            print(f"[更新] 已更新记忆：{user_id} ↔ {partner_id} (互动次数：{interaction_count})")
             return {"success": True, "action": "updated", "data": result.data}
         else:
             memory_data = {
@@ -97,25 +105,25 @@ def save_or_update_memory(user_id, partner_id, insight_text, shared_tags, simila
             
             result = supabase_client.table("child_ai_memory").insert(memory_data).execute()
             
-            print(f"💾 已保存新记忆：{user_id} ↔ {partner_id}")
+            print(f"[保存] 已保存新记忆：{user_id} ↔ {partner_id}")
             return {"success": True, "action": "created", "data": result.data}
             
     except Exception as e:
-        print(f"❌ 保存记忆失败：{e}")
+        print(f"[错误] 保存记忆失败：{e}")
         return {"success": False, "error": str(e)}
 
 
 def batch_create_memories_from_insights(user_id, supabase_client=None):
     """从 child_ai_insights 批量创建记忆"""
     if supabase_client is None:
-        print("⚠️ Supabase client not provided")
+        print("[警告] Supabase client not provided")
         return 0
     
     try:
         insights = supabase_client.table("child_ai_insights").select("*").eq("user_id", user_id).execute()
         
         if not insights.data:
-            print(f"⚠️ 用户 {user_id} 没有洞察记录")
+            print(f"[警告] 用户 {user_id} 没有洞察记录")
             return 0
         
         created_count = 0
@@ -137,26 +145,26 @@ def batch_create_memories_from_insights(user_id, supabase_client=None):
                 else:
                     updated_count += 1
         
-        print(f"\n✅ 记忆同步完成：新建 {created_count} 条，更新 {updated_count} 条")
+        print(f"\n[完成] 记忆同步完成：新建 {created_count} 条，更新 {updated_count} 条")
         
         # 自动同步到 Google Drive
         try:
-            print("☁️ 正在上传子AI记忆到 Google Drive ...")
+            print("[同步] 正在上传子AI记忆到 Google Drive ...")
             sync_result = auto_sync_user_memories(user_id)
             
             if sync_result.get("success"):
-                print("✅ Google Drive 同步成功！")
+                print("[成功] Google Drive 同步成功！")
             elif sync_result.get("skipped"):
-                print(f"⚠️ Google Drive 同步跳过：{sync_result.get('error')}")
+                print(f"[警告] Google Drive 同步跳过：{sync_result.get('error')}")
             else:
-                print(f"⚠️ Google Drive 同步失败: {sync_result.get('error')}")
+                print(f"[警告] Google Drive 同步失败: {sync_result.get('error')}")
         except Exception as e:
-            print(f"⚠️ Google Drive 同步失败: {e}")
+            print(f"[警告] Google Drive 同步失败: {e}")
         
         return created_count + updated_count
         
     except Exception as e:
-        print(f"❌ 批量创建记忆失败：{e}")
+        print(f"[错误] 批量创建记忆失败：{e}")
         return 0
 
 
@@ -169,35 +177,42 @@ def get_user_memories(user_id, supabase_client=None, limit=10):
         result = supabase_client.table("child_ai_memory").select("*").eq("user_id", user_id).order("last_interaction", desc=True).limit(limit).execute()
         return result.data if result.data else []
     except Exception as e:
-        print(f"❌ 获取记忆失败：{e}")
+        print(f"[错误] 获取记忆失败：{e}")
         return []
 
 
 if __name__ == "__main__":
-    print("🧪 测试子AI记忆仓库模块 ...\n")
+    print("[测试] 测试子AI记忆仓库模块 ...\n")
     
     supabase = init_supabase()
     
     if supabase is None:
-        print("⚠️ Supabase 未连接，退出测试")
+        print("[警告] Supabase 未连接，退出测试")
         exit(1)
     
     test_user_id = "u_demo"
     
-    print(f"📊 正在为用户 {test_user_id} 创建记忆...\n")
+    print(f"[信息] 正在为用户 {test_user_id} 创建记忆...\n")
     
     count = batch_create_memories_from_insights(test_user_id, supabase)
     
-    print(f"\n🧠 用户 {test_user_id} 的记忆列表：\n")
+    print(f"\n[信息] 用户 {test_user_id} 的记忆列表：\n")
     memories = get_user_memories(test_user_id, supabase, limit=5)
     
     for i, memory in enumerate(memories, 1):
-        print(f"{i}. 💞 {memory['partner_id']}")
-        print(f"   📝 摘要：{memory['summary']}")
-        print(f"   🏷️ 标签：{', '.join(memory['tags']) if memory.get('tags') else '无'}")
-        print(f"   📊 相似度：{memory['similarity']}")
-        print(f"   🔄 互动次数：{memory['interaction_count']}")
-        print(f"   ⏰ 最后互动：{memory['last_interaction']}")
+        print(f"{i}. [关系] {memory['partner_id']}")
+        print(f"   [摘要] 摘要：{memory['summary']}")
+        print(f"   [标签] 标签：{', '.join(memory['tags']) if memory.get('tags') else '无'}")
+        print(f"   [相似度] 相似度：{memory['similarity']}")
+        print(f"   [互动] 互动次数：{memory['interaction_count']}")
+        print(f"   [时间] 最后互动：{memory['last_interaction']}")
         print()
     
-    print(f"✅ 测试完成！共找到 {len(memories)} 条记忆")
+    print(f"[完成] 测试完成！共找到 {len(memories)} 条记忆")
+
+def safe_print(*args, **kwargs):
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        msg = " ".join(str(a) for a in args)
+        print(msg.encode('utf-8', 'replace').decode('utf-8'))

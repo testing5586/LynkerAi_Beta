@@ -16,7 +16,9 @@ const state = {
             baziResult: null,
             ziweiResult: null,
             baziUploaded: false,
-            ziweiUploaded: false
+            ziweiUploaded: false,
+            baziImageUrl: null, // 存储上传的图片URL
+            ziweiImageUrl: null
         },
         // 组2 - 可能出生的时辰2
         {
@@ -25,7 +27,9 @@ const state = {
             baziResult: null,
             ziweiResult: null,
             baziUploaded: false,
-            ziweiUploaded: false
+            ziweiUploaded: false,
+            baziImageUrl: null,
+            ziweiImageUrl: null
         },
         // 组3 - 可能出生的时辰3
         {
@@ -34,7 +38,9 @@ const state = {
             baziResult: null,
             ziweiResult: null,
             baziUploaded: false,
-            ziweiUploaded: false
+            ziweiUploaded: false,
+            baziImageUrl: null,
+            ziweiImageUrl: null
         }
     ],
     conversationState: 'waiting_bazi', // waiting_bazi | waiting_ziwei | ready_to_save | saved
@@ -133,22 +139,82 @@ function saveCurrentGroupState() {
 function renderCurrentGroup() {
     const currentGroup = getCurrentGroup();
     const groupIndex = state.currentGroupIndex;
-    
+
     // 更新时辰标题
     const shichenTitle = document.querySelector('.shichen-title h2');
     if (shichenTitle) {
         shichenTitle.textContent = `可能出生的时辰${groupIndex + 1}`;
     }
-    
+
     // 恢复文本输入框内容
     const baziText = document.getElementById('baziText');
     const ziweiText = document.getElementById('ziweiText');
     if (baziText) baziText.value = currentGroup.baziText || '';
     if (ziweiText) ziweiText.value = currentGroup.ziweiText || '';
-    
+
+    // 恢复图片预览
+    if (currentGroup.baziImageUrl) {
+        displayImagePreview('bazi', currentGroup.baziImageUrl);
+    } else {
+        resetDropzone('bazi');
+    }
+
+    if (currentGroup.ziweiImageUrl) {
+        displayImagePreview('ziwei', currentGroup.ziweiImageUrl);
+    } else {
+        resetDropzone('ziwei');
+    }
+
     // 恢复结果展示区
     renderResult('bazi', currentGroup.baziResult, currentGroup.baziUploaded);
     renderResult('ziwei', currentGroup.ziweiResult, currentGroup.ziweiUploaded);
+}
+
+// 显示图片预览在上传区域
+function displayImagePreview(type, imageUrl) {
+    const dropzoneId = type === 'bazi' ? 'baziDropzone' : 'ziweiDropzone';
+    const dropzone = document.getElementById(dropzoneId);
+    if (!dropzone) return;
+
+    // 添加已有图片的样式类
+    dropzone.classList.add('has-image');
+
+    // 清空原有内容并显示图片预览
+    dropzone.innerHTML = `
+        <div class="dropzone-content">
+            <img src="${imageUrl}" class="dropzone-image-preview" alt="命盘图片" onclick="window.open('${imageUrl}', '_blank')" title="点击查看大图">
+            <div class="dropzone-upload-prompt">
+                <p class="dropzone-text">图片已加载。可拖拽新图片或</p>
+                <button class="btn-upload" onclick="event.stopPropagation(); document.getElementById('${type}File').click()">重新选择文件</button>
+            </div>
+        </div>
+        <input type="file" id="${type}File" accept="image/*,.txt" style="display:none;">
+    `;
+
+    // 保持拖拽功能
+    setupDropzone(dropzone, type);
+}
+
+// 重置上传区域到初始状态
+function resetDropzone(type) {
+    const dropzoneId = type === 'bazi' ? 'baziDropzone' : 'ziweiDropzone';
+    const dropzone = document.getElementById(dropzoneId);
+    if (!dropzone) return;
+
+    // 移除已有图片的样式类
+    dropzone.classList.remove('has-image');
+
+    // 恢复原始上传提示
+    dropzone.innerHTML = `
+        <div class="dropzone-icon">☁️</div>
+        <p class="dropzone-text">拖拽图片到这里 或</p>
+        <button class="btn-upload" onclick="event.stopPropagation(); document.getElementById('${type}File').click()">选择文件</button>
+        <input type="file" id="${type}File" accept="image/*,.txt" style="display:none;">
+        <p class="dropzone-hint">也可以直接粘贴命盘文本</p>
+    `;
+
+    // 重新初始化拖拽功能
+    setupDropzone(dropzone, type);
 }
 
 // 渲染单个结果框
@@ -156,9 +222,9 @@ function renderResult(type, result, uploaded) {
     const resultBox = document.getElementById(`${type}Result`);
     const statusElem = document.getElementById(`${type}Status`);
     const contentElem = document.getElementById(`${type}ResultContent`);
-    
+
     if (!resultBox || !statusElem || !contentElem) return;
-    
+
     if (result) {
         // 显示验证结果
         statusElem.textContent = '验证完成';
@@ -236,17 +302,11 @@ function preventDefaults(e) {
 
 // ========== 文件输入处理 ==========
 function initFileInputs() {
-    const baziFile = document.getElementById('baziFile');
-    const ziweiFile = document.getElementById('ziweiFile');
-    
-    baziFile.addEventListener('change', (e) => {
-        if (e.target.files[0]) {
+    // Use event delegation on document to handle dynamically created file inputs
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'baziFile' && e.target.files[0]) {
             handleFileUpload(e.target.files[0], 'bazi');
-        }
-    });
-    
-    ziweiFile.addEventListener('change', (e) => {
-        if (e.target.files[0]) {
+        } else if (e.target.id === 'ziweiFile' && e.target.files[0]) {
             handleFileUpload(e.target.files[0], 'ziwei');
         }
     });
@@ -255,29 +315,79 @@ function initFileInputs() {
 async function handleFileUpload(file, type) {
     const textarea = document.getElementById(`${type}Text`);
     const statusSpan = document.getElementById(`${type}Status`);
-    
+    const currentGroup = getCurrentGroup();
+
     statusSpan.textContent = "读取文件中...";
     statusSpan.className = "result-status processing";
-    
+
     try {
         if (file.type.startsWith('image/')) {
-            // 图片文件 - 暂时提示用户
-            addAIMessage(`检测到图片文件 "${file.name}"，OCR 功能暂未启用。请先使用其他工具提取文本后再粘贴到输入框。`);
-            statusSpan.textContent = "等待文本输入...";
-            statusSpan.className = "result-status";
+            // 保存图片的 Data URL 用于预览
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (type === 'bazi') {
+                    currentGroup.baziImageUrl = e.target.result;
+                } else {
+                    currentGroup.ziweiImageUrl = e.target.result;
+                }
+                // 立即显示图片预览
+                displayImagePreview(type, e.target.result);
+            };
+            reader.readAsDataURL(file);
+
+            // 图片文件 - 使用OCR识别
+            addAIMessage(`检测到图片文件 "${file.name}"，正在使用 OCR 识别文本...`);
+            statusSpan.textContent = "OCR 识别中...";
+            statusSpan.className = "result-status processing";
+
+            // 调用OCR API
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/verify/api/ocr', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`OCR API returned status ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('[OCR Response]', data);
+
+            if (data.ok) {
+                // OCR识别成功
+                textarea.value = data.raw_text;
+                statusSpan.textContent = "OCR 识别完成";
+                statusSpan.className = "result-status success";
+
+                addAIMessage(`✅ OCR 识别完成！已提取文本内容。请检查识别结果，如有错误可以手动修改，然后点击输入框外部完成验证。`);
+
+                // 自动触发验证
+                await processChartText(data.raw_text, type);
+            } else {
+                // OCR识别失败
+                addAIMessage(`❌ OCR 识别失败：${data.toast}${data.raw_text ? '<br>识别到的部分文本已填入输入框，请检查和补充。' : ''}`);
+                if (data.raw_text) {
+                    textarea.value = data.raw_text;
+                }
+                statusSpan.textContent = "OCR 识别失败";
+                statusSpan.className = "result-status error";
+            }
         } else {
             // 文本文件
             const text = await file.text();
             textarea.value = text;
             statusSpan.textContent = "文件已加载";
             statusSpan.className = "result-status success";
-            
+
             // 自动触发验证
             await processChartText(text, type);
         }
     } catch (error) {
         console.error("文件读取失败:", error);
-        addAIMessage(`抱歉，读取文件 "${file.name}" 时出错了。请检查文件格式后重试。`);
+        addAIMessage(`抱歉，读取文件 "${file.name}" 时出错了。<br>错误信息：${error.message}`);
         statusSpan.textContent = "读取失败";
         statusSpan.className = "result-status error";
     }
@@ -397,6 +507,10 @@ async function processChartText(text, type) {
                     八字出生时辰可信度：<strong>${formatConfidence(data.bazi_verification)}</strong><br>
                     紫微出生时辰可信度：<strong>${formatConfidence(data.ziwei_verification)}</strong><br><br>
                     💡 这是基于你的人生经历的AI推测。你现在可以上传${type === 'bazi' ? '紫微' : '八字'}命盘进行实际验证。`);
+
+                // ⚠️ Mode B Integration: Check if both charts are ready (auto-verified case)
+                checkModeBActivation();
+                checkModeBReadiness();
             } else {
                 // 单个验证：只更新当前类型的结果
                 if (type === 'bazi') {
@@ -415,12 +529,16 @@ async function processChartText(text, type) {
                 displayResult(data, type);
                 statusSpan.textContent = "验证完成";
                 statusSpan.className = "result-status success";
-                
+
                 // AI 引导
                 updateAIGuidance();
-                
+
                 // 自动触发 Primary AI 问卷
                 triggerQuestionnaireStart();
+
+                // ⚠️ Mode B Integration: Check if both charts are ready
+                checkModeBActivation();
+                checkModeBReadiness();
             }
         } else {
             throw new Error(data.toast || "验证失败");
@@ -437,7 +555,11 @@ async function processChartText(text, type) {
 // ========== 显示验证结果 ==========
 function displayResult(data, type) {
     const resultContent = document.getElementById(`${type}ResultContent`);
-    
+
+    // 保存现有的图片预览（如果有）
+    const existingImagePreview = resultContent.querySelector('.image-preview-container');
+    const imagePreviewHTML = existingImagePreview ? existingImagePreview.outerHTML : '';
+
     let html = '';
     
     // 如果有AI验证结果，优先显示AI结果
@@ -567,8 +689,21 @@ function displayResult(data, type) {
             <pre style="margin-top: 8px;">${JSON.stringify(data.parsed, null, 2)}</pre>
         </details>
     `;
-    
+
+    // 先设置HTML内容，然后在前面插入图片预览
     resultContent.innerHTML = html;
+
+    // 如果之前有图片预览，重新插入到顶部
+    if (imagePreviewHTML) {
+        resultContent.insertAdjacentHTML('afterbegin', imagePreviewHTML);
+    } else {
+        // 检查是否有新的图片需要显示
+        const currentGroup = getCurrentGroup();
+        const imageUrl = type === 'bazi' ? currentGroup.baziImageUrl : currentGroup.ziweiImageUrl;
+        if (imageUrl) {
+            displayImagePreview(type, imageUrl);
+        }
+    }
 }
 
 // ========== AI 引导对话 ==========
@@ -780,7 +915,14 @@ function addUserMessage(text) {
         </div>
     `;
     messagesContainer.appendChild(messageEl);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    // Scroll to bottom with smooth behavior
+    setTimeout(() => {
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 function addAIMessage(html) {
@@ -794,7 +936,14 @@ function addAIMessage(html) {
         </div>
     `;
     messagesContainer.appendChild(messageEl);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    // Scroll to bottom with smooth behavior
+    setTimeout(() => {
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 // ========== 保存到数据库 ==========
@@ -860,3 +1009,381 @@ async function saveToDatabase() {
         addAIMessage(`抱歉，保存时出错了：${error.message}。请稍后重试。`);
     }
 }
+
+// ==================== Mode B Integration ====================
+// Show Mode B section when both charts are uploaded
+// This replaces the one-by-one verification flow with parallel AI analysis
+
+// Mode B state (separate from main wizard state)
+const modeBState = {
+    sopTemplate: null,
+    analysisStarted: false,
+    analysisCompleted: false
+};
+
+// Check if Mode B should be activated
+function checkModeBActivation() {
+    const currentGroup = getCurrentGroup();
+    const bothChartsUploaded = currentGroup.baziUploaded && currentGroup.ziweiUploaded;
+
+    console.log('[Mode B] Checking activation:', {
+        baziUploaded: currentGroup.baziUploaded,
+        ziweiUploaded: currentGroup.ziweiUploaded,
+        bothReady: bothChartsUploaded
+    });
+
+    const modeBSection = document.getElementById('modeBSection');
+
+    if (bothChartsUploaded && modeBSection) {
+        // Show Mode B section with fade-in effect
+        modeBSection.style.display = 'block';
+        modeBSection.style.opacity = '0';
+        setTimeout(() => {
+            modeBSection.style.transition = 'opacity 0.5s ease-in';
+            modeBSection.style.opacity = '1';
+        }, 10);
+
+        console.log('[Mode B] ✅ Activated - Both charts uploaded!');
+
+        // Add AI message to guide user
+        addAIMessage(`
+            <p>🎉 <strong>两份命盘已上传完成！</strong></p>
+            <p>现在可以使用 Mode B 进行全盘验证分析。</p>
+            <p>请在下方选择 SOP 分析模板，然后点击"开始分析"按钮。</p>
+        `);
+    } else if (modeBSection) {
+        // Hide Mode B section
+        modeBSection.style.display = 'none';
+    }
+}
+
+// Initialize Mode B SOP selector
+function initModeBSOPSelector() {
+    const sopSelect = document.getElementById('sopTemplate');
+    if (sopSelect) {
+        sopSelect.addEventListener('change', (e) => {
+            modeBState.sopTemplate = e.target.value;
+            console.log('[Mode B] SOP selected:', modeBState.sopTemplate);
+            checkModeBReadiness();
+        });
+    }
+}
+
+// Check if Mode B analysis can start
+function checkModeBReadiness() {
+    const btn = document.getElementById('startAnalysisBtn');
+    if (!btn) return;
+
+    const currentGroup = getCurrentGroup();
+    const hasBothCharts = currentGroup.baziUploaded && currentGroup.ziweiUploaded;
+    const hasSOP = !!modeBState.sopTemplate;
+    const notStarted = !modeBState.analysisStarted;
+
+    const isReady = hasBothCharts && hasSOP && notStarted;
+
+    btn.disabled = !isReady;
+
+    if (!hasBothCharts) {
+        btn.textContent = '请先上传两份命盘';
+    } else if (!hasSOP) {
+        btn.textContent = '请选择 SOP 分析模板';
+    } else if (modeBState.analysisStarted) {
+        btn.innerHTML = '<span class="loading-spinner"></span> 分析中...';
+    } else {
+        btn.textContent = '开始分析';
+    }
+}
+
+// Upload custom SOP template
+function uploadCustomSOP() {
+    const input = document.getElementById('sopFileInput');
+    if (input) {
+        input.click();
+    }
+}
+
+// Handle SOP file upload
+document.addEventListener('DOMContentLoaded', () => {
+    const sopInput = document.getElementById('sopFileInput');
+    if (sopInput) {
+        sopInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/verify/api/upload_sop', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    // Reload templates and select the new one
+                    const sopSelect = document.getElementById('sopTemplate');
+                    const option = document.createElement('option');
+                    option.value = result.template_id;
+                    option.textContent = result.template_id;
+                    option.selected = true;
+                    sopSelect.appendChild(option);
+
+                    modeBState.sopTemplate = result.template_id;
+                    checkModeBReadiness();
+                    addAIMessage(`✅ SOP 模板上传成功！`);
+                } else {
+                    throw new Error(result.toast || '上传失败');
+                }
+            } catch (error) {
+                console.error('[Mode B] SOP upload failed:', error);
+                addAIMessage(`❌ SOP 模板上传失败：${error.message}`);
+            }
+        });
+    }
+
+    // Initialize Mode B
+    initModeBSOPSelector();
+});
+
+// Start full chart analysis (Mode B)
+async function startFullChartAnalysis() {
+    // ⚠️ Click prevention check
+    if (modeBState.analysisStarted) {
+        console.warn('[Mode B] Analysis already started');
+        return;
+    }
+
+    const currentGroup = getCurrentGroup();
+
+    if (!currentGroup.baziResult || !currentGroup.ziweiResult) {
+        addAIMessage('请先验证两份命盘后再进行全盘分析');
+        return;
+    }
+
+    if (!modeBState.sopTemplate) {
+        addAIMessage('请选择 SOP 分析模板');
+        return;
+    }
+
+    // Mark as started immediately
+    modeBState.analysisStarted = true;
+    console.log('[Mode B] Starting full chart analysis...');
+
+    // Update button
+    const btn = document.getElementById('startAnalysisBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> 分析中...';
+
+    // Show results section
+    const resultsDiv = document.getElementById('analysisResults');
+    if (resultsDiv) {
+        resultsDiv.classList.add('visible');
+    }
+
+    try {
+        // Call backend API
+        const response = await fetch('/verify/api/run_full_chart_ai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                mode: 'full_chart',
+                sop_template_id: modeBState.sopTemplate,
+                bazi_chart: currentGroup.baziResult.parsed,
+                ziwei_chart: currentGroup.ziweiResult.parsed,
+                user_id: state.userId,
+                lang: 'zh'
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+            console.log('[Mode B] Analysis completed successfully');
+            modeBState.analysisCompleted = true;
+
+            // Render results
+            renderModeBResults(result.data);
+
+            // Update AI message
+            addAIMessage(`
+                <p>✅ <strong>全盘验证分析完成！</strong></p>
+                <p>一致性评分：${result.data.consistency_score}/100</p>
+                <p>请查看下方的详细分析结果。</p>
+            `);
+
+            // Update button
+            btn.textContent = '分析完成';
+            btn.style.background = '#00ff9d';
+
+        } else {
+            throw new Error(result.toast || '分析失败');
+        }
+
+    } catch (error) {
+        console.error('[Mode B] Analysis failed:', error);
+        addAIMessage(`❌ 全盘分析失败：${error.message}`);
+
+        // Allow retry
+        modeBState.analysisStarted = false;
+        btn.disabled = false;
+        btn.textContent = '重新分析';
+        btn.style.background = 'linear-gradient(135deg, #00ff9d 0%, #00d4aa 100%)';
+    }
+}
+
+// Render Mode B analysis results
+function renderModeBResults(data) {
+    const { bazi_analysis, ziwei_analysis, primary_ai_summary, consistency_score } = data;
+
+    // Render Bazi results
+    renderAIColumn('baziAnalysisResults', bazi_analysis, '八字');
+
+    // Render Ziwei results
+    renderAIColumn('ziweiAnalysisResults', ziwei_analysis, '紫微');
+
+    // Render comparison table
+    renderComparisonTable(bazi_analysis, ziwei_analysis);
+
+    // Render AI summary
+    renderAISummary(primary_ai_summary, consistency_score);
+}
+
+// Render AI column (Bazi or Ziwei)
+function renderAIColumn(elementId, analysis, typeName) {
+    const column = document.getElementById(elementId);
+    if (!column) return;
+
+    let html = `<h3>${typeName} AI 分析</h3>`;
+
+    if (analysis.modules && analysis.modules.length > 0) {
+        analysis.modules.forEach(module => {
+            const confidenceClass = module.confidence === '高' ? 'confidence-high' :
+                                   module.confidence === '中' ? 'confidence-medium' :
+                                   'confidence-low';
+
+            html += `
+                <div class="module-result">
+                    <h4>${module.module_name}</h4>
+                    <div class="summary">${module.summary || '无分析内容'}</div>
+                    <span class="confidence-badge ${confidenceClass}">${module.confidence}</span>
+                    ${module.supporting_evidence && module.supporting_evidence.length > 0 ? `
+                        <ul class="evidence-list">
+                            ${module.supporting_evidence.map(e => `<li>✓ ${e}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    ${module.conflicts && module.conflicts.length > 0 ? `
+                        <ul class="evidence-list">
+                            ${module.conflicts.map(c => `<li>✗ ${c}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            `;
+        });
+    } else {
+        html += '<p style="color: #888; text-align: center; padding: 40px;">暂无分析结果</p>';
+    }
+
+    column.innerHTML = html;
+}
+
+// Render comparison table
+function renderComparisonTable(baziAnalysis, ziweiAnalysis) {
+    const tbody = document.getElementById('comparisonBody');
+    if (!tbody) return;
+
+    let html = '';
+
+    const baziModules = baziAnalysis.modules || [];
+    const ziweiModules = ziweiAnalysis.modules || [];
+
+    // Match modules by module_id
+    const moduleMap = {};
+    baziModules.forEach(m => {
+        moduleMap[m.module_id] = { bazi: m };
+    });
+    ziweiModules.forEach(m => {
+        if (moduleMap[m.module_id]) {
+            moduleMap[m.module_id].ziwei = m;
+        } else {
+            moduleMap[m.module_id] = { ziwei: m };
+        }
+    });
+
+    Object.values(moduleMap).forEach(pair => {
+        const moduleName = pair.bazi?.module_name || pair.ziwei?.module_name;
+        const baziSummary = pair.bazi?.summary || '无';
+        const ziweiSummary = pair.ziwei?.summary || '无';
+
+        // Simple consistency check (could be enhanced)
+        const consistency = (pair.bazi && pair.ziwei) ? '75%' : '50%';
+
+        html += `
+            <tr>
+                <td><strong>${moduleName}</strong></td>
+                <td>${baziSummary.substring(0, 100)}${baziSummary.length > 100 ? '...' : ''}</td>
+                <td>${ziweiSummary.substring(0, 100)}${ziweiSummary.length > 100 ? '...' : ''}</td>
+                <td>${consistency}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+// Render AI summary
+function renderAISummary(summary, consistencyScore) {
+    const summarySection = document.getElementById('aiSummarySection');
+    const summaryContent = document.getElementById('summaryContent');
+
+    if (!summarySection || !summaryContent) return;
+
+    let html = `
+        <div style="margin-bottom: 20px;">
+            <h4 style="margin-bottom: 12px;">一致性评分</h4>
+            <div style="font-size: 32px; font-weight: bold; color: #fff;">
+                ${consistencyScore}/100
+            </div>
+        </div>
+    `;
+
+    if (summary.consistent_points && summary.consistent_points.length > 0) {
+        html += `
+            <div style="margin-bottom: 16px;">
+                <h4 style="margin-bottom: 8px;">✓ 核心一致点</h4>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                    ${summary.consistent_points.map(p => `<li>${p}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (summary.divergent_points && summary.divergent_points.length > 0) {
+        html += `
+            <div style="margin-bottom: 16px;">
+                <h4 style="margin-bottom: 8px;">⚠️ 主要分歧点</h4>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                    ${summary.divergent_points.map(p => `<li>${p}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (summary.summary_text) {
+        html += `
+            <div style="margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h4 style="margin-bottom: 8px;">综合评述</h4>
+                <p style="margin: 0; line-height: 1.8;">${summary.summary_text}</p>
+            </div>
+        `;
+    }
+
+    summaryContent.innerHTML = html;
+    summarySection.style.display = 'block';
+}
+
+// Mode B integration is triggered directly from processChartText()
+// No need for hooks - activation happens automatically after charts are verified

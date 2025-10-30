@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Supabase 客户端单例
 Supabase Client Singleton
@@ -20,7 +21,7 @@ def get_client() -> Optional[Client]:
     global _client
     
     if not SUPABASE_AVAILABLE:
-        print("⚠️ Supabase SDK 不可用")
+        print("Warning: Supabase SDK not available")
         return None
     
     if _client is None:
@@ -28,14 +29,14 @@ def get_client() -> Optional[Client]:
         key = os.getenv("SUPABASE_KEY")
         
         if not url or not key:
-            print("⚠️ 缺少环境变量 SUPABASE_URL 或 SUPABASE_KEY")
+            print("Warning: Missing environment variables SUPABASE_URL or SUPABASE_KEY")
             return None
         
         try:
             _client = create_client(url, key)
-            print("✅ Supabase 客户端初始化成功")
+            print("OK: Supabase client initialized successfully")
         except Exception as e:
-            print(f"❌ Supabase 客户端初始化失败: {e}")
+            print(f"ERROR: Supabase client initialization failed: {e}")
             return None
     
     return _client

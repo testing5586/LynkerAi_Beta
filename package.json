@@ -1,0 +1,16 @@
+{
+  "name": "lynkerai-beta",
+  "version": "1.0.0",
+  "description": "LynkerAI Beta Platform",
+  "scripts": {
+    "dev": "cross-env NODE_OPTIONS=--encoding=utf8 python admin_dashboard/app.py",
+    "start": "cross-env NODE_OPTIONS=--encoding=utf8 python admin_dashboard/app.py"
+  },
+  "dependencies": {
+    "flask": "^3.1.0",
+    "flask-socketio": "^5.5.0",
+    "python-dotenv": "^1.0.0",
+    "openai": "^1.54.0",
+    "supabase": "^2.22.0"
+  }
+}

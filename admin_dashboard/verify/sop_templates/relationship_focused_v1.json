@@ -1,0 +1,95 @@
+{
+  "template_id": "relationship_focused_v1",
+  "template_name": "感情重点分析 v1.0",
+  "description": "专注于感情婚姻与人际关系的深度分析模板，适合关注感情生活的用户",
+  "version": "1.0",
+  "modules": [
+    {
+      "module_id": "relationship_history",
+      "module_name": "感情经历",
+      "description": "分析恋爱史、初恋、历任伴侣、感情模式",
+      "weight": 1.5,
+      "key_questions": [
+        "何时初恋？初恋经历如何？",
+        "有过几段恋爱？每段感情的特点？",
+        "感情中是否有过重大挫折？",
+        "恋爱模式是怎样的（主动/被动、长情/多变等）？"
+      ]
+    },
+    {
+      "module_id": "marriage_status",
+      "module_name": "婚姻状况",
+      "description": "详细分析婚姻状态、伴侣情况、婚姻质量",
+      "weight": 2.0,
+      "key_questions": [
+        "目前婚姻状态如何（未婚/已婚/离异/丧偶）？",
+        "如何认识现任伴侣的？何时结婚？",
+        "伴侣的性格、职业、家庭背景？",
+        "婚姻生活质量如何？",
+        "是否有过婚姻危机？如何化解？"
+      ]
+    },
+    {
+      "module_id": "partner_relationship",
+      "module_name": "伴侣相处模式",
+      "description": "分析与伴侣的日常互动、沟通方式、冲突处理",
+      "weight": 1.5,
+      "key_questions": [
+        "与伴侣的日常相处如何？",
+        "两人的沟通方式如何？",
+        "是否经常发生冲突？如何解决？",
+        "谁在关系中更主导？",
+        "性生活和谐吗？"
+      ]
+    },
+    {
+      "module_id": "family_relationships",
+      "module_name": "原生家庭与婚后家庭",
+      "description": "分析原生家庭对感情的影响、婆媳关系、姻亲关系",
+      "weight": 1.2,
+      "key_questions": [
+        "父母的婚姻状况如何？对你有何影响？",
+        "与公婆/岳父母关系如何？",
+        "姻亲关系如何？",
+        "原生家庭对婚姻有何影响？"
+      ]
+    },
+    {
+      "module_id": "children",
+      "module_name": "子女与育儿",
+      "description": "分析子女情况、育儿方式、亲子关系",
+      "weight": 1.0,
+      "key_questions": [
+        "是否有子女？几个？",
+        "子女性格如何？",
+        "育儿方式如何？",
+        "与子女关系如何？",
+        "子女是否影响夫妻关系？"
+      ]
+    },
+    {
+      "module_id": "social_relationships",
+      "module_name": "社交与友情",
+      "description": "分析朋友圈、社交能力、人际关系质量",
+      "weight": 0.8,
+      "key_questions": [
+        "朋友多吗？朋友圈质量如何？",
+        "是否有知心好友？",
+        "社交能力如何？",
+        "是否擅长维系关系？"
+      ]
+    },
+    {
+      "module_id": "emotional_patterns",
+      "module_name": "情感模式与成长",
+      "description": "分析情感依赖模式、安全感、情感成长",
+      "weight": 1.0,
+      "key_questions": [
+        "在感情中是否有安全感？",
+        "是否容易情感依赖？",
+        "感情观念是否有过改变？",
+        "如何看待感情与婚姻？"
+      ]
+    }
+  ]
+}

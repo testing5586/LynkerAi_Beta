@@ -1,0 +1,81 @@
+{
+  "template_id": "career_focused_v1",
+  "template_name": "事业重点分析 v1.0",
+  "description": "专注于事业发展与财富积累的深度分析模板，适合关注职业规划的用户",
+  "version": "1.0",
+  "modules": [
+    {
+      "module_id": "career_foundation",
+      "module_name": "事业根基",
+      "description": "分析职业选择的根源、教育背景、早期工作经验",
+      "weight": 1.0,
+      "key_questions": [
+        "教育背景如何？专业是什么？",
+        "第一份工作是什么？如何选择的？",
+        "职业规划是如何形成的？",
+        "家庭对职业选择的影响？"
+      ]
+    },
+    {
+      "module_id": "career_development",
+      "module_name": "职业发展轨迹",
+      "description": "详细分析职业发展历程、晋升路径、转折点",
+      "weight": 2.0,
+      "key_questions": [
+        "目前职业是什么？在什么公司？",
+        "职业发展经历了哪些阶段？",
+        "是否有过转行或跳槽？原因是什么？",
+        "职位晋升情况如何？",
+        "职业发展中的关键转折点？"
+      ]
+    },
+    {
+      "module_id": "wealth_accumulation",
+      "module_name": "财富积累",
+      "description": "分析收入水平、财富来源、理财投资、资产状况",
+      "weight": 1.5,
+      "key_questions": [
+        "目前收入水平如何？",
+        "主要收入来源是什么？",
+        "是否有投资理财？效果如何？",
+        "资产状况如何（房产、股票等）？",
+        "是否有负债？"
+      ]
+    },
+    {
+      "module_id": "career_challenges",
+      "module_name": "事业挑战与机遇",
+      "description": "分析职业发展中遇到的挑战、危机、以及把握的机遇",
+      "weight": 1.5,
+      "key_questions": [
+        "职业发展中遇到过哪些挑战或危机？",
+        "如何应对这些挑战？",
+        "是否把握过重要的职业机遇？",
+        "是否有过创业经历？"
+      ]
+    },
+    {
+      "module_id": "work_relationships",
+      "module_name": "职场人际关系",
+      "description": "分析职场人际网络、领导关系、同事关系、贵人运",
+      "weight": 1.0,
+      "key_questions": [
+        "与上级领导关系如何？",
+        "与同事相处如何？",
+        "职业发展中是否有贵人相助？",
+        "人脉网络如何？"
+      ]
+    },
+    {
+      "module_id": "family_support",
+      "module_name": "家庭支持与平衡",
+      "description": "分析家庭对事业的支持、事业与家庭的平衡",
+      "weight": 0.8,
+      "key_questions": [
+        "家人对事业发展的态度？",
+        "事业与家庭如何平衡？",
+        "伴侣是否支持事业发展？"
+      ]
+    }
+  ]
+}
