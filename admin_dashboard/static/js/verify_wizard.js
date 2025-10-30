@@ -53,6 +53,29 @@ function getCurrentGroup() {
     return state.chartGroups[state.currentGroupIndex];
 }
 
+// ========== 格式转换函数（Mode B 数据准备）==========
+// 将八字 JSON 数据转换为后端期望的文本格式
+function formatBaziForAPI(baziData) {
+    if (!baziData) return "";
+    if (typeof baziData === "string") return baziData; // 已经是文本格式
+    
+    // 如果是 JSON 对象，提取字段
+    const y = baziData.year_pillar || "";
+    const m = baziData.month_pillar || "";
+    const d = baziData.day_pillar || "";
+    const h = baziData.hour_pillar || "";
+    return `年柱:${y} 月柱:${m} 日柱:${d} 时柱:${h}`;
+}
+
+// 将紫微 JSON 数据转换为后端期望的格式
+function formatZiweiForAPI(ziweiData) {
+    if (!ziweiData) return "";
+    if (typeof ziweiData === "string") return ziweiData; // 已经是文本格式
+    
+    // 紫微数据可以原样发送 JSON 字符串
+    return JSON.stringify(ziweiData, null, 2);
+}
+
 // ========== 初始化 ==========
 document.addEventListener("DOMContentLoaded", () => {
     // 获取 user_id
