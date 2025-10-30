@@ -12,6 +12,7 @@ Companion-Led Full Chart Verification Mode Routes
 
 import os
 import json
+import re
 import asyncio
 from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, session
@@ -29,6 +30,79 @@ bp = Blueprint("full_chart_verify", __name__, url_prefix="/verify")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 sp = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+
+
+# ======================
+# 八字文本解析器
+# ======================
+
+def parse_bazi_text(text):
+    """
+    将粘贴的八字命盘文本转换为结构化 JSON
+    
+    支持格式：
+    1. 年柱：甲子 月柱：丙寅 日柱：戊午 时柱：庚申
+    2. 八字：甲子 丙寅 戊午 庚申
+    3. 阳历：2000年03月20日 08:18
+    
+    Args:
+        text: 用户粘贴的八字文本
+    
+    Returns:
+        dict: {"parsed": {...}} 或 {"parsed": None} 如果解析失败
+    """
+    if not text:
+        return {"parsed": None}
+
+    data = {}
+    lines = text.strip().split("\n")
+    
+    # 天干地支正则
+    heavenly_stems = "甲乙丙丁戊己庚辛壬癸"
+    earthly_branches = "子丑寅卯辰巳午未申酉戌亥"
+    
+    for line in lines:
+        # 匹配四柱格式：年柱、月柱、日柱、时柱
+        if "柱" in line:
+            matches = re.findall(f"([{heavenly_stems}])([{earthly_branches}])", line)
+            if matches and len(matches) >= 4:
+                data["year_pillar"] = f"{matches[0][0]}{matches[0][1]}"
+                data["month_pillar"] = f"{matches[1][0]}{matches[1][1]}"
+                data["day_pillar"] = f"{matches[2][0]}{matches[2][1]}"
+                data["hour_pillar"] = f"{matches[3][0]}{matches[3][1]}"
+        
+        # 匹配八字连续格式
+        elif "八字" in line or re.search(f"[{heavenly_stems}][{earthly_branches}]", line):
+            matches = re.findall(f"([{heavenly_stems}])([{earthly_branches}])", line)
+            if matches and len(matches) >= 4:
+                data["year_pillar"] = f"{matches[0][0]}{matches[0][1]}"
+                data["month_pillar"] = f"{matches[1][0]}{matches[1][1]}"
+                data["day_pillar"] = f"{matches[2][0]}{matches[2][1]}"
+                data["hour_pillar"] = f"{matches[3][0]}{matches[3][1]}"
+        
+        # 匹配阳历日期
+        if "阳历" in line or "公历" in line or "出生" in line:
+            date_match = re.search(r"(\d{4})[年\-\.\/](\d{1,2})[月\-\.\/](\d{1,2})", line)
+            if date_match:
+                data["birth_date"] = f"{date_match.group(1)}-{date_match.group(2).zfill(2)}-{date_match.group(3).zfill(2)}"
+            
+            # 匹配时间
+            time_match = re.search(r"(\d{1,2}):(\d{2})", line)
+            if time_match:
+                data["birth_time"] = f"{time_match.group(1).zfill(2)}:{time_match.group(2)}"
+        
+        # 匹配农历日期
+        if "农历" in line or "阮历" in line:
+            lunar_match = re.search(r"(\d{4})[年\s]+([一二三四五六七八九十正冬腊]+月)[日\s]*([初一二三四五六七八九十廿卅]+)", line)
+            if lunar_match:
+                data["lunar_date"] = f"{lunar_match.group(1)} {lunar_match.group(2)} {lunar_match.group(3)}"
+    
+    # 如果成功提取到四柱，返回数据
+    if "year_pillar" in data and "month_pillar" in data and "day_pillar" in data and "hour_pillar" in data:
+        return {"parsed": data}
+    else:
+        return {"parsed": None}
+
 
 # ======================
 # SOP 模板管理目录
@@ -594,6 +668,40 @@ def run_full_chart_analysis():
     user_id = data.get("user_id")
     lang = data.get("lang", "zh")
 
+    # ========== 1.1 自动解析八字文本输入 ==========
+    # 检测 bazi_chart 是否为纯文本（不是JSON），如果是则自动解析
+    if isinstance(bazi_chart, str) and not bazi_chart.strip().startswith("{"):
+        print(f"📝 [Mode B] 检测到八字文本输入，开始解析...")
+        parsed_result = parse_bazi_text(bazi_chart)
+        
+        if parsed_result.get("parsed"):
+            bazi_data = parsed_result["parsed"]
+            print(f"✅ [Mode B] 八字文本解析成功: {bazi_data}")
+        else:
+            return jsonify({
+                "ok": False,
+                "toast": "八字文本解析失败，请检查格式是否正确。支持格式：年柱:甲子 月柱:丙寅 日柱:戊午 时柱:庚申"
+            }), 400
+    else:
+        # 已经是 JSON 格式，直接解析
+        try:
+            bazi_data = json.loads(bazi_chart) if isinstance(bazi_chart, str) else bazi_chart
+        except json.JSONDecodeError:
+            return jsonify({
+                "ok": False,
+                "toast": "八字命盘格式错误，无法解析 JSON"
+            }), 400
+    
+    # 解析紫微命盘（保持原有逻辑）
+    try:
+        ziwei_data = json.loads(ziwei_chart) if isinstance(ziwei_chart, str) else ziwei_chart
+    except json.JSONDecodeError:
+        return jsonify({
+            "ok": False,
+            "toast": "紫微命盘格式错误，无法解析 JSON"
+        }), 400
+
+    # ========== 1.2 验证解析后的数据 ==========
     if mode != "full_chart":
         return jsonify({
             "ok": False,
@@ -606,10 +714,10 @@ def run_full_chart_analysis():
             "toast": "请选择 SOP 分析模板"
         }), 400
 
-    if not bazi_chart or not ziwei_chart:
+    if not bazi_data or not ziwei_data:
         return jsonify({
             "ok": False,
-            "toast": "请先导入八字与紫微命盘"
+            "toast": "命盘数据不完整，请先导入八字与紫微命盘"
         }), 400
 
     if not user_id:
@@ -639,9 +747,9 @@ def run_full_chart_analysis():
     try:
         print(f"🚀 [Mode B] 开始并行分析: user_id={user_id}")
 
-        # 使用 asyncio.run 执行并行分析
+        # 使用 asyncio.run 执行并行分析（使用解析后的数据）
         bazi_result, ziwei_result = asyncio.run(
-            run_parallel_analysis(bazi_chart, ziwei_chart, sop_template, bazi_name, ziwei_name)
+            run_parallel_analysis(bazi_data, ziwei_data, sop_template, bazi_name, ziwei_name)
         )
 
         # 检查分析是否成功
