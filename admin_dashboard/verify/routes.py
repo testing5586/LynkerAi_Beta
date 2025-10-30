@@ -4,8 +4,13 @@
 """
 import os
 import json
+import re
 from flask import Blueprint, request, jsonify, render_template, session
 from supabase import create_client
+import pytesseract
+from PIL import Image
+import cv2
+import numpy as np
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -39,6 +44,42 @@ bp = Blueprint("verify_wizard", __name__, url_prefix="/verify", template_folder=
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 sp = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+
+
+# ===== OCR 辅助函数 =====
+
+def preprocess_for_ocr(image_path):
+    """对命盘图片做OCR前处理"""
+    img = cv2.imread(image_path)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # 调整亮度对比度
+    gray = cv2.convertScaleAbs(gray, alpha=1.3, beta=20)
+
+    # 高斯去噪
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+
+    # 自适应二值化
+    thresh = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY, 11, 2
+    )
+
+    # 腐蚀膨胀平滑笔画
+    kernel = np.ones((2, 2), np.uint8)
+    morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    temp_path = "/tmp/ocr_cleaned.png"
+    cv2.imwrite(temp_path, morph)
+    return temp_path
+
+
+def clean_bazi_text(text):
+    """去除乱码和无关符号"""
+    text = re.sub(r'[^0-9一-龥年月日时辰甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥\s]', '', text)
+    text = re.sub(r'\s+', ' ', text)
+    text = text.replace('阮历', '农历')
+    return text.strip()
 
 
 def save_verification_results(user_id, group_index, bazi_result, ziwei_result, life_events_count, sp):
@@ -418,104 +459,30 @@ def ocr_test():
 
 @bp.post("/api/ocr")
 def ocr_image():
-    """
-    OCR 图片识别接口
-    接收图片文件，返回OCR识别的文本
-    优先级：PaddleOCR (最佳中文) > EasyOCR > pytesseract
-    """
-    OCR_AVAILABLE = False
-    process_image_bytes = None
-    ocr_engine = "未知"
+    """改良版OCR端点：pytesseract + 中英混合 + 多列支持"""
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"ok": False, "toast": "未检测到上传的文件"}), 400
 
-    # 优先尝试使用 PaddleOCR (最佳中文识别)
-    try:
-        from import_engine.ocr_importer_paddle import process_image_bytes as paddle_process, OCR_AVAILABLE as PADDLE_AVAILABLE
-        if PADDLE_AVAILABLE:
-            process_image_bytes = paddle_process
-            OCR_AVAILABLE = True
-            ocr_engine = "PaddleOCR"
-            print(f"[OCR] Using {ocr_engine} (高精度中文识别)")
-    except (ImportError, Exception) as e:
-        print(f"[OCR] PaddleOCR not available: {type(e).__name__}: {e}")
+    filepath = "/tmp/uploaded.png"
+    file.save(filepath)
 
-    # 如果 PaddleOCR 不可用，尝试 EasyOCR
-    if not OCR_AVAILABLE:
-        try:
-            from import_engine.ocr_importer import process_image_bytes as easyocr_process, OCR_AVAILABLE as EASYOCR_AVAILABLE
-            if EASYOCR_AVAILABLE:
-                process_image_bytes = easyocr_process
-                OCR_AVAILABLE = True
-                ocr_engine = "EasyOCR"
-                print(f"[OCR] Using {ocr_engine}")
-        except (ImportError, Exception) as e:
-            print(f"[OCR] EasyOCR not available: {type(e).__name__}: {e}")
+    # 图像预处理
+    cleaned_path = preprocess_for_ocr(filepath)
 
-    # 如果都不可用，尝试 pytesseract (备用)
-    if not OCR_AVAILABLE:
-        try:
-            from import_engine.ocr_importer_pytesseract import process_image_bytes as pytesseract_process, OCR_AVAILABLE as PYTESSERACT_AVAILABLE
-            if PYTESSERACT_AVAILABLE:
-                process_image_bytes = pytesseract_process
-                OCR_AVAILABLE = True
-                ocr_engine = "pytesseract"
-                print(f"[OCR] Using {ocr_engine} (备用)")
-            else:
-                print(f"[OCR] pytesseract imported but OCR_AVAILABLE=False")
-        except (ImportError, Exception) as e:
-            print(f"[OCR] pytesseract not available: {type(e).__name__}: {e}")
-
-    if not OCR_AVAILABLE or process_image_bytes is None:
-        return jsonify({
-            "ok": False,
-            "toast": "OCR 功能未安装。请安装以下任一OCR库：<br>1. pip install paddleocr paddlepaddle (推荐，高精度中文)<br>2. pip install pytesseract (轻量级)<br>3. pip install easyocr (更准确但需要更多资源)"
-        }), 400
+    # 核心识别参数（多列+中英混合）
+    custom_config = r'--oem 3 --psm 4 -l chi_sim+eng'
 
     try:
-
-        # 检查是否有文件上传
-        if 'file' not in request.files:
-            return jsonify({
-                "ok": False,
-                "toast": "未检测到上传的文件"
-            }), 400
-
-        file = request.files['file']
-
-        if file.filename == '':
-            return jsonify({
-                "ok": False,
-                "toast": "文件名为空"
-            }), 400
-
-        # 读取图片字节
-        image_bytes = file.read()
-
-        # 调用OCR处理
-        ocr_result = process_image_bytes(image_bytes)
-
-        if ocr_result.get("error"):
-            return jsonify({
-                "ok": False,
-                "toast": ocr_result["error"],
-                "raw_text": ocr_result.get("raw_text", "")
-            }), 400
-
-        # 返回OCR识别的文本
+        text = pytesseract.image_to_string(Image.open(cleaned_path), config=custom_config)
+        text = clean_bazi_text(text)
         return jsonify({
             "ok": True,
-            "raw_text": ocr_result.get("raw_text", ""),
-            "parsed": ocr_result,
-            "ocr_engine": ocr_engine,
-            "toast": f"✅ 使用 {ocr_engine} 识别成功！请检查并修正识别结果"
+            "raw_text": text,
+            "ocr_engine": "pytesseract (优化版)",
+            "toast": "✅ OCR识别完成！请检查并修正识别结果"
         })
-
-    except ImportError:
-        return jsonify({
-            "ok": False,
-            "toast": "OCR 功能未安装，请运行: pip install pillow easyocr"
-        }), 400
     except Exception as e:
-        print(f"❌ OCR 处理失败: {e}")
         return jsonify({
             "ok": False,
             "toast": f"OCR 识别失败：{str(e)}"
