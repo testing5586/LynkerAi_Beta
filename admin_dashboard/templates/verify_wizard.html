@@ -108,6 +108,9 @@
                 <div class="result-header">
                     <h4>📄 八字命盘验证结果</h4>
                     <span class="result-status" id="baziStatus">等待上传...</span>
+                    <div class="result-actions">
+                        <button class="btn-select" id="selectBaziBtn" onclick="selectResult('bazi')" style="display:none;">选择此结果</button>
+                    </div>
                 </div>
                 <div class="result-content" id="baziResultContent">
                     <p class="empty-state">上传八字命盘后，验证结果将显示在这里</p>
@@ -119,6 +122,9 @@
                 <div class="result-header">
                     <h4>📄 紫微斗数命盘验证结果</h4>
                     <span class="result-status" id="ziweiStatus">等待上传...</span>
+                    <div class="result-actions">
+                        <button class="btn-select" id="selectZiweiBtn" onclick="selectResult('ziwei')" style="display:none;">选择此结果</button>
+                    </div>
                 </div>
                 <div class="result-content" id="ziweiResultContent">
                     <p class="empty-state">上传紫微命盘后，验证结果将显示在这里</p>
@@ -132,6 +138,27 @@
         <div class="chatbox-header">
             <h3>💬 Child AI 助手</h3>
             <p class="chatbox-subtitle">我会引导你完成命盘验证</p>
+        </div>
+        
+        <!-- 结果选择区域 -->
+        <div class="result-selection" id="resultSelection" style="display:none;">
+            <h4>🎯 验证结果选择</h4>
+            <p>请选择你认为最准确的验证结果：</p>
+            <div class="selection-options">
+                <div class="selection-option">
+                    <input type="radio" id="preferBazi" name="preferredResult" value="bazi">
+                    <label for="preferBazi">八字命盘验证结果</label>
+                </div>
+                <div class="selection-option">
+                    <input type="radio" id="preferZiwei" name="preferredResult" value="ziwei">
+                    <label for="preferZiwei">紫微斗数命盘验证结果</label>
+                </div>
+                <div class="selection-option">
+                    <input type="radio" id="preferBoth" name="preferredResult" value="both">
+                    <label for="preferBoth">显示两个结果</label>
+                </div>
+            </div>
+            <button class="btn-confirm" onclick="confirmResultSelection()">确认选择</button>
         </div>
         
         <div class="chatbox-messages" id="chatMessages">

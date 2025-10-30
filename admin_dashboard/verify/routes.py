@@ -360,16 +360,116 @@ def confirm():
         }), 500
 
 
+@bp.get("/api/ocr/test")
+def ocr_test():
+    """测试OCR是否可用"""
+    try:
+        from import_engine.ocr_importer_pytesseract import OCR_AVAILABLE
+        return jsonify({
+            "ok": True,
+            "available": OCR_AVAILABLE,
+            "message": "pytesseract OCR is available" if OCR_AVAILABLE else "pytesseract OCR is not available"
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "message": "Failed to import OCR module"
+        })
+
 @bp.post("/api/ocr")
-def ocr_placeholder():
+def ocr_image():
     """
-    OCR 接口占位
-    暂不启用，引导用户使用粘贴文本/上传TXT
+    OCR 图片识别接口
+    接收图片文件，返回OCR识别的文本
     """
-    return jsonify({
-        "ok": False,
-        "toast": "暂不启用 OCR 识别，请优先粘贴文本或上传 TXT 文件"
-    }), 400
+    # 优先尝试使用 EasyOCR，失败则降级到 pytesseract
+    OCR_AVAILABLE = False
+    process_image_bytes = None
+    ocr_engine = "未知"
+
+    # 尝试导入 EasyOCR (从 admin_dashboard 运行，所以直接使用模块名)
+    try:
+        from import_engine.ocr_importer import process_image_bytes as easyocr_process, OCR_AVAILABLE as EASYOCR_AVAILABLE
+        if EASYOCR_AVAILABLE:
+            process_image_bytes = easyocr_process
+            OCR_AVAILABLE = True
+            ocr_engine = "EasyOCR"
+            print(f"[OCR] Using {ocr_engine}")
+    except (ImportError, Exception) as e:
+        print(f"[OCR] EasyOCR not available: {type(e).__name__}: {e}")
+
+    # 如果 EasyOCR 不可用，尝试 pytesseract
+    if not OCR_AVAILABLE:
+        try:
+            from import_engine.ocr_importer_pytesseract import process_image_bytes as pytesseract_process, OCR_AVAILABLE as PYTESSERACT_AVAILABLE
+            if PYTESSERACT_AVAILABLE:
+                process_image_bytes = pytesseract_process
+                OCR_AVAILABLE = True
+                ocr_engine = "pytesseract"
+                print(f"[OCR] Using {ocr_engine} (lightweight)")
+            else:
+                print(f"[OCR] pytesseract imported but OCR_AVAILABLE=False")
+        except (ImportError, Exception) as e:
+            print(f"[OCR] pytesseract not available: {type(e).__name__}: {e}")
+
+    if not OCR_AVAILABLE or process_image_bytes is None:
+        return jsonify({
+            "ok": False,
+            "toast": "OCR 功能未安装。请安装以下任一OCR库：<br>1. pip install pytesseract (推荐，轻量级)<br>2. pip install easyocr (更准确但需要更多资源)"
+        }), 400
+
+    try:
+
+        # 检查是否有文件上传
+        if 'file' not in request.files:
+            return jsonify({
+                "ok": False,
+                "toast": "未检测到上传的文件"
+            }), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({
+                "ok": False,
+                "toast": "文件名为空"
+            }), 400
+
+        # 读取图片字节
+        image_bytes = file.read()
+
+        # 调用OCR处理
+        ocr_result = process_image_bytes(image_bytes)
+
+        if ocr_result.get("error"):
+            return jsonify({
+                "ok": False,
+                "toast": ocr_result["error"],
+                "raw_text": ocr_result.get("raw_text", "")
+            }), 400
+
+        # 返回OCR识别的文本
+        return jsonify({
+            "ok": True,
+            "raw_text": ocr_result.get("raw_text", ""),
+            "parsed": ocr_result,
+            "toast": "OCR 识别成功，请检查并修正识别结果"
+        })
+
+    except ImportError:
+        return jsonify({
+            "ok": False,
+            "toast": "OCR 功能未安装，请运行: pip install pillow easyocr"
+        }), 400
+    except Exception as e:
+        print(f"❌ OCR 处理失败: {e}")
+        return jsonify({
+            "ok": False,
+            "toast": f"OCR 识别失败：{str(e)}"
+        }), 500
 
 
 @bp.post("/api/chat")
@@ -806,3 +906,171 @@ def confirm_true_chart():
             "ok": False,
             "toast": f"确认真命盘失败：{str(e)}"
         }), 500
+
+
+def run_bazi_child_ai(question, answer, chart_data):
+    """
+    八字 Child AI 分析函数
+    """
+    import asyncio
+    
+    try:
+        # 构建上下文文本（问题 + 回答）
+        context_text = f"问题：{question}\n用户回答：{answer}"
+        
+        # 获取八字 AI 名称
+        bazi_name = "八字观察员"
+        try:
+            ai_names = get_ai_names_from_db(sp)
+            if ai_names:
+                bazi_name = ai_names.get("bazi", "八字观察员")
+        except Exception as e:
+            print(f"⚠️ 获取八字 AI 名称失败，使用默认值: {e}")
+        
+        # 调用八字 Child AI 分析
+        print(f"🔍 触发八字 Child AI 分析: context={context_text[:50]}...")
+        
+        bazi_result = asyncio.run(verify_chart_with_ai(
+            chart_data,
+            context_text,
+            "bazi",
+            bazi_name
+        ))
+        
+        # 格式化输出结果
+        formatted_result = {
+            "birth_time_confidence": bazi_result.get("birth_time_confidence", "中"),
+            "key_supporting_evidence": bazi_result.get("key_supporting_evidence", []),
+            "key_conflicts": bazi_result.get("key_conflicts", []),
+            "summary": bazi_result.get("summary", "")
+        }
+        
+        print(f"✅ 八字 Child AI 分析完成: {formatted_result['summary'][:50]}...")
+        
+        return {
+            "ok": True,
+            "result": formatted_result,
+            "toast": "八字命盘验证完成"
+        }
+        
+    except Exception as e:
+        print(f"❌ 八字 Child AI 分析失败: {e}")
+        return {
+            "ok": False,
+            "toast": f"八字分析失败：{str(e)}"
+        }
+
+
+def run_ziwei_child_ai(question, answer, chart_data):
+    """
+    紫微 Child AI 分析函数
+    """
+    import asyncio
+    
+    try:
+        # 构建上下文文本（问题 + 回答）
+        context_text = f"问题：{question}\n用户回答：{answer}"
+        
+        # 获取紫微 AI 名称
+        ziwei_name = "星盘参谋"
+        try:
+            ai_names = get_ai_names_from_db(sp)
+            if ai_names:
+                ziwei_name = ai_names.get("ziwei", "星盘参谋")
+        except Exception as e:
+            print(f"⚠️ 获取紫微 AI 名称失败，使用默认值: {e}")
+        
+        # 调用紫微 Child AI 分析
+        print(f"🔮 触发紫微 Child AI 分析: context={context_text[:50]}...")
+        
+        ziwei_result = asyncio.run(verify_chart_with_ai(
+            chart_data,
+            context_text,
+            "ziwei",
+            ziwei_name
+        ))
+        
+        # 格式化输出结果
+        formatted_result = {
+            "birth_time_confidence": ziwei_result.get("birth_time_confidence", "中"),
+            "key_supporting_evidence": ziwei_result.get("key_supporting_evidence", []),
+            "key_conflicts": ziwei_result.get("key_conflicts", []),
+            "summary": ziwei_result.get("summary", "")
+        }
+        
+        print(f"✅ 紫微 Child AI 分析完成: {formatted_result['summary'][:50]}...")
+        
+        return {
+            "ok": True,
+            "result": formatted_result,
+            "toast": "紫微命盘验证完成"
+        }
+        
+    except Exception as e:
+        print(f"❌ 紫微 Child AI 分析失败: {e}")
+        return {
+            "ok": False,
+            "toast": f"紫微分析失败：{str(e)}"
+        }
+
+
+@bp.post("/api/run_child_ai")
+def run_child_ai_endpoint():
+    """
+    Child AI 分析接口
+    当灵伴完成一个问题并收到用户回答后自动触发
+    """
+    data = request.get_json()
+    if not data:
+        data = {}
+    
+    mode = data.get("mode", "bazi")
+    question = data.get("question", "")
+    answer = data.get("answer", "")
+    chart_data = data.get("chart_data", {})
+    user_id = data.get("user_id")
+    
+    if not user_id:
+        return jsonify({
+            "ok": False,
+            "toast": "缺少用户ID"
+        }), 400
+    
+    if not question or not answer:
+        return jsonify({
+            "ok": False,
+            "toast": "缺少问题或回答内容"
+        }), 400
+    
+    # 如果没有提供 chart_data，尝试从数据库获取
+    if not chart_data:
+        try:
+            # 尝试从 birthcharts 表获取
+            bazi_chart = sp.table("birthcharts").select("*") \
+                .eq("name", user_id) \
+                .order("created_at", desc=True) \
+                .limit(1) \
+                .execute()
+            
+            if bazi_chart.data and len(bazi_chart.data) > 0:
+                birth_data = bazi_chart.data[0].get("birth_data", "{}")
+                if isinstance(birth_data, str):
+                    chart_data = json.loads(birth_data)
+                else:
+                    chart_data = birth_data
+        except Exception as db_error:
+            print(f"⚠️ 数据库查询失败，使用空数据: {db_error}")
+            chart_data = {}
+    
+    # 根据模式调用相应的分析函数
+    if mode == "bazi":
+        result = run_bazi_child_ai(question, answer, chart_data)
+    elif mode == "ziwei":
+        result = run_ziwei_child_ai(question, answer, chart_data)
+    else:
+        result = {
+            "ok": False,
+            "toast": f"不支持的模式: {mode}"
+        }
+    
+    return jsonify(result)

@@ -16,7 +16,9 @@ const state = {
             baziResult: null,
             ziweiResult: null,
             baziUploaded: false,
-            ziweiUploaded: false
+            ziweiUploaded: false,
+            baziImageUrl: null, // 存储上传的图片URL
+            ziweiImageUrl: null
         },
         // 组2 - 可能出生的时辰2
         {
@@ -25,7 +27,9 @@ const state = {
             baziResult: null,
             ziweiResult: null,
             baziUploaded: false,
-            ziweiUploaded: false
+            ziweiUploaded: false,
+            baziImageUrl: null,
+            ziweiImageUrl: null
         },
         // 组3 - 可能出生的时辰3
         {
@@ -34,7 +38,9 @@ const state = {
             baziResult: null,
             ziweiResult: null,
             baziUploaded: false,
-            ziweiUploaded: false
+            ziweiUploaded: false,
+            baziImageUrl: null,
+            ziweiImageUrl: null
         }
     ],
     conversationState: 'waiting_bazi', // waiting_bazi | waiting_ziwei | ready_to_save | saved
@@ -133,22 +139,82 @@ function saveCurrentGroupState() {
 function renderCurrentGroup() {
     const currentGroup = getCurrentGroup();
     const groupIndex = state.currentGroupIndex;
-    
+
     // 更新时辰标题
     const shichenTitle = document.querySelector('.shichen-title h2');
     if (shichenTitle) {
         shichenTitle.textContent = `可能出生的时辰${groupIndex + 1}`;
     }
-    
+
     // 恢复文本输入框内容
     const baziText = document.getElementById('baziText');
     const ziweiText = document.getElementById('ziweiText');
     if (baziText) baziText.value = currentGroup.baziText || '';
     if (ziweiText) ziweiText.value = currentGroup.ziweiText || '';
-    
+
+    // 恢复图片预览
+    if (currentGroup.baziImageUrl) {
+        displayImagePreview('bazi', currentGroup.baziImageUrl);
+    } else {
+        resetDropzone('bazi');
+    }
+
+    if (currentGroup.ziweiImageUrl) {
+        displayImagePreview('ziwei', currentGroup.ziweiImageUrl);
+    } else {
+        resetDropzone('ziwei');
+    }
+
     // 恢复结果展示区
     renderResult('bazi', currentGroup.baziResult, currentGroup.baziUploaded);
     renderResult('ziwei', currentGroup.ziweiResult, currentGroup.ziweiUploaded);
+}
+
+// 显示图片预览在上传区域
+function displayImagePreview(type, imageUrl) {
+    const dropzoneId = type === 'bazi' ? 'baziDropzone' : 'ziweiDropzone';
+    const dropzone = document.getElementById(dropzoneId);
+    if (!dropzone) return;
+
+    // 添加已有图片的样式类
+    dropzone.classList.add('has-image');
+
+    // 清空原有内容并显示图片预览
+    dropzone.innerHTML = `
+        <div class="dropzone-content">
+            <img src="${imageUrl}" class="dropzone-image-preview" alt="命盘图片" onclick="window.open('${imageUrl}', '_blank')" title="点击查看大图">
+            <div class="dropzone-upload-prompt">
+                <p class="dropzone-text">图片已加载。可拖拽新图片或</p>
+                <button class="btn-upload" onclick="event.stopPropagation(); document.getElementById('${type}File').click()">重新选择文件</button>
+            </div>
+        </div>
+        <input type="file" id="${type}File" accept="image/*,.txt" style="display:none;">
+    `;
+
+    // 保持拖拽功能
+    setupDropzone(dropzone, type);
+}
+
+// 重置上传区域到初始状态
+function resetDropzone(type) {
+    const dropzoneId = type === 'bazi' ? 'baziDropzone' : 'ziweiDropzone';
+    const dropzone = document.getElementById(dropzoneId);
+    if (!dropzone) return;
+
+    // 移除已有图片的样式类
+    dropzone.classList.remove('has-image');
+
+    // 恢复原始上传提示
+    dropzone.innerHTML = `
+        <div class="dropzone-icon">☁️</div>
+        <p class="dropzone-text">拖拽图片到这里 或</p>
+        <button class="btn-upload" onclick="event.stopPropagation(); document.getElementById('${type}File').click()">选择文件</button>
+        <input type="file" id="${type}File" accept="image/*,.txt" style="display:none;">
+        <p class="dropzone-hint">也可以直接粘贴命盘文本</p>
+    `;
+
+    // 重新初始化拖拽功能
+    setupDropzone(dropzone, type);
 }
 
 // 渲染单个结果框
@@ -156,9 +222,9 @@ function renderResult(type, result, uploaded) {
     const resultBox = document.getElementById(`${type}Result`);
     const statusElem = document.getElementById(`${type}Status`);
     const contentElem = document.getElementById(`${type}ResultContent`);
-    
+
     if (!resultBox || !statusElem || !contentElem) return;
-    
+
     if (result) {
         // 显示验证结果
         statusElem.textContent = '验证完成';
@@ -236,17 +302,11 @@ function preventDefaults(e) {
 
 // ========== 文件输入处理 ==========
 function initFileInputs() {
-    const baziFile = document.getElementById('baziFile');
-    const ziweiFile = document.getElementById('ziweiFile');
-    
-    baziFile.addEventListener('change', (e) => {
-        if (e.target.files[0]) {
+    // Use event delegation on document to handle dynamically created file inputs
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'baziFile' && e.target.files[0]) {
             handleFileUpload(e.target.files[0], 'bazi');
-        }
-    });
-    
-    ziweiFile.addEventListener('change', (e) => {
-        if (e.target.files[0]) {
+        } else if (e.target.id === 'ziweiFile' && e.target.files[0]) {
             handleFileUpload(e.target.files[0], 'ziwei');
         }
     });
@@ -255,29 +315,79 @@ function initFileInputs() {
 async function handleFileUpload(file, type) {
     const textarea = document.getElementById(`${type}Text`);
     const statusSpan = document.getElementById(`${type}Status`);
-    
+    const currentGroup = getCurrentGroup();
+
     statusSpan.textContent = "读取文件中...";
     statusSpan.className = "result-status processing";
-    
+
     try {
         if (file.type.startsWith('image/')) {
-            // 图片文件 - 暂时提示用户
-            addAIMessage(`检测到图片文件 "${file.name}"，OCR 功能暂未启用。请先使用其他工具提取文本后再粘贴到输入框。`);
-            statusSpan.textContent = "等待文本输入...";
-            statusSpan.className = "result-status";
+            // 保存图片的 Data URL 用于预览
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (type === 'bazi') {
+                    currentGroup.baziImageUrl = e.target.result;
+                } else {
+                    currentGroup.ziweiImageUrl = e.target.result;
+                }
+                // 立即显示图片预览
+                displayImagePreview(type, e.target.result);
+            };
+            reader.readAsDataURL(file);
+
+            // 图片文件 - 使用OCR识别
+            addAIMessage(`检测到图片文件 "${file.name}"，正在使用 OCR 识别文本...`);
+            statusSpan.textContent = "OCR 识别中...";
+            statusSpan.className = "result-status processing";
+
+            // 调用OCR API
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/verify/api/ocr', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`OCR API returned status ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('[OCR Response]', data);
+
+            if (data.ok) {
+                // OCR识别成功
+                textarea.value = data.raw_text;
+                statusSpan.textContent = "OCR 识别完成";
+                statusSpan.className = "result-status success";
+
+                addAIMessage(`✅ OCR 识别完成！已提取文本内容。请检查识别结果，如有错误可以手动修改，然后点击输入框外部完成验证。`);
+
+                // 自动触发验证
+                await processChartText(data.raw_text, type);
+            } else {
+                // OCR识别失败
+                addAIMessage(`❌ OCR 识别失败：${data.toast}${data.raw_text ? '<br>识别到的部分文本已填入输入框，请检查和补充。' : ''}`);
+                if (data.raw_text) {
+                    textarea.value = data.raw_text;
+                }
+                statusSpan.textContent = "OCR 识别失败";
+                statusSpan.className = "result-status error";
+            }
         } else {
             // 文本文件
             const text = await file.text();
             textarea.value = text;
             statusSpan.textContent = "文件已加载";
             statusSpan.className = "result-status success";
-            
+
             // 自动触发验证
             await processChartText(text, type);
         }
     } catch (error) {
         console.error("文件读取失败:", error);
-        addAIMessage(`抱歉，读取文件 "${file.name}" 时出错了。请检查文件格式后重试。`);
+        addAIMessage(`抱歉，读取文件 "${file.name}" 时出错了。<br>错误信息：${error.message}`);
         statusSpan.textContent = "读取失败";
         statusSpan.className = "result-status error";
     }
@@ -437,7 +547,11 @@ async function processChartText(text, type) {
 // ========== 显示验证结果 ==========
 function displayResult(data, type) {
     const resultContent = document.getElementById(`${type}ResultContent`);
-    
+
+    // 保存现有的图片预览（如果有）
+    const existingImagePreview = resultContent.querySelector('.image-preview-container');
+    const imagePreviewHTML = existingImagePreview ? existingImagePreview.outerHTML : '';
+
     let html = '';
     
     // 如果有AI验证结果，优先显示AI结果
@@ -567,8 +681,21 @@ function displayResult(data, type) {
             <pre style="margin-top: 8px;">${JSON.stringify(data.parsed, null, 2)}</pre>
         </details>
     `;
-    
+
+    // 先设置HTML内容，然后在前面插入图片预览
     resultContent.innerHTML = html;
+
+    // 如果之前有图片预览，重新插入到顶部
+    if (imagePreviewHTML) {
+        resultContent.insertAdjacentHTML('afterbegin', imagePreviewHTML);
+    } else {
+        // 检查是否有新的图片需要显示
+        const currentGroup = getCurrentGroup();
+        const imageUrl = type === 'bazi' ? currentGroup.baziImageUrl : currentGroup.ziweiImageUrl;
+        if (imageUrl) {
+            displayImagePreview(type, imageUrl);
+        }
+    }
 }
 
 // ========== AI 引导对话 ==========
@@ -780,7 +907,14 @@ function addUserMessage(text) {
         </div>
     `;
     messagesContainer.appendChild(messageEl);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    // Scroll to bottom with smooth behavior
+    setTimeout(() => {
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 function addAIMessage(html) {
@@ -794,7 +928,14 @@ function addAIMessage(html) {
         </div>
     `;
     messagesContainer.appendChild(messageEl);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    // Scroll to bottom with smooth behavior
+    setTimeout(() => {
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 // ========== 保存到数据库 ==========
