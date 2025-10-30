@@ -367,45 +367,90 @@ def confirm():
 @bp.get("/api/ocr/test")
 def ocr_test():
     """测试OCR是否可用"""
+    engines = {}
+    
+    # Test PaddleOCR
     try:
-        from import_engine.ocr_importer_pytesseract import OCR_AVAILABLE
-        return jsonify({
-            "ok": True,
-            "available": OCR_AVAILABLE,
-            "message": "pytesseract OCR is available" if OCR_AVAILABLE else "pytesseract OCR is not available"
-        })
+        from import_engine.ocr_importer_paddle import OCR_AVAILABLE as PADDLE_AVAILABLE
+        engines["paddleocr"] = {
+            "available": PADDLE_AVAILABLE,
+            "priority": 1,
+            "name": "PaddleOCR (高精度中文)"
+        }
     except Exception as e:
-        import traceback
-        return jsonify({
-            "ok": False,
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "message": "Failed to import OCR module"
-        })
+        engines["paddleocr"] = {"available": False, "error": str(e)}
+    
+    # Test EasyOCR
+    try:
+        from import_engine.ocr_importer import OCR_AVAILABLE as EASY_AVAILABLE
+        engines["easyocr"] = {
+            "available": EASY_AVAILABLE,
+            "priority": 2,
+            "name": "EasyOCR"
+        }
+    except Exception as e:
+        engines["easyocr"] = {"available": False, "error": str(e)}
+    
+    # Test pytesseract
+    try:
+        from import_engine.ocr_importer_pytesseract import OCR_AVAILABLE as TESSERACT_AVAILABLE
+        engines["pytesseract"] = {
+            "available": TESSERACT_AVAILABLE,
+            "priority": 3,
+            "name": "pytesseract (备用)"
+        }
+    except Exception as e:
+        engines["pytesseract"] = {"available": False, "error": str(e)}
+    
+    # Find active engine
+    active_engine = None
+    for name, info in engines.items():
+        if info.get("available"):
+            if active_engine is None or info.get("priority", 999) < engines[active_engine].get("priority", 999):
+                active_engine = name
+    
+    return jsonify({
+        "ok": True,
+        "engines": engines,
+        "active_engine": active_engine,
+        "message": f"当前使用: {engines[active_engine]['name']}" if active_engine else "无可用OCR引擎"
+    })
 
 @bp.post("/api/ocr")
 def ocr_image():
     """
     OCR 图片识别接口
     接收图片文件，返回OCR识别的文本
+    优先级：PaddleOCR (最佳中文) > EasyOCR > pytesseract
     """
-    # 优先尝试使用 EasyOCR，失败则降级到 pytesseract
     OCR_AVAILABLE = False
     process_image_bytes = None
     ocr_engine = "未知"
 
-    # 尝试导入 EasyOCR (从 admin_dashboard 运行，所以直接使用模块名)
+    # 优先尝试使用 PaddleOCR (最佳中文识别)
     try:
-        from import_engine.ocr_importer import process_image_bytes as easyocr_process, OCR_AVAILABLE as EASYOCR_AVAILABLE
-        if EASYOCR_AVAILABLE:
-            process_image_bytes = easyocr_process
+        from import_engine.ocr_importer_paddle import process_image_bytes as paddle_process, OCR_AVAILABLE as PADDLE_AVAILABLE
+        if PADDLE_AVAILABLE:
+            process_image_bytes = paddle_process
             OCR_AVAILABLE = True
-            ocr_engine = "EasyOCR"
-            print(f"[OCR] Using {ocr_engine}")
+            ocr_engine = "PaddleOCR"
+            print(f"[OCR] Using {ocr_engine} (高精度中文识别)")
     except (ImportError, Exception) as e:
-        print(f"[OCR] EasyOCR not available: {type(e).__name__}: {e}")
+        print(f"[OCR] PaddleOCR not available: {type(e).__name__}: {e}")
 
-    # 如果 EasyOCR 不可用，尝试 pytesseract
+    # 如果 PaddleOCR 不可用，尝试 EasyOCR
+    if not OCR_AVAILABLE:
+        try:
+            from import_engine.ocr_importer import process_image_bytes as easyocr_process, OCR_AVAILABLE as EASYOCR_AVAILABLE
+            if EASYOCR_AVAILABLE:
+                process_image_bytes = easyocr_process
+                OCR_AVAILABLE = True
+                ocr_engine = "EasyOCR"
+                print(f"[OCR] Using {ocr_engine}")
+        except (ImportError, Exception) as e:
+            print(f"[OCR] EasyOCR not available: {type(e).__name__}: {e}")
+
+    # 如果都不可用，尝试 pytesseract (备用)
     if not OCR_AVAILABLE:
         try:
             from import_engine.ocr_importer_pytesseract import process_image_bytes as pytesseract_process, OCR_AVAILABLE as PYTESSERACT_AVAILABLE
@@ -413,7 +458,7 @@ def ocr_image():
                 process_image_bytes = pytesseract_process
                 OCR_AVAILABLE = True
                 ocr_engine = "pytesseract"
-                print(f"[OCR] Using {ocr_engine} (lightweight)")
+                print(f"[OCR] Using {ocr_engine} (备用)")
             else:
                 print(f"[OCR] pytesseract imported but OCR_AVAILABLE=False")
         except (ImportError, Exception) as e:
@@ -422,7 +467,7 @@ def ocr_image():
     if not OCR_AVAILABLE or process_image_bytes is None:
         return jsonify({
             "ok": False,
-            "toast": "OCR 功能未安装。请安装以下任一OCR库：<br>1. pip install pytesseract (推荐，轻量级)<br>2. pip install easyocr (更准确但需要更多资源)"
+            "toast": "OCR 功能未安装。请安装以下任一OCR库：<br>1. pip install paddleocr paddlepaddle (推荐，高精度中文)<br>2. pip install pytesseract (轻量级)<br>3. pip install easyocr (更准确但需要更多资源)"
         }), 400
 
     try:
@@ -460,7 +505,8 @@ def ocr_image():
             "ok": True,
             "raw_text": ocr_result.get("raw_text", ""),
             "parsed": ocr_result,
-            "toast": "OCR 识别成功，请检查并修正识别结果"
+            "ocr_engine": ocr_engine,
+            "toast": f"✅ 使用 {ocr_engine} 识别成功！请检查并修正识别结果"
         })
 
     except ImportError:

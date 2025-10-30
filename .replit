@@ -3,7 +3,7 @@ modules = ["python-3.11", "postgresql-16"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["cargo", "glibcLocales", "imagemagick_light", "libiconv", "libxcrypt", "libyaml", "mailutils", "openssl", "pkg-config", "rustc", "tesseract"]
+packages = ["cargo", "glibcLocales", "imagemagick_light", "libiconv", "libxcrypt", "libyaml", "mailutils", "openssl", "pkg-config", "rustc", "tesseract", "mesa", "libGL"]
 
 [unitTest]
 language = "python3"
@@ -53,6 +53,10 @@ externalPort = 9000
 [[ports]]
 localPort = 34241
 externalPort = 3001
+
+[[ports]]
+localPort = 39219
+externalPort = 3003
 
 [[ports]]
 localPort = 40015
