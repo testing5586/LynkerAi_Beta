@@ -660,70 +660,80 @@ def run_full_chart_analysis():
 
     data = request.json or {}
 
-    # ========== 1. 参数验证 ==========
-    mode = data.get("mode")
-    sop_template_id = data.get("sop_template_id")
-    bazi_chart = data.get("bazi_chart")
-    ziwei_chart = data.get("ziwei_chart")
+    # ========== 1. 参数接收（兼容新旧格式）==========
+    # 🔧 新格式：bazi_text, ziwei_text, sop_template
+    # 🔧 旧格式：bazi_chart, ziwei_chart, sop_template_id
     user_id = data.get("user_id")
+    bazi_text = data.get("bazi_text") or data.get("bazi_chart", "")
+    ziwei_text = data.get("ziwei_text") or data.get("ziwei_chart", "")
+    sop_template_id = data.get("sop_template") or data.get("sop_template_id", "standard_v1")
+    mode = data.get("mode", "full_chart")
     lang = data.get("lang", "zh")
-
-    # ========== 1.1 自动解析八字文本输入 ==========
-    # 检测 bazi_chart 是否为纯文本（不是JSON），如果是则自动解析
-    if isinstance(bazi_chart, str) and not bazi_chart.strip().startswith("{"):
-        print(f"📝 [Mode B] 检测到八字文本输入，开始解析...")
-        parsed_result = parse_bazi_text(bazi_chart)
-        
-        if parsed_result.get("parsed"):
-            bazi_data = parsed_result["parsed"]
-            print(f"✅ [Mode B] 八字文本解析成功: {bazi_data}")
-        else:
-            return jsonify({
-                "ok": False,
-                "toast": "八字文本解析失败，请检查格式是否正确。支持格式：年柱:甲子 月柱:丙寅 日柱:戊午 时柱:庚申"
-            }), 400
-    else:
-        # 已经是 JSON 格式，直接解析
-        try:
-            bazi_data = json.loads(bazi_chart) if isinstance(bazi_chart, str) else bazi_chart
-        except json.JSONDecodeError:
-            return jsonify({
-                "ok": False,
-                "toast": "八字命盘格式错误，无法解析 JSON"
-            }), 400
     
-    # 解析紫微命盘（保持原有逻辑）
+    print(f"[Mode B] 收到请求数据:")
+    print(f"  - user_id: {user_id}")
+    print(f"  - bazi_text 类型: {type(bazi_text)}")
+    print(f"  - ziwei_text 类型: {type(ziwei_text)}")
+    print(f"  - sop_template: {sop_template_id}")
+
+    # ========== 1.1 智能格式判断与转换（八字）==========
+    # 🧩 如果前端传来的是 JSON 对象（dict）
+    if isinstance(bazi_text, dict):
+        y = bazi_text.get("year_pillar", "")
+        m = bazi_text.get("month_pillar", "")
+        d = bazi_text.get("day_pillar", "")
+        h = bazi_text.get("hour_pillar", "")
+        bazi_text_formatted = f"年柱:{y} 月柱:{m} 日柱:{d} 时柱:{h}"
+        print(f"[Mode B] 八字从 JSON 转换为文本: {bazi_text_formatted}")
+        bazi_text = bazi_text_formatted
+    
+    # 🧩 若为空但主字段存在（兼容模式）
+    if not bazi_text and all(k in data for k in ["year_pillar", "month_pillar", "day_pillar", "hour_pillar"]):
+        bazi_text = f"年柱:{data['year_pillar']} 月柱:{data['month_pillar']} 日柱:{data['day_pillar']} 时柱:{data['hour_pillar']}"
+        print(f"[Mode B] 八字从主字段提取: {bazi_text}")
+    
+    # 🧩 格式校验
+    if not re.search(r"年柱[:：].+月柱[:：].+日柱[:：].+时柱[:：]", bazi_text):
+        return jsonify({
+            "ok": False,
+            "error": "八字文本解析失败，请检查格式是否正确。支持格式：年柱:甲子 月柱:丙寅 日柱:戊午 时柱:庚申"
+        }), 400
+    
+    print(f"[Mode B] ✅ 最终八字文本: {bazi_text}")
+    
+    # ========== 1.2 解析八字文本为结构化数据 ==========
+    parsed_result = parse_bazi_text(bazi_text)
+    
+    if parsed_result.get("parsed"):
+        bazi_data = parsed_result["parsed"]
+        print(f"[Mode B] ✅ 八字解析成功: {bazi_data}")
+    else:
+        return jsonify({
+            "ok": False,
+            "error": "八字文本解析失败"
+        }), 400
+    
+    # ========== 1.3 解析紫微数据 ==========
     try:
-        ziwei_data = json.loads(ziwei_chart) if isinstance(ziwei_chart, str) else ziwei_chart
+        ziwei_data = json.loads(ziwei_text) if isinstance(ziwei_text, str) else ziwei_text
+        print(f"[Mode B] ✅ 紫微数据解析成功")
     except json.JSONDecodeError:
         return jsonify({
             "ok": False,
-            "toast": "紫微命盘格式错误，无法解析 JSON"
+            "error": "紫微命盘格式错误，无法解析 JSON"
         }), 400
 
-    # ========== 1.2 验证解析后的数据 ==========
-    if mode != "full_chart":
-        return jsonify({
-            "ok": False,
-            "toast": "无效的模式，应为 'full_chart'"
-        }), 400
-
-    if not sop_template_id:
-        return jsonify({
-            "ok": False,
-            "toast": "请选择 SOP 分析模板"
-        }), 400
-
-    if not bazi_data or not ziwei_data:
-        return jsonify({
-            "ok": False,
-            "toast": "命盘数据不完整，请先导入八字与紫微命盘"
-        }), 400
-
+    # ========== 1.4 参数验证 ==========
     if not user_id:
         return jsonify({
             "ok": False,
-            "toast": "缺少用户ID"
+            "error": "缺少用户ID"
+        }), 400
+    
+    if not bazi_data or not ziwei_data:
+        return jsonify({
+            "ok": False,
+            "error": "命盘数据不完整，请先验证八字与紫微命盘"
         }), 400
 
     # ========== 2. 加载 SOP 模板 ==========
