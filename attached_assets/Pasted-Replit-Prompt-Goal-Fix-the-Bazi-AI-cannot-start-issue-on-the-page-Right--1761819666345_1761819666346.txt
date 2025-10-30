@@ -1,0 +1,114 @@
+Replit 前端修复 Prompt（让八字真正发到后端）
+Goal:
+Fix the "Bazi AI cannot start" issue on the “我的真命盘” page.
+Right now, the Bazi result box shows an empty generic JSON with field "ziwei_palace", which means the frontend is not actually sending the pasted Bazi text to the backend as bazi_chart.
+We must bind the Bazi textarea to a real baziChart field and POST it separately from the Ziwei chart.
+
+Target files:
+- admin_dashboard/static/js/true_birth_wizard_v1.js
+  (if this file name is different in the project, look for the JS file that controls the “我的真命盘” page – the one that handles: upload Bazi, upload Ziwei, render “验证完成”. In an earlier step it was called verify_wizard.js / verify_wizard_combined.js, use the active one.)
+
+What to do:
+
+1) Locate the code that reads the two textareas, something like:
+   const baziTextArea = document.getElementById('bazi-textarea') ...
+   const ziweiTextArea = ...
+   or querySelector('textarea[data-type="bazi"]')
+
+2) Make sure we keep TWO separate state fields:
+   state.baziChartText   // raw pasted Bazi text
+   state.ziweiChartText  // raw pasted Ziwei text
+
+   Example to add near the top (where state is defined):
+   --------------------------------------------------
+   const state = {
+     ...state,
+     baziChartText: '',
+     ziweiChartText: '',
+   };
+   --------------------------------------------------
+
+3) On Bazi textarea input/change, update ONLY baziChartText:
+   --------------------------------------------------
+   baziTextarea.addEventListener('input', (e) => {
+     state.baziChartText = e.target.value;
+   });
+   --------------------------------------------------
+
+   Do NOT reuse the Ziwei handler for the Bazi textarea.
+   Right now it looks like both textareas share the same handler, that’s why Bazi ends up being rendered with ziwei-like fields.
+
+4) When Mode B (full chart verification) calls the backend (the fetch to /verify/api/run_full_chart_ai), we MUST send both fields explicitly:
+
+   --------------------------------------------------
+   const payload = {
+     bazi_chart: state.baziChartText,     // this is the Bazi text the user pasted
+     ziwei_chart: state.ziweiChartText,   // this is the Ziwei text the user pasted
+     sop_id: state.selectedSopId || null,
+     user_id: state.userId || null
+   };
+   fetch('/verify/api/run_full_chart_ai', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify(payload)
+   })
+   --------------------------------------------------
+
+   IMPORTANT: right now the code probably posts only one chart, or posts a merged object. Split it.
+
+5) Fix renderer for the “八字命盘验证结果” card.
+   Find the function that renders the result boxes (something like renderBaziResult / displayResult('bazi', ...)).
+   Right now it uses a generic structure:
+   {
+     "birth_time": "",
+     "gender": "",
+     "main_star": "",
+     "name": "",
+     "shen_palace": "",
+     "ziwei_palace": ""
+   }
+   That’s a Ziwei-shaped object. Change it so that when `type === 'bazi'`, it renders Bazi-shaped fields instead of Ziwei fields.
+
+   Example:
+   --------------------------------------------------
+   function renderVerifyResult(type, data) {
+     const container = document.getElementById(type + 'ResultContent');
+     if (!container) return;
+     container.innerHTML = '';
+
+     if (type === 'bazi') {
+       // show raw text or parsed pillars
+       const parsed = (data && data.parsed) ? data.parsed : null;
+       const html = parsed
+         ? `
+            <p>年柱：${parsed.year_pillar || '-'}</p>
+            <p>月柱：${parsed.month_pillar || '-'}</p>
+            <p>日柱：${parsed.day_pillar || '-'}</p>
+            <p>时柱：${parsed.hour_pillar || '-'}</p>
+           `
+         : `<p>等待用户完成七步问卷以生成八字初步验证结果</p>`;
+       container.insertAdjacentHTML('beforeend', html);
+     } else {
+       // existing Ziwei layout
+     }
+   }
+   --------------------------------------------------
+
+6) After this change, test again:
+   - Paste Bazi text into the left textarea
+   - Paste Ziwei text into the right textarea
+   - You should see the Mode B area appear
+   - Click “开始分析”
+   - Backend should now receive BOTH fields independently:
+     {
+       "bazi_chart": "日期,年柱,月柱,日柱,时柱 ...",
+       "ziwei_chart": "文墨天机紫微斗数命盘 ...",
+       ...
+     }
+   - And your Bazi AI will no longer say “命盘数据不完整”.
+
+Notes:
+- DO NOT change the UI layout.
+- DO NOT remove the existing “问卷模式” code.
+- JUST make sure Bazi textarea → state.baziChartText → POST.bazi_chart is wired correctly.
+- Keep comments in English but UI labels in Chinese.

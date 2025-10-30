@@ -226,10 +226,10 @@ function renderResult(type, result, uploaded) {
     if (!resultBox || !statusElem || !contentElem) return;
 
     if (result) {
-        // 显示验证结果
+        // 显示验证结果 - Use displayResult for proper formatting
         statusElem.textContent = '验证完成';
         statusElem.className = 'result-status completed';
-        contentElem.innerHTML = formatResultContent(result);
+        displayResult(result, type); // Use displayResult instead of formatResultContent
     } else if (uploaded) {
         // 已上传但未验证
         statusElem.textContent = '已上传';
@@ -1183,7 +1183,8 @@ async function startFullChartAnalysis() {
     }
 
     try {
-        // Call backend API
+        // ⚠️ IMPORTANT: Send raw text, not parsed objects
+        // Backend parse_bazi_text() will handle text conversion
         const response = await fetch('/verify/api/run_full_chart_ai', {
             method: 'POST',
             headers: {
@@ -1192,8 +1193,8 @@ async function startFullChartAnalysis() {
             body: JSON.stringify({
                 mode: 'full_chart',
                 sop_template_id: modeBState.sopTemplate,
-                bazi_chart: currentGroup.baziResult.parsed,
-                ziwei_chart: currentGroup.ziweiResult.parsed,
+                bazi_chart: currentGroup.baziText,   // Send raw pasted text
+                ziwei_chart: currentGroup.ziweiText, // Send raw pasted text
                 user_id: state.userId,
                 lang: 'zh'
             })
