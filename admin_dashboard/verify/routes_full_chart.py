@@ -34,75 +34,10 @@ sp = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY 
 
 
 # ======================
-# 八字文本解析器
+# 八字文本解析器（已移至 bazi_parser.py）
 # ======================
-
-def parse_bazi_text(text):
-    """
-    将粘贴的八字命盘文本转换为结构化 JSON
-    
-    支持格式：
-    1. 年柱：甲子 月柱：丙寅 日柱：戊午 时柱：庚申
-    2. 八字：甲子 丙寅 戊午 庚申
-    3. 阳历：2000年03月20日 08:18
-    
-    Args:
-        text: 用户粘贴的八字文本
-    
-    Returns:
-        dict: {"parsed": {...}} 或 {"parsed": None} 如果解析失败
-    """
-    if not text:
-        return {"parsed": None}
-
-    data = {}
-    lines = text.strip().split("\n")
-    
-    # 天干地支正则
-    heavenly_stems = "甲乙丙丁戊己庚辛壬癸"
-    earthly_branches = "子丑寅卯辰巳午未申酉戌亥"
-    
-    for line in lines:
-        # 匹配四柱格式：年柱、月柱、日柱、时柱
-        if "柱" in line:
-            matches = re.findall(f"([{heavenly_stems}])([{earthly_branches}])", line)
-            if matches and len(matches) >= 4:
-                data["year_pillar"] = f"{matches[0][0]}{matches[0][1]}"
-                data["month_pillar"] = f"{matches[1][0]}{matches[1][1]}"
-                data["day_pillar"] = f"{matches[2][0]}{matches[2][1]}"
-                data["hour_pillar"] = f"{matches[3][0]}{matches[3][1]}"
-        
-        # 匹配八字连续格式
-        elif "八字" in line or re.search(f"[{heavenly_stems}][{earthly_branches}]", line):
-            matches = re.findall(f"([{heavenly_stems}])([{earthly_branches}])", line)
-            if matches and len(matches) >= 4:
-                data["year_pillar"] = f"{matches[0][0]}{matches[0][1]}"
-                data["month_pillar"] = f"{matches[1][0]}{matches[1][1]}"
-                data["day_pillar"] = f"{matches[2][0]}{matches[2][1]}"
-                data["hour_pillar"] = f"{matches[3][0]}{matches[3][1]}"
-        
-        # 匹配阳历日期
-        if "阳历" in line or "公历" in line or "出生" in line:
-            date_match = re.search(r"(\d{4})[年\-\.\/](\d{1,2})[月\-\.\/](\d{1,2})", line)
-            if date_match:
-                data["birth_date"] = f"{date_match.group(1)}-{date_match.group(2).zfill(2)}-{date_match.group(3).zfill(2)}"
-            
-            # 匹配时间
-            time_match = re.search(r"(\d{1,2}):(\d{2})", line)
-            if time_match:
-                data["birth_time"] = f"{time_match.group(1).zfill(2)}:{time_match.group(2)}"
-        
-        # 匹配农历日期
-        if "农历" in line or "阮历" in line:
-            lunar_match = re.search(r"(\d{4})[年\s]+([一二三四五六七八九十正冬腊]+月)[日\s]*([初一二三四五六七八九十廿卅]+)", line)
-            if lunar_match:
-                data["lunar_date"] = f"{lunar_match.group(1)} {lunar_match.group(2)} {lunar_match.group(3)}"
-    
-    # 如果成功提取到四柱，返回数据
-    if "year_pillar" in data and "month_pillar" in data and "day_pillar" in data and "hour_pillar" in data:
-        return {"parsed": data}
-    else:
-        return {"parsed": None}
+# parse_bazi_text, is_bazi_incomplete, get_bazi_status_message 
+# 现已从 verify.bazi_parser 导入（见第26行）
 
 
 # ======================
