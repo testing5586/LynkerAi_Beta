@@ -583,3 +583,211 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #4a4a4a;
 }
+
+/* ========== Prophecy Validation Center Styles ========== */
+
+.prophecy-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+}
+
+.prophecy-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#prophecy_zone {
+    margin-top: 20px;
+    display: grid;
+    gap: 15px;
+}
+
+.prophecy-card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.prophecy-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.prophecy-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+
+.prophecy-palace {
+    background: #667eea;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.prophecy-pattern {
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+}
+
+.prophecy-question {
+    color: #1f2937;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 10px 0;
+    font-weight: 500;
+}
+
+.prophecy-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.prophecy-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-prophecy-yes {
+    background: #10b981;
+    color: white;
+}
+
+.btn-prophecy-yes:hover {
+    background: #059669;
+    transform: scale(1.05);
+}
+
+.btn-prophecy-no {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-prophecy-no:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+.prophecy-buttons button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.prophecy-buttons button:disabled:hover {
+    transform: none;
+}
+
+/* Answered states */
+.prophecy-yes {
+    border-color: #10b981 !important;
+    background: #ecfdf5 !important;
+}
+
+.prophecy-no {
+    border-color: #ef4444 !important;
+    background: #fef2f2 !important;
+}
+
+.prophecy-answered {
+    opacity: 0.8;
+}
+
+/* Stats display */
+#prophecy_stats {
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.stats-summary {
+    display: flex;
+    gap: 20px;
+    justify-content: space-around;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.stat-value.highlight {
+    color: #fbbf24;
+    font-size: 28px;
+}
+
+/* Loading state */
+.prophecy-card .loading {
+    text-align: center;
+    padding: 20px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.prophecy-card .error {
+    color: #dc2626;
+    text-align: center;
+    padding: 15px;
+}
+
+/* Generate button */
+.btn-generate-prophecy {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #78350f;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 6px rgba(251, 191, 36, 0.3);
+}
+
+.btn-generate-prophecy:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(251, 191, 36, 0.4);
+}
+
+.btn-generate-prophecy:active {
+    transform: translateY(0);
+}
+

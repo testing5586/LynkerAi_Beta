@@ -1616,3 +1616,155 @@ document.addEventListener('DOMContentLoaded', function() {
         }, true);  // Use capture phase to override existing listeners
     }
 });
+
+// ========== Prophecy Validation Center ==========
+// 预言验证中心 - 自动命盘预言生成与反馈
+
+async function runProphecyAI() {
+    const currentGroup = getCurrentGroup();
+    const ziweiText = currentGroup.ziweiText || "";
+    const baziText = currentGroup.baziText || "";
+    
+    if (!ziweiText) {
+        alert("⚠️ 请先粘贴或识别紫微命盘文本");
+        return;
+    }
+    
+    const prophecyZone = document.getElementById("prophecy_zone");
+    if (!prophecyZone) {
+        console.error("❌ 未找到预言展示区");
+        return;
+    }
+    
+    prophecyZone.innerHTML = "<p class='loading'>🔮 正在生成预言问题...</p>";
+    
+    try {
+        const response = await fetch("/verify/api/run_prophecy_ai", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                user_id: state.userId, 
+                ziwei_text: ziweiText,
+                bazi_text: baziText
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.ok) {
+            throw new Error(data.error || "生成失败");
+        }
+        
+        console.log(`[Prophecy] 生成 ${data.count} 个预言问题`);
+        
+        // 渲染预言问题卡片
+        prophecyZone.innerHTML = "";
+        data.prophecies.forEach((p, idx) => {
+            const card = document.createElement("div");
+            card.className = "prophecy-card";
+            card.dataset.id = idx;
+            card.dataset.palace = p.palace;
+            card.dataset.pattern = p.pattern;
+            card.innerHTML = `
+                <div class="prophecy-header">
+                    <span class="prophecy-palace">${p.palace}</span>
+                    <span class="prophecy-pattern">${p.pattern}</span>
+                </div>
+                <p class="prophecy-question">${p.question}</p>
+                <div class="prophecy-buttons">
+                    <button class="btn-prophecy-yes" onclick="recordProphecyFeedback(${idx}, true)">✅ 准</button>
+                    <button class="btn-prophecy-no" onclick="recordProphecyFeedback(${idx}, false)">❌ 不准</button>
+                </div>
+            `;
+            prophecyZone.appendChild(card);
+        });
+        
+        // 显示统计信息
+        loadProphecyStats();
+        
+    } catch (err) {
+        console.error("[Prophecy] 生成失败:", err);
+        prophecyZone.innerHTML = `<p class='error'>❌ 生成失败：${err.message}</p>`;
+    }
+}
+
+async function recordProphecyFeedback(qid, result) {
+    const card = document.querySelector(`[data-id='${qid}']`);
+    if (!card) return;
+    
+    const palace = card.dataset.palace;
+    const pattern = card.dataset.pattern;
+    const questionText = card.querySelector(".prophecy-question").innerText;
+    
+    const payload = {
+        user_id: state.userId,
+        question: questionText,
+        palace: palace,
+        pattern: pattern,
+        result: result ? "准" : "不准"
+    };
+    
+    try {
+        const response = await fetch("/verify/api/record_prophecy_feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+            // 更新卡片样式
+            card.classList.add(result ? "prophecy-yes" : "prophecy-no");
+            card.classList.add("prophecy-answered");
+            
+            // 禁用按钮
+            card.querySelectorAll("button").forEach(btn => btn.disabled = true);
+            
+            console.log(`[Prophecy] 反馈已记录: ${palace} - ${result ? "准" : "不准"}`);
+            
+            // 刷新统计信息
+            loadProphecyStats();
+        }
+    } catch (err) {
+        console.error("[Prophecy] 记录失败:", err);
+        alert("反馈记录失败");
+    }
+}
+
+async function loadProphecyStats() {
+    try {
+        const response = await fetch("/verify/api/prophecy_stats");
+        const data = await response.json();
+        
+        if (data.ok) {
+            const statsDiv = document.getElementById("prophecy_stats");
+            if (statsDiv) {
+                statsDiv.innerHTML = `
+                    <div class="stats-summary">
+                        <div class="stat-item">
+                            <span class="stat-label">总预言数</span>
+                            <span class="stat-value">${data.total}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">准确数</span>
+                            <span class="stat-value">${data.correct}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">准确率</span>
+                            <span class="stat-value highlight">${data.accuracy}%</span>
+                        </div>
+                    </div>
+                `;
+            }
+            console.log(`[Prophecy] 统计: ${data.total} 条记录, ${data.accuracy}% 准确率`);
+        }
+    } catch (err) {
+        console.error("[Prophecy] 加载统计失败:", err);
+    }
+}
+
+// 全局暴露函数
+window.runProphecyAI = runProphecyAI;
+window.recordProphecyFeedback = recordProphecyFeedback;
+window.loadProphecyStats = loadProphecyStats;

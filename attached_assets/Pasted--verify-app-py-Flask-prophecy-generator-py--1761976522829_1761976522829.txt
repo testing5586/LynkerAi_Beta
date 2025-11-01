@@ -1,0 +1,199 @@
+🏗️ 项目结构
+/verify
+│
+├── app.py                         # Flask 主后端
+├── prophecy_generator.py           # 命盘解析 → 自动生成预言问题
+├── static/
+│   ├── verify_wizard.js           # 前端逻辑与交互事件
+│   └── style.css                  # 按钮样式与状态反馈
+│
+├── templates/
+│   └── verify.html                # 主页面（含Mode B区域+Prophecy问题）
+│
+└── data/
+    └── prophecy_feedback_log.jsonl # 预言验证记录归档
+
+🧠 prophecy_generator.py
+
+自动根据紫微命盘与八字结构生成预测问题。
+
+import re, random, json
+
+def generate_prophecies(ziwei_text: str):
+    prophecies = []
+
+    # 兄弟宫破军擎羊
+    if re.search(r"兄弟宮.*破軍", ziwei_text) and re.search(r"兄弟宮.*擎羊", ziwei_text):
+        prophecies.append({
+            "palace": "兄弟宫",
+            "question": "你兄弟宫擎羊破军，是否被兄弟姐妹连累或发生意外进院开刀？"
+        })
+    
+    # 财帛宫 禄忌同宫
+    if re.search(r"财帛宮.*禄", ziwei_text) and re.search(r"财帛宮.*忌", ziwei_text):
+        prophecies.append({
+            "palace": "财帛宫",
+            "question": "你的财帛宫禄忌同宫，是否曾因信任他人投资而破财？"
+        })
+    
+    # 夫妻宫化忌
+    if re.search(r"夫妻宮.*忌", ziwei_text):
+        prophecies.append({
+            "palace": "夫妻宫",
+            "question": "夫妻宫化忌，是否经历过突发的感情破裂或离异？"
+        })
+    
+    # 疾厄宫火铃并临
+    if re.search(r"疾厄宮.*火星", ziwei_text) and re.search(r"疾厄宮.*鈴星", ziwei_text):
+        prophecies.append({
+            "palace": "疾厄宫",
+            "question": "疾厄宫火铃并临，是否有过开刀或烧伤事故？"
+        })
+
+    # 迁移宫天马
+    if re.search(r"迁移宮.*天馬", ziwei_text):
+        prophecies.append({
+            "palace": "迁移宫",
+            "question": "迁移宫天马星旺，是否常年奔波或有海外发展？"
+        })
+
+    if not prophecies:
+        prophecies.append({
+            "palace": "综合",
+            "question": "命盘显示你一生起伏较大，是否曾经历多次重大转折？"
+        })
+    
+    return prophecies
+
+🧩 app.py（Flask主后端）
+from flask import Flask, render_template, request, jsonify
+from prophecy_generator import generate_prophecies
+import json, os, datetime
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return render_template("verify.html")
+
+# === [Prophecy Generator] ===
+@app.route("/verify/api/run_prophecy_ai", methods=["POST"])
+def run_prophecy_ai():
+    data = request.get_json()
+    ziwei_text = data.get("ziwei_text", "")
+    prophecies = generate_prophecies(ziwei_text)
+    return jsonify({"ok": True, "prophecies": prophecies})
+
+# === [Record Prophecy Feedback] ===
+@app.route("/verify/api/record_prophecy_feedback", methods=["POST"])
+def record_prophecy_feedback():
+    data = request.get_json()
+    os.makedirs("./data", exist_ok=True)
+    entry = {
+        "user_id": data.get("user_id"),
+        "question": data.get("question"),
+        "result": data.get("result"),
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+    with open("./data/prophecy_feedback_log.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return jsonify({"ok": True})
+
+# === [Prophecy Statistics] ===
+@app.route("/verify/api/prophecy_stats")
+def prophecy_stats():
+    records = []
+    try:
+        with open("./data/prophecy_feedback_log.jsonl", "r", encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+    except FileNotFoundError:
+        pass
+    total = len(records)
+    correct = sum(1 for r in records if r["result"] == "准")
+    return jsonify({
+        "total": total,
+        "correct": correct,
+        "accuracy": round(correct / total * 100, 2) if total > 0 else 0
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
+💻 verify_wizard.js
+
+前端生成问题 + 按钮 + 回传。
+
+async function runProphecyAI() {
+  const ziweiText = document.getElementById("ziwei_textarea").value;
+  const response = await fetch("/verify/api/run_prophecy_ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: "1", ziwei_text: ziweiText })
+  });
+  const data = await response.json();
+  if (!data.ok) return alert("⚠️ Prophecy AI 生成失败");
+  
+  const container = document.getElementById("prophecy_zone");
+  container.innerHTML = "";
+  data.prophecies.forEach((p, idx) => {
+    container.innerHTML += `
+      <div class="prophecy-card" data-id="${idx}">
+        <p>${p.question}</p>
+        <button onclick="recordProphecyFeedback('${idx}', true)">✅ 准</button>
+        <button onclick="recordProphecyFeedback('${idx}', false)">❌ 不准</button>
+      </div>`;
+  });
+}
+
+async function recordProphecyFeedback(qid, result) {
+  const questionText = document.querySelector(`[data-id='${qid}'] p`).innerText;
+  const payload = {
+    user_id: "1",
+    question: questionText,
+    result: result ? "准" : "不准"
+  };
+  await fetch("/verify/api/record_prophecy_feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  document.querySelector(`[data-id='${qid}']`).classList.add(result ? "prophecy-yes" : "prophecy-no");
+}
+
+🧾 verify.html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>真命盘验证中心</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <h2>Prophecy Validation Center</h2>
+  <textarea id="ziwei_textarea" placeholder="贴上文墨天机紫微斗数命盘文本..."></textarea>
+  <button onclick="runProphecyAI()">生成预言问题</button>
+  <div id="prophecy_zone"></div>
+  <script src="/static/verify_wizard.js"></script>
+</body>
+</html>
+
+🎨 style.css
+.prophecy-card {
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  margin: 8px 0;
+  padding: 10px;
+  transition: 0.3s ease;
+}
+.prophecy-yes { background: #e7ffe7; }
+.prophecy-no { background: #ffe7e7; }
+button { margin-right: 10px; cursor: pointer; }
+
+✅ 部署后测试流程
+
+1️⃣ 启动 Replit → 运行 app.py
+2️⃣ 打开网页 → 粘贴一段紫微命盘文本（文墨天机格式）
+3️⃣ 点击「生成预言问题」
+4️⃣ 出现预言问题，每条有 ✅ / ❌ 按钮
+5️⃣ 用户点选 → 自动记录结果
+6️⃣ 访问 /verify/api/prophecy_stats 可看统计命中率

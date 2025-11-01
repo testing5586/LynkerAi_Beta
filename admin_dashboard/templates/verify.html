@@ -489,6 +489,14 @@ document.getElementById('btnSubmit').onclick = async () => {
         alert(`❌ 网络错误：${e.message}`);
     }
 };
+    <!-- Prophecy Validation Center -->
+    <section class="prophecy-section" style="margin: 30px;">
+        <h3>🔮 预言验证中心 - Prophecy Validation</h3>
+        <p style="margin-bottom: 15px; opacity: 0.9;">根据命盘自动生成预言问题，验证命理准确性</p>
+        <button class="btn-generate-prophecy" onclick="runProphecyAI()">✨ 生成预言问题</button>
+        <div id="prophecy_stats" style="margin-top: 15px;"></div>
+        <div id="prophecy_zone" style="margin-top: 20px;"></div>
+    </section>
 </script>
 </body>
 </html>

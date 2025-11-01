@@ -75,6 +75,14 @@ try:
 except Exception as e:
     print(f"[WARN] 文墨天机 OCR 挂载失败: {e}")
 
+# 注册预言验证中心 Blueprint
+try:
+    from verify.routes_prophecy import bp as prophecy_bp
+    app.register_blueprint(prophecy_bp)
+    print("[OK] 预言验证中心已注册: /verify/api/run_prophecy_ai, /verify/api/record_prophecy_feedback")
+except Exception as e:
+    print(f"[WARN] 预言验证中心挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")
