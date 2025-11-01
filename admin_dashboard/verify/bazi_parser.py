@@ -85,17 +85,12 @@ def parse_bazi_text(raw: str) -> dict:
     }
     
     # ========== 步骤1：提取四柱 ==========
-    for line in text.split("\n"):
-        line = line.strip()
-        if not line:
-            continue
-        
-        # 匹配 "年柱:庚辰" 或 "年柱：庚辰" 或 "年柱 庚辰"
-        m = re.match(r"^(年柱|月柱|日柱|时柱)\s*[:：]?\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", line)
-        if m:
-            key = m.group(1)
-            val = m.group(2).strip()
-            
+    # 🔧 优先检测单行格式（最常见）："年柱:庚辰 月柱:己卯 日柱:丙戌 时柱:己丑"
+    pillars_in_text = re.findall(r"(年柱|月柱|日柱|时柱)\s*[:：]?\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", text)
+    
+    if pillars_in_text:
+        # 找到四柱数据，批量提取
+        for key, val in pillars_in_text:
             if key == "年柱":
                 result["year_pillar"] = val
             elif key == "月柱":
@@ -104,8 +99,31 @@ def parse_bazi_text(raw: str) -> dict:
                 result["day_pillar"] = val
             elif key == "时柱":
                 result["hour_pillar"] = val
-        
-        # 匹配出生时间
+    
+    # 🔧 兼容多行格式（备用方案）
+    if not result["year_pillar"]:
+        for line in text.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            
+            m = re.match(r"^(年柱|月柱|日柱|时柱)\s*[:：]?\s*([甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])", line)
+            if m:
+                key = m.group(1)
+                val = m.group(2).strip()
+                
+                if key == "年柱":
+                    result["year_pillar"] = val
+                elif key == "月柱":
+                    result["month_pillar"] = val
+                elif key == "日柱":
+                    result["day_pillar"] = val
+                elif key == "时柱":
+                    result["hour_pillar"] = val
+    
+    # ========== 步骤2：提取出生时间 ==========
+    for line in text.split("\n"):
+        line = line.strip()
         if "出生时间" in line or "出生日期" in line or "阳历" in line or "公历" in line:
             # 提取日期时间
             date_match = re.search(r"(\d{4})[-年/\.](\d{1,2})[-月/\.](\d{1,2})", line)
