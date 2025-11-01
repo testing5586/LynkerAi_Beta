@@ -1275,22 +1275,63 @@ async function startFullChartAnalysis() {
         const result = await response.json();
 
         if (result.ok) {
-            console.log('[Mode B] Analysis completed successfully');
-            modeBState.analysisCompleted = true;
+            // ========== 🔥 新增：智能分支判断 ==========
+            // 如果后端返回 "need_prophecy_feedback" 模式，触发预言验证
+            if (result.mode === 'need_prophecy_feedback') {
+                console.log('[Mode B] 八字数据不完整，触发预言验证模式');
+                
+                // 显示预言验证面板
+                const prophecySection = document.querySelector('.prophecy-section');
+                if (prophecySection) {
+                    prophecySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    prophecySection.style.border = '2px solid #667eea';
+                    prophecySection.style.padding = '20px';
+                    prophecySection.style.borderRadius = '12px';
+                    prophecySection.style.background = 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)';
+                }
+                
+                // 显示需要验证的模块
+                showProphecyPanel(result.bazi.required_modules || []);
+                
+                // 自动触发预言问题生成
+                addAIMessage(`
+                    <p>⚠️ <strong>检测到八字数据不完整</strong></p>
+                    <p>${result.bazi.message}</p>
+                    <p>系统将根据紫微命盘自动生成预言问题，请您通过 ✅准/❌不准 的方式反馈，帮助我们综合验证命盘准确性。</p>
+                `);
+                
+                // 自动生成预言问题
+                setTimeout(() => {
+                    runProphecyAI();
+                }, 1000);
+                
+                // 更新按钮状态
+                btn.disabled = true;
+                btn.textContent = '已转入预言验证模式';
+                btn.style.background = '#667eea';
+                
+                return;
+            }
+            
+            // ========== 原有逻辑：完整分析模式 ==========
+            if (result.mode === 'full_completed' || result.data) {
+                console.log('[Mode B] Analysis completed successfully');
+                modeBState.analysisCompleted = true;
 
-            // Render results
-            renderModeBResults(result.data);
+                // Render results
+                renderModeBResults(result.data);
 
-            // Update AI message
-            addAIMessage(`
-                <p>✅ <strong>全盘验证分析完成！</strong></p>
-                <p>一致性评分：${result.data.consistency_score}/100</p>
-                <p>请查看下方的详细分析结果。</p>
-            `);
+                // Update AI message
+                addAIMessage(`
+                    <p>✅ <strong>全盘验证分析完成！</strong></p>
+                    <p>一致性评分：${result.data.consistency_score}/100</p>
+                    <p>请查看下方的详细分析结果。</p>
+                `);
 
-            // Update button
-            btn.textContent = '分析完成';
-            btn.style.background = '#00ff9d';
+                // Update button
+                btn.textContent = '分析完成';
+                btn.style.background = '#00ff9d';
+            }
 
         } else {
             throw new Error(result.toast || '分析失败');
@@ -1619,6 +1660,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ========== Prophecy Validation Center ==========
 // 预言验证中心 - 自动命盘预言生成与反馈
+
+// 显示预言验证面板（八字不完整时触发）
+function showProphecyPanel(modules) {
+    const prophecyZone = document.getElementById("prophecy_zone");
+    if (!prophecyZone) {
+        console.error("❌ 未找到预言展示区");
+        return;
+    }
+    
+    // 清空现有内容
+    prophecyZone.innerHTML = "";
+    
+    // 添加提示标题
+    const header = document.createElement("div");
+    header.style.cssText = "margin-bottom: 20px; padding: 15px; background: rgba(102,126,234,0.2); border-radius: 8px;";
+    header.innerHTML = `
+        <h4 style="margin: 0 0 10px 0; color: #667eea;">📋 待验证的命理模块</h4>
+        <p style="margin: 0; opacity: 0.9; font-size: 14px;">
+            八字命盘只有四柱信息，缺少可验证的细节。系统将根据紫微命盘生成预言问题，请您如实反馈 ✅准/❌不准。
+        </p>
+    `;
+    prophecyZone.appendChild(header);
+    
+    // 显示模块列表
+    if (modules && modules.length > 0) {
+        const moduleList = document.createElement("div");
+        moduleList.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px;";
+        
+        modules.forEach((moduleName, idx) => {
+            const moduleCard = document.createElement("div");
+            moduleCard.className = "prophecy-module-card";
+            moduleCard.style.cssText = `
+                padding: 12px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 8px;
+                border: 1px solid rgba(102,126,234,0.3);
+                text-align: center;
+                font-size: 14px;
+            `;
+            moduleCard.innerHTML = `<strong>${idx + 1}. ${moduleName}</strong>`;
+            moduleList.appendChild(moduleCard);
+        });
+        
+        prophecyZone.appendChild(moduleList);
+    }
+    
+    // 添加状态提示
+    const status = document.createElement("p");
+    status.className = "loading";
+    status.style.cssText = "text-align: center; color: #667eea; margin-top: 15px;";
+    status.textContent = "⏳ 正在根据紫微命盘生成预言问题，请稍候...";
+    prophecyZone.appendChild(status);
+    
+    console.log(`[Prophecy Panel] 显示 ${modules.length} 个待验证模块`);
+}
 
 async function runProphecyAI() {
     const currentGroup = getCurrentGroup();

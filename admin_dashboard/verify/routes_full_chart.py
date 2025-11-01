@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from verify.ai_verifier import verify_chart_with_ai
 from verify.ai_prompts import get_ai_names_from_db
+from verify.bazi_parser import parse_bazi_text, is_bazi_incomplete, get_bazi_status_message
 
 bp = Blueprint("full_chart_verify", __name__, url_prefix="/verify")
 
@@ -711,16 +712,19 @@ def run_full_chart_analysis():
     print(f"[Mode B] ✅ 最终八字文本: {bazi_text_normalized}")
     bazi_text = bazi_text_normalized
     
-    # ========== 1.2 解析八字文本为结构化数据 ==========
-    parsed_result = parse_bazi_text(bazi_text)
+    # ========== 1.2 使用新的智能八字解析器 ==========
+    bazi_parsed = parse_bazi_text(bazi_text)
+    bazi_data = bazi_parsed  # 新解析器直接返回完整字典
     
-    if parsed_result.get("parsed"):
-        bazi_data = parsed_result["parsed"]
-        print(f"[Mode B] ✅ 八字解析成功: {bazi_data}")
-    else:
+    print(f"[Mode B] ✅ 八字解析结果: {bazi_parsed}")
+    print(f"[Mode B] 八字完整度: format_type={bazi_parsed.get('format_type')}, has_details={bazi_parsed.get('has_details')}")
+    
+    # 检查八字基本字段是否存在
+    if not all([bazi_parsed.get("year_pillar"), bazi_parsed.get("month_pillar"), 
+                bazi_parsed.get("day_pillar"), bazi_parsed.get("hour_pillar")]):
         return jsonify({
             "ok": False,
-            "error": "八字文本解析失败"
+            "error": "八字文本解析失败：缺少完整的四柱信息"
         }), 400
     
     # ========== 1.3 解析紫微数据 ==========
@@ -772,6 +776,30 @@ def run_full_chart_analysis():
     # ========== 2. 加载 SOP 模板 ==========
     print(f"📋 [Mode B] 加载 SOP 模板: {sop_template_id}")
     sop_template = load_sop_template(sop_template_id)
+    
+    # ========== 2.1 🔥 智能判断：八字是否完整？ ==========
+    # 如果八字只有四柱（无十神、藏干、神煞），就触发预言验证模式
+    if is_bazi_incomplete(bazi_parsed):
+        print(f"⚠️ [Mode B] 八字数据不完整（只有四柱），触发预言验证模式")
+        
+        # 获取 SOP 模板的验证模块列表
+        required_modules = [m.get("module_name") for m in sop_template.get("modules", [])]
+        
+        return jsonify({
+            "ok": True,
+            "mode": "need_prophecy_feedback",
+            "bazi": {
+                "parsed": bazi_parsed,
+                "status": "incomplete",
+                "message": get_bazi_status_message(bazi_parsed),
+                "required_modules": required_modules
+            },
+            "ziwei": {
+                "parsed": ziwei_data,
+                "status": "ok"
+            },
+            "toast": "八字命盘缺少详细信息，系统将根据紫微命盘生成预言问题，请通过 ✅/❌ 反馈来验证准确性。"
+        }), 200
 
     # ========== 3. 获取 Child AI 名称 ==========
     bazi_name = "八字观察员"

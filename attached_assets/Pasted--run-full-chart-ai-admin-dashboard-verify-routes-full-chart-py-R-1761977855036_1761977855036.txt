@@ -1,0 +1,195 @@
+① 后端：修 run_full_chart_ai 的「八字不完整就别乱写」逻辑
+
+去你现在的 admin_dashboard/verify/routes_full_chart.py（名字可能是这个，Replit 说过你有这个文件），把八字分析那段换成下面这个思路：
+
+# 原来可能是这样伪代码：
+# bazi_result = run_bazi_ai(bazi_text)
+
+# 我们改成这样：
+from .bazi_parser import parse_bazi_text   # 下面我会给你这个文件
+from .ziwei_parser import parse_wenmo_text
+
+@app.route("/verify/api/run_full_chart_ai", methods=["POST"])
+def run_full_chart_ai():
+    data = request.get_json()
+    bazi_text = data.get("bazi_text", "") or ""
+    ziwei_text = data.get("ziwei_text", "") or ""
+    sop_template = data.get("sop_template", "standard_v1")
+
+    # ① 先把八字、紫微都标准化
+    bazi_parsed = parse_bazi_text(bazi_text)
+    ziwei_parsed = parse_wenmo_text(ziwei_text)
+
+    # ② 看八字有没有“可验证字段”
+    bazi_incomplete = not bazi_parsed.get("has_details", False)
+
+    # ③ 根据 SOP 生成要问的模块
+    #    这里先写死，后面你再从 json 模板里读
+    required_modules = [
+        "六亲关系",
+        "童年经历",
+        "重大事件",
+        "感情婚姻",
+        "事业财运",
+        "健康状况",
+    ]
+
+    # ④ 如果八字不完整 → 不要写故事，直接让前端弹 prophecy-mode
+    if bazi_incomplete:
+        return jsonify({
+            "ok": True,
+            "mode": "need_prophecy_feedback",
+            "bazi": {
+                "parsed": bazi_parsed,
+                "status": "incomplete",
+                "message": "八字命盘只有四柱，缺少可验证的生活事件，请用户点准/不准后再综合。",
+                "required_modules": required_modules,
+            },
+            "ziwei": {
+                "parsed": ziwei_parsed,
+                "status": "ok"
+            },
+            "toast": "已生成要验证的模块，请前端弹出点准机制。"
+        }), 200
+
+    # ⑤ 否则才走真正的八字AI分析（你原来的那段）
+    bazi_ai_result = run_bazi_ai_chain(bazi_parsed, sop_template)
+    ziwei_ai_result = run_ziwei_ai_chain(ziwei_parsed, sop_template)
+
+    merged = merge_bazi_ziwei(bazi_ai_result, ziwei_ai_result)
+
+    return jsonify({
+        "ok": True,
+        "mode": "full_completed",
+        "bazi": bazi_ai_result,
+        "ziwei": ziwei_ai_result,
+        "merged": merged,
+    }), 200
+
+
+关键点：我们不再让后端硬写“整体趋势与人生轨迹吻合度较高”这句了，而是明确告诉前端：“喂，这个八字太瘦了，要你用户来点准”。
+
+② 新增一个超容错的八字 parser（吃你刚刚贴的那种四柱文本）
+
+新建一个 admin_dashboard/verify/bazi_parser.py：
+
+import re
+
+FOUR_PILLAR_KEYS = ["年柱", "月柱", "日柱", "时柱"]
+
+def parse_bazi_text(raw: str) -> dict:
+    text = (raw or "").strip()
+    # 把全角冒号、空格、换行都收拾一下
+    text = text.replace("：", ":").replace("　", " ").replace("\r\n", "\n")
+
+    result = {
+        "year_pillar": "",
+        "month_pillar": "",
+        "day_pillar": "",
+        "hour_pillar": "",
+        "birth_datetime": "",
+        "raw": raw,
+        "has_details": False,   # 这个很重要，后端靠它判断要不要走prophecy
+    }
+
+    # 1) 先抓四柱
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        # 可能是 "年柱:庚辰" 也可能是 "年柱： 庚辰"
+        m = re.match(r"^(年柱|月柱|日柱|时柱)\s*:\s*(.+)$", line)
+        if m:
+            key = m.group(1)
+            val = m.group(2).strip()
+            if key == "年柱":
+                result["year_pillar"] = val
+            elif key == "月柱":
+                result["month_pillar"] = val
+            elif key == "日柱":
+                result["day_pillar"] = val
+            elif key == "时柱":
+                result["hour_pillar"] = val
+
+        # 出生时间 / 出生日期
+        if "出生时间" in line or "出生日期" in line:
+            result["birth_datetime"] = line.split(":", 1)[-1].strip()
+
+    # 2) 判断有没有“命理可用信息”
+    #    如果只有四柱，没有“正财/伤官/七杀/藏干/神煞”这类字眼，就当它‘结构不完整’
+    has_detail_keywords = any(kw in text for kw in [
+        "正财", "偏财", "食神", "伤官", "七杀", "正官",
+        "比肩", "劫财", "藏干", "神煞", "纳音", "大运", "流年"
+    ])
+
+    # 四柱齐了 + 有细节，才说 has_details = True
+    four_pillars_ok = all([
+        result["year_pillar"],
+        result["month_pillar"],
+        result["day_pillar"],
+        result["hour_pillar"],
+    ])
+
+    result["has_details"] = bool(four_pillars_ok and has_detail_keywords)
+    return result
+
+
+这个 parser 有三个特点：
+
+你现在这样贴的四柱它吃得下；
+
+将来你要贴你自己的表格版（有“正财/伤官/藏干/神煞”）它也能判断；
+
+最重要：它会告诉后端“别瞎写，这盘要问用户”。
+
+③ 前端：只要后端说 mode: "need_prophecy_feedback"，就弹“准 / 不准”
+
+在你现在的 static/js/verify_wizard.js 里，找到你 Mode B 点击“开始分析”后拿到结果的那一段，补上这个分支：
+
+async function startFullChartAnalysis() {
+  // ... 你原来的取 textarea 的代码
+  const payload = { /* ... */ };
+
+  const resp = await fetch("/verify/api/run_full_chart_ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+
+  if (!data.ok) {
+    showToast(data.toast || "分析失败");
+    return;
+  }
+
+  // ① 这里是重点：后端说“资料不够，要用户点准”
+  if (data.mode === "need_prophecy_feedback") {
+    // 显示 prophecy 区域
+    showProphecyPanel(data.bazi.required_modules || []);
+    // 同时触发“根据紫微结构生成题目”
+    runProphecyAIFromZiwei();
+    return;
+  }
+
+  // ② 如果是完整分析，就走你原来的渲染
+  if (data.mode === "full_completed") {
+    renderFullAnalysis(data);
+  }
+}
+
+
+然后加一个很简单的 UI 填空函数（你已经有地方了，就是你截图那个“📄 八字命盘验证结果”下面）：
+
+function showProphecyPanel(modules) {
+  const box = document.getElementById("prophecy_zone");
+  box.innerHTML = "<h4>请点选以下命盘预言是否命中：</h4>";
+  modules.forEach((m, idx) => {
+    box.innerHTML += `
+      <div class="prophecy-card" data-module="${m}">
+        <span>【${m}】此部分需要你的真实经历来验证。</span>
+        <button onclick="reportProphecy('${m}', true)">✅ 准</button>
+        <button onclick="reportProphecy('${m}', false)">❌ 不准</button>
+      </div>
+    `;
+  });
+}
