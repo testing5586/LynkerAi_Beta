@@ -123,6 +123,10 @@ def verify_view():
         return redirect("/admin")
     return render_template("verify.html")
 
+@app.route("/my-real-bazi")
+def my_real_bazi():
+    return render_template("agent/my_real_bazi.html")
+
 @socketio.on("send_message")
 def handle_message(data):
     user_msg = data["message"]

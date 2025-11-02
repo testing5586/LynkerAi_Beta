@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>LynkerAI · 我的真命盘</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <style>
+    body { margin:0; background:#0f172a; color:#e2e8f0; font-family:Segoe UI,system-ui; }
+    .layout { display:flex; min-height:100vh; }
+    .sidebar { width:220px; background:#0f172a; border-right:1px solid #1f2937; padding:20px; }
+    .main { flex:1; display:flex; }
+    .content { flex:1; padding:24px; }
+    .right-panel { width:320px; border-left:1px solid #1f2937; background:#111827; display:flex; flex-direction:column; }
+    .card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:20px; margin-bottom:20px; }
+    .upload-box { border:2px dashed #334155; border-radius:12px; padding:24px; text-align:center; background:#0f172a; cursor:pointer; transition:all 0.3s; }
+    .upload-box:hover { border-color:#22c55e; background:#1a2332; }
+    .btn { background:#22c55e; border:none; color:#0f172a; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; transition:all 0.2s; }
+    .btn:hover { background:#16a34a; transform:translateY(-1px); }
+    .section-title { font-size:1.1rem; margin-bottom:12px; color:#22c55e; }
+    #child-ai-box { flex:1; overflow-y:auto; padding:16px; }
+    .chat-msg { background:#0f172a; padding:8px 12px; border-radius:8px; margin-bottom:8px; font-size:0.85rem; border-left:3px solid #22c55e; animation:slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+    #bazi-result-box { background:#0f172a; min-height:200px; border-radius:8px; padding:12px; white-space:pre-wrap; font-size:0.75rem; font-family:monospace; }
+    textarea { width:100%; min-height:80px; background:#0f172a; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; font-family:monospace; }
+    .status-badge { display:inline-block; padding:4px 8px; border-radius:12px; font-size:0.7rem; margin-left:8px; }
+    .status-badge.connected { background:#22c55e; color:#0f172a; }
+    .status-badge.disconnected { background:#ef4444; color:#fff; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="sidebar">
+      <h2 style="color:#22c55e;">LynkerAI</h2>
+      <p style="margin-top:24px; font-size:0.85rem; color:#94a3b8;">Dashboard</p>
+      <p style="margin-top:12px; font-size:0.85rem; color:#e2e8f0;">我的命盘</p>
+      <ul style="list-style:none; padding-left:0; margin-top:8px; font-size:0.8rem; color:#94a3b8;">
+        <li>我的命盘总览</li>
+        <li style="color:#fff;">可能出生的时辰1</li>
+        <li>可能出生的时辰2</li>
+        <li>可能出生的时辰3</li>
+      </ul>
+    </div>
+    <div class="main">
+      <div class="content">
+        <h1 style="margin-bottom:12px;">我的真命盘</h1>
+        <p style="margin-bottom:20px; color:#94a3b8;">在这里还原真实的出生时辰。上传你的八字命盘或紫微斗数命盘，Child AI 会帮你跑三层 agent workflow。</p>
+
+        <div style="display:flex; gap:20px;">
+          <div class="card" style="flex:1;">
+            <div class="section-title">八字命盘</div>
+            <label class="upload-box" id="bazi-upload-zone">
+              <input type="file" id="bazi-upload-input" accept="image/*" style="display:none;">
+              📷 拖拽图片到这里 或 点击上传
+            </label>
+            <p style="margin:10px 0; font-size:0.7rem; color:#94a3b8;">也可以直接粘贴八字文本：</p>
+            <textarea id="bazi-textarea" placeholder="贴入八字命盘表格文本..."></textarea>
+            <button class="btn" id="bazi-text-btn" style="margin-top:10px;">用文本识别</button>
+          </div>
+
+          <div class="card" style="flex:1;">
+            <div class="section-title">紫微斗数命盘</div>
+            <div class="upload-box">
+              <small style="color:#94a3b8;">（这一块先占位，暂时不跑agent）</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <div class="section-title">八字命盘验证结果</div>
+          <pre id="bazi-result-box">上传八字命盘后，识别结果会显示在这里。</pre>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div style="padding:16px; border-bottom:1px solid #1f2937;">
+          <h3 style="margin:0; font-size:1rem;">Child AI 助手 <span class="status-badge connected" id="connection-status">已连接</span></h3>
+          <p style="margin:4px 0 0; font-size:0.7rem; color:#94a3b8;">我会实时汇报识别进度</p>
+        </div>
+        <div id="child-ai-box">
+          <div class="chat-msg">⏳ 等待上传命盘数据...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    const socket = io('http://localhost:3001');
+    
+    const baziInput = document.getElementById("bazi-upload-input");
+    const baziTextarea = document.getElementById("bazi-textarea");
+    const resultBox = document.getElementById("bazi-result-box");
+    const childBox = document.getElementById("child-ai-box");
+    const uploadZone = document.getElementById('bazi-upload-zone');
+
+    uploadZone.addEventListener('click', () => {
+      baziInput.click();
+    });
+
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '#22c55e';
+      uploadZone.style.background = '#1a2332';
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.style.borderColor = '#334155';
+      uploadZone.style.background = '#0f172a';
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '#334155';
+      uploadZone.style.background = '#0f172a';
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        baziInput.files = files;
+        baziInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    if (baziInput) {
+      baziInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const base64 = await fileToBase64(file);
+        socket.emit("bazi_upload", { image_base64: base64, source: "bazi-upload" });
+        addChildMsg("📤 已上传八字命盘图片，正在识别...");
+      });
+    }
+
+    if (baziTextarea) {
+      const btn = document.getElementById("bazi-text-btn");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const text = baziTextarea.value.trim();
+          if (!text) return;
+          socket.emit("bazi_upload", { raw_text: text, source: "bazi-text" });
+          addChildMsg("📝 已收到文本命盘，开始识别...");
+        });
+      }
+    }
+
+    socket.on("childAI_msg", (msg) => {
+      addChildMsg(msg);
+    });
+
+    socket.on("bazi_result", (payload) => {
+      if (resultBox) {
+        resultBox.textContent = JSON.stringify(payload.data, null, 2);
+      }
+    });
+
+    socket.on("bazi_error", (err) => {
+      addChildMsg("❌ 识别失败：" + err);
+    });
+
+    function addChildMsg(text) {
+      if (!childBox) return;
+      const div = document.createElement("div");
+      div.className = "chat-msg";
+      div.textContent = text;
+      childBox.appendChild(div);
+      childBox.scrollTop = childBox.scrollHeight;
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const base64 = r.result.split(",")[1];
+          resolve(base64);
+        };
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    const connectionStatus = document.getElementById('connection-status');
+    socket.on('connect', () => {
+      connectionStatus.textContent = '已连接';
+      connectionStatus.className = 'status-badge connected';
+    });
+
+    socket.on('disconnect', () => {
+      connectionStatus.textContent = '未连接';
+      connectionStatus.className = 'status-badge disconnected';
+    });
+  </script>
+</body>
+</html>
