@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LynkerAI - 八字智能识别系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #667eea;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .upload-section {
+      margin-bottom: 30px;
+    }
+
+    .upload-area {
+      border: 2px dashed #667eea;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #f8f9ff;
+    }
+
+    .upload-area:hover {
+      border-color: #764ba2;
+      background: #f0f2ff;
+    }
+
+    .upload-area.dragover {
+      border-color: #764ba2;
+      background: #e8eaff;
+    }
+
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      resize: vertical;
+      margin-bottom: 15px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .child-ai-box {
+      background: #f8f9ff;
+      border-radius: 12px;
+      padding: 20px;
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+
+    .child-ai-box h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+
+    .chat-msg {
+      background: white;
+      padding: 10px 15px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border-left: 3px solid #667eea;
+      font-size: 14px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .result-box {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 500px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .result-box h3 {
+      color: #4ec9b0;
+      margin-bottom: 15px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      background: #f0f2ff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #667eea;
+      transition: all 0.3s;
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel">
+      <h1>🔮 八字智能识别系统</h1>
+      <p class="subtitle">三层 AI Agent 工作流 - Vision → Normalizer → Formatter</p>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('upload')">📸 图片上传</button>
+        <button class="tab" onclick="switchTab('text')">📝 文本输入</button>
+      </div>
+
+      <div id="upload-tab" class="tab-content active">
+        <div class="upload-section">
+          <div class="upload-area" id="upload-area" onclick="document.getElementById('bazi-upload-input').click()">
+            <div class="upload-icon">📷</div>
+            <p><strong>点击上传八字命盘截图</strong></p>
+            <p style="color: #999; font-size: 12px; margin-top: 10px;">支持拖拽上传 | 最大 20MB</p>
+          </div>
+          <input type="file" id="bazi-upload-input" accept="image/*">
+        </div>
+      </div>
+
+      <div id="text-tab" class="tab-content">
+        <div class="upload-section">
+          <h3>粘贴八字文本</h3>
+          <textarea id="bazi-textarea" placeholder="示例格式：
+年柱:庚辰 月柱:己卯 日柱:丙戌 时柱:己丑
+
+或者粘贴完整命盘表格..."></textarea>
+          <button id="bazi-text-btn">开始识别</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h1>🤖 Child AI 助手 <span class="status connected" id="connection-status">已连接</span></h1>
+      
+      <div class="child-ai-box" id="child-ai-box">
+        <h3>工作流进度</h3>
+        <div class="chat-msg">⏳ 等待上传命盘数据...</div>
+      </div>
+
+      <div class="result-box" id="bazi-result-box">
+        <h3>📊 识别结果</h3>
+        <div style="color: #999;">识别完成后，结果将在此显示...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/js/agentsBridge.js"></script>
+  <script>
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      if (tabName === 'upload') {
+        document.querySelector('.tab:first-child').classList.add('active');
+        document.getElementById('upload-tab').classList.add('active');
+      } else {
+        document.querySelector('.tab:last-child').classList.add('active');
+        document.getElementById('text-tab').classList.add('active');
+      }
+    }
+
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('bazi-upload-input');
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        fileInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    const connectionStatus = document.getElementById('connection-status');
+    socket.on('connect', () => {
+      connectionStatus.textContent = '已连接';
+      connectionStatus.className = 'status connected';
+    });
+
+    socket.on('disconnect', () => {
+      connectionStatus.textContent = '未连接';
+      connectionStatus.className = 'status disconnected';
+    });
+  </script>
+</body>
+</html>
