@@ -358,6 +358,11 @@ async function handleFileUpload(file, type) {
             };
             reader.readAsDataURL(file);
 
+            // 如果是八字命盘，同时调用 Agent Workflow
+            if (type === 'bazi') {
+                callAgentWorkflow(file);
+            }
+
             // 图片文件 - 使用OCR识别
             addAIMessage(`检测到图片文件 "${file.name}"，正在使用 OCR 识别文本...`);
             statusSpan.textContent = "OCR 识别中...";
@@ -1864,3 +1869,141 @@ async function loadProphecyStats() {
 window.runProphecyAI = runProphecyAI;
 window.recordProphecyFeedback = recordProphecyFeedback;
 window.loadProphecyStats = loadProphecyStats;
+
+// ========== Node.js Agent Workflow Integration ==========
+let agentSocket = null;
+let agentConnected = false;
+
+function initAgentWorkflow() {
+    try {
+        agentSocket = io('http://localhost:3001', {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5
+        });
+
+        agentSocket.on('connect', () => {
+            agentConnected = true;
+            console.log('✅ Agent Workflow connected');
+        });
+
+        agentSocket.on('disconnect', () => {
+            agentConnected = false;
+            console.log('⚠️ Agent Workflow disconnected');
+        });
+
+        agentSocket.on('connect_error', (error) => {
+            console.log('⚠️ Agent Workflow connection error:', error.message);
+        });
+
+        agentSocket.on('agent:progress', (data) => {
+            const { agent, message, step, total } = data;
+            const emoji = {
+                'vision': '📸',
+                'normalizer': '🔧',
+                'formatter': '📦',
+                'supervisor': '🎯'
+            }[agent] || '🤖';
+            
+            const progressMsg = step && total ? ` (${step}/${total})` : '';
+            addAIMessage(`${emoji} <strong>${agent}</strong>: ${message}${progressMsg}`);
+        });
+
+        agentSocket.on('agent:result', (data) => {
+            console.log('[Agent Result]', data);
+            if (data.success && data.result) {
+                handleAgentResult(data.result);
+            } else {
+                addAIMessage(`❌ Agent识别失败: ${data.error || '未知错误'}`);
+            }
+        });
+
+        agentSocket.on('agent:error', (data) => {
+            console.error('[Agent Error]', data);
+            addAIMessage(`❌ Agent出错: ${data.message || data.error}`);
+        });
+
+    } catch (error) {
+        console.error('Failed to initialize Agent Workflow:', error);
+    }
+}
+
+async function callAgentWorkflow(imageFile) {
+    if (!agentSocket || !agentConnected) {
+        console.log('⚠️ Agent Workflow not connected, skipping...');
+        return;
+    }
+
+    try {
+        addAIMessage('🚀 启动智能八字识别工作流...');
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64Data = reader.result;
+            
+            agentSocket.emit('analyze:bazi', {
+                imageData: base64Data,
+                userId: state.userId,
+                groupIndex: state.currentGroupIndex
+            });
+        };
+        
+        reader.readAsDataURL(imageFile);
+        
+    } catch (error) {
+        console.error('Failed to call Agent Workflow:', error);
+        addAIMessage(`❌ 调用Agent失败: ${error.message}`);
+    }
+}
+
+function handleAgentResult(result) {
+    try {
+        addAIMessage(`✅ <strong>Agent识别完成！</strong>`);
+        
+        if (result.bazi_data) {
+            const baziData = result.bazi_data;
+            let displayText = '识别结果：\n';
+            
+            if (baziData.year_pillar) displayText += `年柱: ${baziData.year_pillar}\n`;
+            if (baziData.month_pillar) displayText += `月柱: ${baziData.month_pillar}\n`;
+            if (baziData.day_pillar) displayText += `日柱: ${baziData.day_pillar}\n`;
+            if (baziData.hour_pillar) displayText += `时柱: ${baziData.hour_pillar}\n`;
+            
+            if (baziData.five_elements) {
+                displayText += `\n五行：${JSON.stringify(baziData.five_elements)}`;
+            }
+            
+            addAIMessage(`<pre style="background: #1a1a1a; padding: 12px; border-radius: 8px; font-size: 13px;">${displayText}</pre>`);
+            
+            const formattedText = formatBaziFromAgent(baziData);
+            const baziText = document.getElementById('baziText');
+            if (baziText && formattedText) {
+                baziText.value = formattedText;
+                processChartText(formattedText, 'bazi');
+            }
+        }
+        
+    } catch (error) {
+        console.error('Failed to handle Agent result:', error);
+        addAIMessage(`❌ 处理Agent结果失败: ${error.message}`);
+    }
+}
+
+function formatBaziFromAgent(baziData) {
+    if (!baziData) return '';
+    
+    const parts = [];
+    if (baziData.year_pillar) parts.push(`年柱:${baziData.year_pillar}`);
+    if (baziData.month_pillar) parts.push(`月柱:${baziData.month_pillar}`);
+    if (baziData.day_pillar) parts.push(`日柱:${baziData.day_pillar}`);
+    if (baziData.hour_pillar) parts.push(`时柱:${baziData.hour_pillar}`);
+    
+    return parts.join(' ');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        initAgentWorkflow();
+    }, 1000);
+});
