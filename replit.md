@@ -21,6 +21,14 @@ The system includes several web-based interfaces:
 -   **Core AI Generation**: Handled by `lynker_master_ai.py` using OpenAI's chat completion API.
 -   **Database Management**: Supabase integration via `supabase_init.py` for various data storage.
 -   **Birth Chart Verification**: `ai_truechart_verifier.py` and `admin_dashboard/verify/ai_verifier.py` perform semantic validation using qualitative confidence levels (高/中高/中/偏低/低) instead of numeric scores to align with traditional metaphysical practices.
+-   **Intelligent Bazi Parser**: `admin_dashboard/verify/bazi_parser.py` detects data completeness (simple vs detailed format), auto-triggers prophecy mode when bazi lacks 十神/藏干/神煞 details. Supports both single-line format ("年柱:庚辰 月柱:己卯...") and multi-line formats.
+-   **Prophecy Validation Center**: `admin_dashboard/verify/prophecy_generator.py` auto-generates 3-6 verifiable prediction questions from ziwei charts, tracks accuracy via ✅/❌ feedback, stores results in JSONL format.
+-   **Bazi Agent System (Node.js)**: Three-layer intelligent agent workflow (`lynkerai-bazi-agent/`) for vision-based bazi extraction:
+    -   **Layer 1 - Vision Agent**: MiniMax Vision Pro API integration for OCR with fallback simulation
+    -   **Layer 2 - Normalizer Agent**: Structured parsing, four-pillar mapping, five-element calculation
+    -   **Layer 3 - Formatter Agent**: Export-ready JSON packaging for frontend/backend consumption
+    -   **Supervisor Agent**: Orchestrates the three-layer workflow with real-time Socket.io communication
+    -   **Frontend Bridge**: `public/js/agentsBridge.js` enables real-time Child AI chat messages and result display
 -   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
 -   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
 -   **User Memory & Interaction**: `child_ai_memory.py` tracks user interactions and engagement.
@@ -41,9 +49,10 @@ The system includes several web-based interfaces:
 -   **Knowledge Retrieval Router**: Lightweight RAG system for real-time knowledge enhancement for all three AI agents.
 
 ## Language & Runtime
--   **Language**: Python 3.x
--   **Execution Model**: Single-process, synchronous.
--   **Platform**: Replit.
+-   **Python Backend**: Python 3.x for Flask server, AI processing, and database operations
+-   **Node.js Agent System**: Node.js 20 (ES Modules) for real-time bazi extraction workflow
+-   **Execution Model**: Multi-process (Flask on port 5000, Node.js on port 3001)
+-   **Platform**: Replit
 
 ## Design Choices
 -   **Prompt Engineering**: Utilizes structured prompt templates for predictable AI responses.
@@ -54,6 +63,7 @@ The system includes several web-based interfaces:
 
 ## Required Services
 -   **OpenAI API**: For core AI code generation and chat completions.
+-   **MiniMax Vision API**: For OCR-based bazi chart image recognition (with fallback simulation).
 
 ## Optional Services
 -   **Supabase**: Database and backend services for storing user profiles, verified charts, life events, soulmate matches, AI insights, and memory data.
@@ -68,3 +78,31 @@ The system includes several web-based interfaces:
 -   `sentence-transformers`
 -   `psycopg2-binary`
 -   `cryptography`
+
+## Node.js Package Dependencies
+-   `express` - Web framework for agent API server
+-   `socket.io` - Real-time bidirectional event-based communication
+-   `node-fetch` - HTTP client for MiniMax Vision API calls
+-   `cors` - Cross-origin resource sharing middleware
+-   `dotenv` - Environment variable management
+
+# Project Structure Updates (Nov 2025)
+
+## Bazi Agent System Architecture
+```
+lynkerai-bazi-agent/
+├── server.js              # Main Express + Socket.io server (port 3001)
+├── package.json           # Node.js dependencies (ES Modules)
+├── agents/
+│   ├── supervisorAgent.js    # Workflow orchestrator
+│   ├── visionAgent.js        # MiniMax Vision Pro integration + fallback
+│   ├── normalizerAgent.js    # Four-pillar parsing & five-element calculation
+│   └── formatterAgent.js     # JSON export formatter
+└── public/
+    └── js/
+        └── agentsBridge.js   # Frontend Socket.io client bridge
+```
+
+## Workflow Configuration
+1. **Admin Dashboard** (Flask): Port 5000 - Main web interface
+2. **Bazi Agent System** (Node.js): Port 3001 - Agent workflow API server
