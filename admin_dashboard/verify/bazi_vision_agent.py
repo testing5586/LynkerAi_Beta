@@ -43,6 +43,12 @@ class BaziVisionAgent:
     # ---------- Layer 1 detail ----------
     def _call_gpt4o_vision(self, image_base64):
         """调用 GPT-4o Vision 并返回原始 JSON"""
+        
+        # 清理 base64 数据（移除可能的前缀）
+        if image_base64.startswith('data:'):
+            # 格式: data:image/png;base64,xxxxx
+            image_base64 = image_base64.split(',', 1)[1] if ',' in image_base64 else image_base64
+        
         prompt = """你是八字命盘识别专家。请识别图片中的命盘表格，提取10行数据并输出纯JSON。
 
 必须识别的10行：主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞
@@ -77,17 +83,30 @@ class BaziVisionAgent:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
                     ]
                 }
             ],
             "temperature": 0.1,
             "max_tokens": 2500
         }
-        res = requests.post(self.endpoint, headers=headers, json=data, timeout=90)
-        res.raise_for_status()
-        content = res.json()["choices"][0]["message"]["content"]
-        return content
+        res = None
+        try:
+            res = requests.post(self.endpoint, headers=headers, json=data, timeout=90)
+            res.raise_for_status()
+            content = res.json()["choices"][0]["message"]["content"]
+            return content
+        except requests.exceptions.HTTPError as e:
+            # 捕获详细的 HTTP 错误信息
+            if res:
+                error_detail = ""
+                try:
+                    error_detail = res.json()
+                except:
+                    error_detail = res.text
+                raise Exception(f"OpenAI API 错误 {res.status_code}: {error_detail}")
+            else:
+                raise Exception(f"请求失败: {str(e)}")
 
     # ---------- Layer 2 ----------
     def _normalize_output(self, response_text):

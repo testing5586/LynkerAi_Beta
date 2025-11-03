@@ -30,11 +30,15 @@ def run_agent_workflow():
         
         image_base64 = data['imageData']
         
+        # 日志：显示接收的数据大小
+        print(f"[Bazi Agent] 接收图片数据大小: {len(image_base64)} 字符")
+        
         # 收集进度消息
         messages = []
         
         def progress_callback(message):
             messages.append(message)
+            print(f"[Bazi Agent] {message}")
         
         # 初始化 Agent 并调用三层识别系统
         agent = BaziVisionAgent()
@@ -44,11 +48,16 @@ def run_agent_workflow():
         result['messages'] = messages
         
         if result['success']:
+            print(f"[Bazi Agent] ✅ 识别成功")
             return jsonify(result), 200
         else:
+            print(f"[Bazi Agent] ❌ 识别失败: {result.get('error', 'unknown')}")
             return jsonify(result), 500
     
     except Exception as e:
+        print(f"[Bazi Agent] ❌ 异常: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": f"服务器错误: {str(e)}",
