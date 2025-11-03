@@ -294,6 +294,25 @@
 
         <!-- 两个并排上传框 -->
         <section class="upload-section">
+            <!-- 出生地环境信息选择器 -->
+            <div class="env-select-container" style="margin-bottom: 24px; padding: 20px; background: #2a2a2a; border-radius: 12px; border: 1px solid #444;">
+                <label style="display: block; color: #00ff9d; font-size: 16px; font-weight: bold; margin-bottom: 12px;">🌍 出生地信息</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <select id="countrySelect" style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; color: #fff; font-size: 14px;">
+                        <option value="">选择国家</option>
+                    </select>
+                    <select id="citySelect" style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; color: #fff; font-size: 14px;">
+                        <option value="">选择城市</option>
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <input type="text" id="latitude" placeholder="纬度" readonly style="padding: 10px; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; color: #aaa; font-size: 13px;">
+                    <input type="text" id="climate_zone" placeholder="气候带" readonly style="padding: 10px; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; color: #aaa; font-size: 13px;">
+                    <input type="text" id="humidity_type" placeholder="湿度" readonly style="padding: 10px; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; color: #aaa; font-size: 13px;">
+                    <input type="text" id="terrain_type" placeholder="地形" readonly style="padding: 10px; background: #1a1a1a; border: 1px solid #555; border-radius: 6px; color: #aaa; font-size: 13px;">
+                </div>
+            </div>
+
             <div class="upload-grid">
                 <!-- 八字命盘上传框 -->
                 <div class="upload-card" id="baziCard">
@@ -504,6 +523,7 @@
     </aside>
 </div>
 
+<script src="/static/js/auto_env_fill.js"></script>
 <script src="/static/js/verify_wizard.js"></script>
 </body>
 </html>
