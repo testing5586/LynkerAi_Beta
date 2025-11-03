@@ -111,8 +111,8 @@ class BaziVisionAgent:
         return self._get_simulated_data()
     
     def _call_minimax_vision(self, image_base64: str) -> Optional[str]:
-        """调用 MiniMax Vision Pro API"""
-        url = "https://api.minimax.chat/v1/text/chatcompletion_v2"
+        """调用 MiniMax Vision Pro API（新版 /t2x/vision 端点）"""
+        url = "https://api.minimax.chat/v1/t2x/vision"
         
         # 移除可能的 data:image 前缀
         if "," in image_base64:
@@ -120,24 +120,11 @@ class BaziVisionAgent:
         
         headers = {
             "Authorization": f"Bearer {self.minimax_api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json; charset=utf-8"
         }
         
-        payload = {
-            "model": "MiniMax-VL-01",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            }
-                        },
-                        {
-                            "type": "text",
-                            "text": """你是一名专业的八字命盘识别专家，擅长读取文墨天机等系统导出的命盘图片。
+        # 构建 Prompt（新版 API 使用简单的 prompt + image_url 格式）
+        prompt_text = """你是一名专业的八字命盘识别专家，擅长读取文墨天机等系统导出的命盘图片。
 
 📸 输入内容：八字命盘截图（含年柱、月柱、日柱、时柱及各层信息）
 🎯 输出目标：请严格按照以下格式输出识别结果，以 JSON 结构表示表格内容。
@@ -188,22 +175,33 @@ class BaziVisionAgent:
 - 不要省略空列；
 - 不允许输出"无法识别"或"空"；
 - 直接输出符合上述结构的 JSON。"""
-                        }
-                    ]
-                }
-            ],
-            "temperature": 0.1,
-            "max_tokens": 1500
+        
+        payload = {
+            "model": "MiniMax-VL-01",
+            "prompt": prompt_text,
+            "image_url": f"data:image/jpeg;base64,{image_base64}"
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             data = response.json()
+            # 新版 API 响应格式可能不同，需要适配
+            # 尝试多种可能的响应格式
             if "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0]["message"]["content"]
+                # 兼容旧格式
+                return data["choices"][0].get("message", {}).get("content") or data["choices"][0].get("text")
+            elif "text" in data:
+                # 直接返回 text 字段
+                return data["text"]
+            elif "output" in data:
+                # 可能是 output 字段
+                return data["output"]
+            else:
+                # 尝试返回整个响应以便调试
+                raise Exception(f"无法解析 MiniMax 响应格式: {json.dumps(data, ensure_ascii=False)}")
         
-        raise Exception(f"MiniMax API 返回错误: {response.status_code}")
+        raise Exception(f"MiniMax API 返回错误: {response.status_code}, 响应: {response.text}")
     
     def _call_gpt4_vision(self, image_base64: str) -> Optional[str]:
         """调用 GPT-4 Vision API"""
