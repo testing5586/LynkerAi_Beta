@@ -1876,17 +1876,18 @@ let agentConnected = false;
 
 function initAgentWorkflow() {
     try {
-        const agentUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001' 
-            : `https://${window.location.hostname.replace('5000-', '3001-')}`;
+        // Connect to Flask proxy which forwards to Node.js Agent System
+        const agentUrl = window.location.origin;
         
-        console.log('🔌 Connecting to Agent Workflow:', agentUrl);
+        console.log('🔌 Connecting to Agent Workflow via proxy:', agentUrl);
         
         agentSocket = io(agentUrl, {
-            transports: ['websocket', 'polling'],
+            path: '/agent-socket.io/',
+            transports: ['polling', 'websocket'],
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionAttempts: 5
+            reconnectionAttempts: 5,
+            timeout: 10000
         });
 
         agentSocket.on('connect', () => {

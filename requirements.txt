@@ -39,3 +39,5 @@ schedule
 tencentcloud-sdk-python
 torch
 werkzeug
+flask-cors
+requests
