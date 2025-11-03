@@ -1899,8 +1899,8 @@ async function callAgentWorkflow(imageFile) {
                     });
                 }
                 
-                if (result.success && result.data) {
-                    handleAgentResult(result.data);
+                if (result.success && result.bazi) {
+                    handleAgentResult(result);
                 } else {
                     addAIMessage(`❌ 识别失败: ${result.error || '未知错误'}`);
                 }
@@ -1927,10 +1927,16 @@ function handleAgentResult(result) {
             const bazi = result.bazi;
             let displayText = '识别结果：\n';
             
-            if (bazi.year) displayText += `年柱: ${bazi.year}\n`;
-            if (bazi.month) displayText += `月柱: ${bazi.month}\n`;
-            if (bazi.day) displayText += `日柱: ${bazi.day}\n`;
-            if (bazi.hour) displayText += `时柱: ${bazi.hour}\n`;
+            // 兼容不同的字段名
+            const year = bazi.year_pillar || bazi.year || '';
+            const month = bazi.month_pillar || bazi.month || '';
+            const day = bazi.day_pillar || bazi.day || '';
+            const hour = bazi.hour_pillar || bazi.hour || '';
+            
+            if (year) displayText += `年柱: ${year}\n`;
+            if (month) displayText += `月柱: ${month}\n`;
+            if (day) displayText += `日柱: ${day}\n`;
+            if (hour) displayText += `时柱: ${hour}\n`;
             
             if (result.gender) displayText += `\n性别: ${result.gender}`;
             if (result.birth_time) displayText += `\n出生时间: ${result.birth_time}`;
@@ -1961,11 +1967,17 @@ function handleAgentResult(result) {
 function formatBaziFromAgent(bazi) {
     if (!bazi) return '';
     
+    // 兼容不同的字段名
+    const year = bazi.year_pillar || bazi.year || '';
+    const month = bazi.month_pillar || bazi.month || '';
+    const day = bazi.day_pillar || bazi.day || '';
+    const hour = bazi.hour_pillar || bazi.hour || '';
+    
     const parts = [];
-    if (bazi.year) parts.push(`年柱:${bazi.year}`);
-    if (bazi.month) parts.push(`月柱:${bazi.month}`);
-    if (bazi.day) parts.push(`日柱:${bazi.day}`);
-    if (bazi.hour) parts.push(`时柱:${bazi.hour}`);
+    if (year) parts.push(`年柱:${year}`);
+    if (month) parts.push(`月柱:${month}`);
+    if (day) parts.push(`日柱:${day}`);
+    if (hour) parts.push(`时柱:${hour}`);
     
     return parts.join(' ');
 }
