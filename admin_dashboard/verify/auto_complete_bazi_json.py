@@ -29,6 +29,74 @@ class BaziJsonAutoCompleter:
             "申": "金", "酉": "金",
             "亥": "水", "子": "水"
         }
+        
+        # 常见城市地理信息预设库（智能后备方案）
+        # 当前端 API 失败或数据不完整时，自动从这里匹配补全
+        self.geo_presets = {
+            "吉隆坡": {
+                "country_code": "MY",
+                "country_name": "马来西亚",
+                "latitude": 3.139,
+                "longitude": 101.687,
+                "climate_zone": "热带",
+                "humidity_type": "潮湿",
+                "terrain_type": "沿海"
+            },
+            "北京": {
+                "country_code": "CN",
+                "country_name": "中国",
+                "latitude": 39.904,
+                "longitude": 116.407,
+                "climate_zone": "温带",
+                "humidity_type": "干燥",
+                "terrain_type": "内陆"
+            },
+            "东京": {
+                "country_code": "JP",
+                "country_name": "日本",
+                "latitude": 35.689,
+                "longitude": 139.692,
+                "climate_zone": "温带",
+                "humidity_type": "湿润",
+                "terrain_type": "沿海"
+            },
+            "曼谷": {
+                "country_code": "TH",
+                "country_name": "泰国",
+                "latitude": 13.756,
+                "longitude": 100.502,
+                "climate_zone": "热带",
+                "humidity_type": "潮湿",
+                "terrain_type": "平原"
+            },
+            "新加坡": {
+                "country_code": "SG",
+                "country_name": "新加坡",
+                "latitude": 1.352,
+                "longitude": 103.820,
+                "climate_zone": "热带",
+                "humidity_type": "潮湿",
+                "terrain_type": "沿海"
+            },
+            "台北": {
+                "country_code": "TW",
+                "country_name": "台湾",
+                "latitude": 25.033,
+                "longitude": 121.565,
+                "climate_zone": "亚热带",
+                "humidity_type": "湿润",
+                "terrain_type": "沿海"
+            },
+            "香港": {
+                "country_code": "HK",
+                "country_name": "香港",
+                "latitude": 22.319,
+                "longitude": 114.169,
+                "climate_zone": "亚热带",
+                "humidity_type": "潮湿",
+                "terrain_type": "沿海"
+            }
+        }
 
     def calculate_wuxing(self, pillars):
         """
@@ -65,9 +133,25 @@ class BaziJsonAutoCompleter:
         """
         data = data.copy()
 
-        # === 1. 环境信息补全 ===
-        if "environment" not in data:
-            data["environment"] = environment or {
+        # === 1. 环境信息智能补全（三层后备方案）===
+        env_data = {}
+        
+        # 第一层：优先使用前端传来的环境数据
+        if environment:
+            env_data = environment.copy()
+        
+        # 第二层：如果数据不完整，尝试从预设库智能匹配
+        city_name = env_data.get("city", "")
+        if city_name in self.geo_presets:
+            preset = self.geo_presets[city_name]
+            # 只填充缺失的字段，保留前端已提供的数据
+            for key, value in preset.items():
+                if key not in env_data or env_data[key] is None:
+                    env_data[key] = value
+        
+        # 第三层：如果还是没有完整数据，使用默认值（北京）
+        if not env_data or not env_data.get("city"):
+            env_data = {
                 "country_code": "CN",
                 "country_name": "中国",
                 "city": "北京",
@@ -77,9 +161,9 @@ class BaziJsonAutoCompleter:
                 "humidity_type": "干燥",
                 "terrain_type": "内陆"
             }
-        elif environment:
-            # 如果提供了环境信息，使用提供的值
-            data["environment"] = environment
+        
+        # 存储到数据中
+        data["environment"] = env_data
 
         # === 2. 五行计算 ===
         # 尝试从不同位置获取四柱数据
