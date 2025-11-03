@@ -43,12 +43,12 @@ class BaziVisionAgent:
     # ---------- Layer 1 detail ----------
     def _call_gpt4o_vision(self, image_base64):
         """调用 GPT-4o Vision 并返回原始 JSON"""
-        prompt = """
-你是八字命盘识别专家，请从命盘图片中识别以下10行完整信息：
+        prompt = """你是八字命盘识别专家。请识别图片中的命盘表格，提取10行数据并输出纯JSON。
 
-主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞。
-以标准JSON输出：
+必须识别的10行：主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞
 
+输出格式（仅输出JSON，不要任何其他文字）：
+```json
 {
   "columns": ["年柱","月柱","日柱","时柱"],
   "rows": {
@@ -64,8 +64,7 @@ class BaziVisionAgent:
     "神煞": ["","","",""]
   }
 }
-不要输出解释文字。
-"""
+```"""
 
         headers = {
             "Authorization": f"Bearer {self.openai_api_key}",
@@ -119,8 +118,18 @@ class BaziVisionAgent:
 
     # ---------- Layer 3 ----------
     def _extract_json_block(self, text):
-        """提取 JSON 部分"""
-        start, end = text.find("{"), text.rfind("}")
+        """提取 JSON 部分（支持 markdown 代码块）"""
+        # 移除 markdown 代码块标记
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0]
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0]
+        
+        # 提取 JSON 对象
+        start = text.find("{")
+        end = text.rfind("}")
+        
         if start == -1 or end == -1:
-            raise ValueError("未找到 JSON 区块")
+            raise ValueError(f"未找到 JSON 区块。GPT 响应: {text[:200]}")
+        
         return text[start:end+1]
