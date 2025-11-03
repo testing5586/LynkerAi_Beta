@@ -25,8 +25,12 @@ The system includes several web-based interfaces:
 -   **Prophecy Validation Center**: `admin_dashboard/verify/prophecy_generator.py` auto-generates 3-6 verifiable prediction questions from ziwei charts, tracks accuracy via ✅/❌ feedback, stores results in JSONL format.
 -   **Bazi Vision Agent (Python)**: Three-layer intelligent image recognition system (`admin_dashboard/verify/bazi_vision_agent.py`) for bazi chart extraction:
     -   **Layer 1 - Vision Agent**: Multi-provider vision API with intelligent endpoint switching
-        - **MiniMax Vision Pro**: Dual-region support (中国区 `api.minimaxi.com` + 国际区 `api.minimax.io`) with automatic failover
-        - **GPT-4 Vision**: Secondary fallback for enhanced reliability
+        - **GPT-4 Vision (Primary)**: Enhanced OCR expert with optimized prompt template
+            - Role-based instruction: "八字命盘OCR识别专家"
+            - Complete 10-row table example in prompt
+            - Simplified, professional output format
+            - High accuracy for Chinese characters and table structures
+        - **MiniMax Vision Pro (Fallback)**: Dual-region support (中国区 `api.minimax.io` + 国际区 `api.minimaxi.com`) with automatic failover (Note: Official API currently doesn't provide Vision service)
         - **Local Simulation**: Development/testing fallback with complete 10-row bazi data
         - **Smart Caching**: Remembers successful endpoints for faster subsequent calls
     -   **Layer 2 - Normalizer Agent**: Structured parsing, four-pillar mapping, five-element calculation
