@@ -1,3 +1,4 @@
+// agents/visionAgent.js
 import fetch from "node-fetch";
 
 export async function VisionAgent(input, socket) {
@@ -17,6 +18,7 @@ export async function VisionAgent(input, socket) {
 
   if (hasImage && apiKey) {
     try {
+      socket?.emit("childAI_msg", "📸 使用 MiniMax Vision Pro 开始识别八字命盘...");
       const res = await fetch("https://api.minimax.chat/v1/vision/generation", {
         method: "POST",
         headers: {
@@ -26,10 +28,8 @@ export async function VisionAgent(input, socket) {
         body: JSON.stringify({
           model: "minimax-vision-pro",
           prompt: `
-你是一名专业的命理识别AI。请仔细阅读上传的八字命盘截图，
-提取【年柱】【月柱】【日柱】【时柱】四列对应的完整信息。
-
-务必以以下JSON结构直接输出结果，不要附加说明或多余文字：
+你是一名专业的命理识别AI。
+请识别上传的八字命盘截图内容，严格按照以下格式直接输出JSON（不要任何额外文字或说明）：
 
 {
   "columns": ["年柱", "月柱", "日柱", "时柱"],
@@ -48,11 +48,12 @@ export async function VisionAgent(input, socket) {
 }
 
 ⚠️ 要求：
-1. 只输出JSON，不包含任何解释性语言；
-2. 如果识别不全，也必须保证JSON字段齐全；
-3. 保持列顺序为 年柱 → 月柱 → 日柱 → 时柱；
-4. 如果图中文字不清晰，请根据排版推测补齐可能的内容。
-  `,
+1. 只输出JSON，不要任何解释性语言；
+2. 如果有缺失，也要保持JSON字段完整；
+3. 各列顺序必须为 年柱 → 月柱 → 日柱 → 时柱；
+4. 对识别不清的项目可智能补全；
+5. 不要输出 markdown 语法，不要用“```json”包裹；
+          `,
           image_base64: input.image_base64,
           stream: false
         })
@@ -64,15 +65,26 @@ export async function VisionAgent(input, socket) {
       }
 
       const data = await res.json();
+      let raw = data.text || data.raw_text || "";
+      let detected_elements = {};
+
+      try {
+        // 如果模型直接输出 JSON，则解析成对象
+        detected_elements = JSON.parse(raw);
+      } catch {
+        socket?.emit("childAI_msg", "⚠️ MiniMax 返回内容不是纯JSON，使用 fallback 结构。");
+        detected_elements = fakeDetectedElements();
+      }
+
       return {
         layer: "layer1",
         success: true,
         model: "minimax-vision-pro",
         processing_time: data.processing_time || 2000,
         confidence: data.confidence || 0.95,
-        raw_text: data.text || data.raw_text || "",
+        raw_text: raw,
         table_detected: true,
-        detected_elements: data.detected_elements || fakeDetectedElements()
+        detected_elements
       };
     } catch (err) {
       socket?.emit("childAI_msg", "⚠️ 调 MiniMax 出错，使用 fallback 版本。");
