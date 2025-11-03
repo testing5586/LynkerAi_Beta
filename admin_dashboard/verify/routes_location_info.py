@@ -38,11 +38,13 @@ def get_location_info():
     if not country or not city:
         return jsonify({"error": "Missing country or city parameter"}), 400
     
-    # 读取环境数据库
-    db_path = os.path.join("config", "environment_template.json")
+    # 读取环境数据库（从项目根目录）
+    # Flask app 运行在 admin_dashboard 目录，需要向上一级找 config 目录
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    db_path = os.path.join(base_dir, "config", "environment_template.json")
     
     if not os.path.exists(db_path):
-        return jsonify({"error": "Environment database not found"}), 500
+        return jsonify({"error": f"Environment database not found at {db_path}"}), 500
     
     try:
         with open(db_path, "r", encoding="utf-8") as f:
@@ -70,7 +72,8 @@ def get_countries():
             ...
         ]
     """
-    db_path = os.path.join("config", "environment_template.json")
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    db_path = os.path.join(base_dir, "config", "environment_template.json")
     
     if not os.path.exists(db_path):
         return jsonify({"error": "Environment database not found"}), 500
@@ -109,7 +112,8 @@ def get_cities(country_code):
             ...
         ]
     """
-    db_path = os.path.join("config", "environment_template.json")
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    db_path = os.path.join(base_dir, "config", "environment_template.json")
     
     if not os.path.exists(db_path):
         return jsonify({"error": "Environment database not found"}), 500
