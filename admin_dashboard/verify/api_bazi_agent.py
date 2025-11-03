@@ -78,7 +78,7 @@ def run_agent_workflow():
                 # 将补全后的数据合并回结果
                 result['wuxing'] = completed_data.get('agent_recognition', {}).get('wuxing', {})
                 result['ai_verifier'] = completed_data.get('ai_verifier', {})
-                if 'environment' not in result and 'environment' in completed_data:
+                if 'environment' in completed_data:
                     result['environment'] = completed_data['environment']
                 
                 print(f"[Bazi Agent] ✅ 自动补全完成 - 五行: {result['wuxing']}")
