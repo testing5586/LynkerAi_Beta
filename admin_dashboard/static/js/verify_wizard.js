@@ -1950,6 +1950,12 @@ function handleAgentResult(result) {
             
             addAIMessage(`<pre style="background: #1a1a1a; padding: 12px; border-radius: 8px; font-size: 13px;">${displayText}</pre>`);
             
+            // 处理完整的 10 行数据表格
+            if (result.full_table && result.full_table.rows) {
+                console.log(`[FullTable] 已加载 full_table 共 ${Object.keys(result.full_table.rows).length} 行`);
+                displayFullTable(result.full_table);
+            }
+            
             const formattedText = formatBaziFromAgent(bazi);
             const baziText = document.getElementById('baziText');
             if (baziText && formattedText) {
@@ -1961,6 +1967,63 @@ function handleAgentResult(result) {
     } catch (error) {
         console.error('Failed to handle Agent result:', error);
         addAIMessage(`❌ 处理Agent结果失败: ${error.message}`);
+    }
+}
+
+function displayFullTable(fullTable) {
+    try {
+        const rows = fullTable.rows;
+        const columns = fullTable.columns || ['年柱', '月柱', '日柱', '时柱'];
+        
+        // 定义 10 行的顺序
+        const rowNames = ['主星', '天干', '地支', '藏干', '副星', '星运', '自坐', '空亡', '纳音', '神煞'];
+        
+        // 生成 HTML 表格
+        let tableHTML = `
+            <div style="margin-top: 16px; overflow-x: auto;">
+                <div style="color: #3b82f6; font-weight: 600; margin-bottom: 8px; font-size: 14px;">
+                    📋 完整命盘数据（10行）
+                </div>
+                <table style="width: 100%; border-collapse: collapse; background: #1a1a1a; border-radius: 8px; overflow: hidden; font-size: 12px;">
+                    <thead>
+                        <tr style="background: #2d2d2d;">
+                            <th style="padding: 10px; text-align: left; color: #fbbf24; border-bottom: 2px solid #3b82f6; font-weight: 600;">项目</th>
+                            <th style="padding: 10px; text-align: center; color: #fbbf24; border-bottom: 2px solid #3b82f6; font-weight: 600;">${columns[0]}</th>
+                            <th style="padding: 10px; text-align: center; color: #fbbf24; border-bottom: 2px solid #3b82f6; font-weight: 600;">${columns[1]}</th>
+                            <th style="padding: 10px; text-align: center; color: #fbbf24; border-bottom: 2px solid #3b82f6; font-weight: 600;">${columns[2]}</th>
+                            <th style="padding: 10px; text-align: center; color: #fbbf24; border-bottom: 2px solid #3b82f6; font-weight: 600;">${columns[3]}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        // 添加每一行数据
+        rowNames.forEach((rowName, index) => {
+            const rowData = rows[rowName] || ['', '', '', ''];
+            const bgColor = index % 2 === 0 ? '#1a1a1a' : '#242424';
+            
+            tableHTML += `
+                <tr style="background: ${bgColor};">
+                    <td style="padding: 8px; color: #60a5fa; font-weight: 500; border-bottom: 1px solid #333;">${rowName}</td>
+                    <td style="padding: 8px; text-align: center; color: #e5e7eb; border-bottom: 1px solid #333;">${rowData[0] || '-'}</td>
+                    <td style="padding: 8px; text-align: center; color: #e5e7eb; border-bottom: 1px solid #333;">${rowData[1] || '-'}</td>
+                    <td style="padding: 8px; text-align: center; color: #e5e7eb; border-bottom: 1px solid #333;">${rowData[2] || '-'}</td>
+                    <td style="padding: 8px; text-align: center; color: #e5e7eb; border-bottom: 1px solid #333;">${rowData[3] || '-'}</td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        addAIMessage(tableHTML);
+        
+    } catch (error) {
+        console.error('Failed to display full table:', error);
+        addAIMessage(`❌ 无法显示完整表格: ${error.message}`);
     }
 }
 
