@@ -23,19 +23,21 @@ The system includes several web-based interfaces:
 -   **Birth Chart Verification**: `ai_truechart_verifier.py` and `admin_dashboard/verify/ai_verifier.py` perform semantic validation using qualitative confidence levels (高/中高/中/偏低/低) instead of numeric scores to align with traditional metaphysical practices.
 -   **Intelligent Bazi Parser**: `admin_dashboard/verify/bazi_parser.py` detects data completeness (simple vs detailed format), auto-triggers prophecy mode when bazi lacks 十神/藏干/神煞 details. Supports both single-line format ("年柱:庚辰 月柱:己卯...") and multi-line formats.
 -   **Prophecy Validation Center**: `admin_dashboard/verify/prophecy_generator.py` auto-generates 3-6 verifiable prediction questions from ziwei charts, tracks accuracy via ✅/❌ feedback, stores results in JSONL format.
--   **Bazi Vision Agent (Python)**: Three-layer intelligent image recognition system (`admin_dashboard/verify/bazi_vision_agent.py`) for bazi chart extraction:
-    -   **Layer 1 - Vision Agent**: Multi-provider vision API with intelligent endpoint switching
-        - **GPT-4 Vision (Primary)**: Enhanced OCR expert with optimized prompt template
-            - Role-based instruction: "八字命盘OCR识别专家"
-            - Complete 10-row table example in prompt
-            - Simplified, professional output format
-            - High accuracy for Chinese characters and table structures
-        - **MiniMax Vision Pro (Fallback)**: Dual-region support (中国区 `api.minimax.io` + 国际区 `api.minimaxi.com`) with automatic failover (Note: Official API currently doesn't provide Vision service)
-        - **Local Simulation**: Development/testing fallback with complete 10-row bazi data
-        - **Smart Caching**: Remembers successful endpoints for faster subsequent calls
-    -   **Layer 2 - Normalizer Agent**: Structured parsing, four-pillar mapping, five-element calculation
-    -   **Layer 3 - Formatter Agent**: Export-ready JSON packaging with complete 10-row chart data (主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞)
-    -   **Global Accessibility**: Optimized for both Chinese and international users with region-aware API routing
+-   **Bazi Vision Agent v1.2 (Pure GPT-4o)**: Streamlined three-layer intelligent image recognition system (`admin_dashboard/verify/bazi_vision_agent.py`) for bazi chart extraction:
+    -   **Layer 1 - Vision Agent**: GPT-4o Vision API with direct REST calls
+        - **GPT-4o Vision**: Industry-leading OCR accuracy for Chinese characters
+        - **Optimized Prompt**: Role-based "八字命盘识别专家" with complete 10-row example
+        - **Lightweight Architecture**: Direct `requests` library (no OpenAI SDK overhead)
+        - **90s Timeout**: Handles complex chart recognition reliably
+    -   **Layer 2 - Normalizer Agent**: JSON parsing and data standardization
+        - Auto-fills missing fields to prevent frontend errors
+        - Constructs four-pillar format (天干 + 地支)
+        - Validates complete 10-row structure
+    -   **Layer 3 - Formatter Agent**: Export-ready JSON packaging with metadata
+        - Timestamp tracking for audit trails
+        - Full table preservation (主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞)
+        - Four-pillar summary extraction
+    -   **Integration**: Flask API endpoint `/verify/api/run_agent_workflow` with real-time progress callbacks
 -   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
 -   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
 -   **User Memory & Interaction**: `child_ai_memory.py` tracks user interactions and engagement.
