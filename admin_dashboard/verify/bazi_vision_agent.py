@@ -43,11 +43,6 @@ class BaziVisionAgent:
             say("✅ 模型响应成功，开始标准化数据...")
             result = self._normalize_output(response)
             
-            # 合并环境数据（如果提供）
-            if environment:
-                result["environment"] = environment
-                say(f"🌍 已合并环境数据: {environment.get('city', 'Unknown')}")
-            
             say("✅ 三层识别完成！")
             return result
         except Exception as e:
