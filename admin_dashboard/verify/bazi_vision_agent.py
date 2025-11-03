@@ -23,8 +23,9 @@ class BaziVisionAgent:
         
         # MiniMax 官方端点列表（支持全球访问）
         self.minimax_endpoints = [
-            "https://api.minimaxi.com/v1/chat/completions",  # 中国区（优先）
-            "https://api.minimax.io/v1/chat/completions"     # 国际区
+            "https://api.minimax.io/v1/chat/completions",      # 中国区（优先）
+            "https://api.minimaxi.com/v1/chat/completions",    # 国际区
+            "https://api.minimaxi.chat/v1/chat/completions"    # 备用国际区
         ]
         self.last_successful_endpoint = None  # 记录上次成功的端点
         
