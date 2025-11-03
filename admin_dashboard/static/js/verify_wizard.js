@@ -755,10 +755,23 @@ function displayResult(data, type) {
         }
     }
     
+    // 合并 Agent 识别数据（如果存在）
+    const currentGroup = getCurrentGroup();
+    let jsonToDisplay = data.parsed;
+    
+    if (type === 'bazi' && currentGroup.agentFullData) {
+        // 合并 Agent 的完整数据
+        jsonToDisplay = {
+            ...data.parsed,
+            agent_recognition: currentGroup.agentFullData
+        };
+        console.log(`[displayResult] 合并 Agent 数据到 JSON 输出`);
+    }
+    
     html += `
         <details style="margin-top: 16px;">
             <summary style="cursor: pointer; font-weight: 600;">查看完整 JSON</summary>
-            <pre style="margin-top: 8px;">${JSON.stringify(data.parsed, null, 2)}</pre>
+            <pre style="margin-top: 8px; max-height: 400px; overflow-y: auto;">${JSON.stringify(jsonToDisplay, null, 2)}</pre>
         </details>
     `;
 
@@ -1954,6 +1967,25 @@ function handleAgentResult(result) {
             if (result.full_table && result.full_table.rows) {
                 console.log(`[FullTable] 已加载 full_table 共 ${Object.keys(result.full_table.rows).length} 行`);
                 displayFullTable(result.full_table);
+            }
+            
+            // 保存完整的 Agent 数据到当前组（用于 JSON 输出）
+            const currentGroup = getCurrentGroup();
+            const completeAgentData = {
+                bazi: bazi,
+                full_table: result.full_table || null,
+                wuxing: result.wuxing || null,
+                gender: result.gender || null,
+                birth_time: result.birth_time || null,
+                timestamp: result.timestamp || new Date().toISOString()
+            };
+            
+            // 保存到当前组的 agentFullData
+            currentGroup.agentFullData = completeAgentData;
+            
+            // 输出 JSON 合并日志
+            if (result.full_table && result.full_table.rows) {
+                console.log(`[JSON Merge] 已合并 full_table 数据 (${Object.keys(result.full_table.rows).length} 行)`);
             }
             
             const formattedText = formatBaziFromAgent(bazi);
