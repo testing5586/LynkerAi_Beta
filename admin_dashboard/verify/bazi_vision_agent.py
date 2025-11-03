@@ -156,7 +156,7 @@ class BaziVisionAgent:
         
         # 使用 OpenAI-compatible messages 格式
         payload = {
-            "model": "MiniMax-VL-01",
+            "model": "minimax-vl-01",
             "messages": [
                 {
                     "role": "user",
