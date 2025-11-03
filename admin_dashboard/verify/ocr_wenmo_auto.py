@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 文墨天机命盘 OCR 自动识别器
-- 支持 图片 → Gemini Vision → 文本 → 结构化
+- 支持 图片 → MiniMax Vision → 文本 → 结构化
 - 支持 纯文本（用户粘贴文墨命盘）→ 结构化
 - 自动判断：八字 / 紫微
 """
@@ -10,18 +10,12 @@
 import os
 import re
 import json
+import base64
+import requests
 from typing import Dict, Any, List
 
-# 如果你已经在别处配置过，就删掉这里这两行
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-    if GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-except ImportError:
-    GEMINI_AVAILABLE = False
-    GEMINI_API_KEY = ""
+MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
+MINIMAX_AVAILABLE = bool(MINIMAX_API_KEY)
 
 
 # --------- 工具函数 ---------
@@ -273,23 +267,22 @@ def parse_wenmo_ziwei_text(text: str) -> Dict[str, Any]:
     return result
 
 
-# --------- 图片 → Gemini → 文墨解析 ---------
+# --------- 图片 → MiniMax Vision → 文墨解析 ---------
 def ocr_wenmo_auto_from_image(img_path: str) -> Dict[str, Any]:
     """
-    用 Gemini Vision 先把图片转成文墨文本，再走上面的解析
+    用 MiniMax Vision 先把图片转成文墨文本，再走上面的解析
     """
-    if not GEMINI_AVAILABLE:
-        return {"error": "Gemini API is not available. Please install google-generativeai"}
+    if not MINIMAX_AVAILABLE:
+        return {"error": "MiniMax API is not available. Please set MINIMAX_API_KEY"}
     
-    if not GEMINI_API_KEY:
-        return {"error": "GEMINI_API_KEY is not set"}
+    if not MINIMAX_API_KEY:
+        return {"error": "MINIMAX_API_KEY is not set"}
 
     try:
-        # 使用旧版稳定模型 gemini-pro-vision
-        model = genai.GenerativeModel("gemini-pro-vision")
-        
         with open(img_path, "rb") as f:
             img_bytes = f.read()
+        
+        base64_image = base64.b64encode(img_bytes).decode('utf-8')
 
         prompt = (
             "这是一张文墨天机生成的命理命盘截图，可能是八字命盘也可能是紫微斗数命盘。\n"
@@ -299,8 +292,44 @@ def ocr_wenmo_auto_from_image(img_path: str) -> Dict[str, Any]:
             "不要加解释，不要多写，保持原有的字段名。"
         )
 
-        res = model.generate_content([prompt, {"mime_type": "image/png", "data": img_bytes}])
-        txt = res.text.strip()
+        headers = {
+            "Authorization": f"Bearer {MINIMAX_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "MiniMax-VL-01",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        response = requests.post(
+            "https://api.minimax.chat/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            return {"error": f"MiniMax API 返回错误: {response.status_code} - {response.text}"}
+        
+        data = response.json()
+        txt = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
         # 自动判断类型
         if looks_like_ziwei(txt):
@@ -313,18 +342,16 @@ def ocr_wenmo_auto_from_image(img_path: str) -> Dict[str, Any]:
                 "type": "unknown",
                 "raw": txt
             }
-        parsed["from"] = "gemini_vision"
+        parsed["from"] = "minimax_vision"
         return parsed
         
     except Exception as e:
         # 返回详细错误信息
         error_msg = str(e)
-        if "404" in error_msg and "model" in error_msg.lower():
-            return {"error": "Gemini API 模型不可用。请检查您的 API 密钥是否有效，或者该 API 密钥是否有权限访问 Gemini 视觉模型。"}
-        elif "401" in error_msg or "unauthorized" in error_msg.lower():
-            return {"error": "Gemini API 密钥无效或未授权。请检查 GEMINI_API_KEY 环境变量。"}
+        if "401" in error_msg or "unauthorized" in error_msg.lower():
+            return {"error": "MiniMax API 密钥无效或未授权。请检查 MINIMAX_API_KEY 环境变量。"}
         else:
-            return {"error": f"Gemini Vision 识别失败: {error_msg}"}
+            return {"error": f"MiniMax Vision 识别失败: {error_msg}"}
 
 
 # --------- 统一入口（文本 or 图片）---------

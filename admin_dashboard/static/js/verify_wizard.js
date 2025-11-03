@@ -1876,7 +1876,13 @@ let agentConnected = false;
 
 function initAgentWorkflow() {
     try {
-        agentSocket = io('http://localhost:3001', {
+        const agentUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : `https://${window.location.hostname.replace('5000-', '3001-')}`;
+        
+        console.log('🔌 Connecting to Agent Workflow:', agentUrl);
+        
+        agentSocket = io(agentUrl, {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionDelay: 1000,
