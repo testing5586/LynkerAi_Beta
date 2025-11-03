@@ -23,12 +23,15 @@ The system includes several web-based interfaces:
 -   **Birth Chart Verification**: `ai_truechart_verifier.py` and `admin_dashboard/verify/ai_verifier.py` perform semantic validation using qualitative confidence levels (高/中高/中/偏低/低) instead of numeric scores to align with traditional metaphysical practices.
 -   **Intelligent Bazi Parser**: `admin_dashboard/verify/bazi_parser.py` detects data completeness (simple vs detailed format), auto-triggers prophecy mode when bazi lacks 十神/藏干/神煞 details. Supports both single-line format ("年柱:庚辰 月柱:己卯...") and multi-line formats.
 -   **Prophecy Validation Center**: `admin_dashboard/verify/prophecy_generator.py` auto-generates 3-6 verifiable prediction questions from ziwei charts, tracks accuracy via ✅/❌ feedback, stores results in JSONL format.
--   **Bazi Agent System (Node.js)**: Three-layer intelligent agent workflow (`lynkerai-bazi-agent/`) for vision-based bazi extraction:
-    -   **Layer 1 - Vision Agent**: MiniMax Vision Pro API integration for OCR with fallback simulation
+-   **Bazi Vision Agent (Python)**: Three-layer intelligent image recognition system (`admin_dashboard/verify/bazi_vision_agent.py`) for bazi chart extraction:
+    -   **Layer 1 - Vision Agent**: Multi-provider vision API with intelligent endpoint switching
+        - **MiniMax Vision Pro**: Dual-region support (中国区 `api.minimaxi.com` + 国际区 `api.minimax.io`) with automatic failover
+        - **GPT-4 Vision**: Secondary fallback for enhanced reliability
+        - **Local Simulation**: Development/testing fallback with complete 10-row bazi data
+        - **Smart Caching**: Remembers successful endpoints for faster subsequent calls
     -   **Layer 2 - Normalizer Agent**: Structured parsing, four-pillar mapping, five-element calculation
-    -   **Layer 3 - Formatter Agent**: Export-ready JSON packaging for frontend/backend consumption
-    -   **Supervisor Agent**: Orchestrates the three-layer workflow with real-time Socket.io communication
-    -   **Frontend Bridge**: `public/js/agentsBridge.js` enables real-time Child AI chat messages and result display
+    -   **Layer 3 - Formatter Agent**: Export-ready JSON packaging with complete 10-row chart data (主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞)
+    -   **Global Accessibility**: Optimized for both Chinese and international users with region-aware API routing
 -   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
 -   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
 -   **User Memory & Interaction**: `child_ai_memory.py` tracks user interactions and engagement.
