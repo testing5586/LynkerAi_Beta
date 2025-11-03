@@ -50,8 +50,12 @@ The system includes several web-based interfaces:
     -   **Data Flow**: User selection → API fetch → Auto-populate latitude, climate, humidity, terrain
 -   **Bazi JSON Auto-Complete**: Automatic metadata enrichment system (`admin_dashboard/verify/auto_complete_bazi_json.py`):
     -   **Five-Element Calculation**: Analyzes pillars (天干地支) to compute Wuxing counts (木火土金水)
-    -   **Environment Completion**: Merges frontend-selected or default environment data
+    -   **Environment Completion**: Three-layer intelligent fallback system
+        - Layer 1: Use frontend-selected data (from API dropdowns)
+        - Layer 2: Match from geo_presets library (7 common cities: 吉隆坡, 北京, 东京, 曼谷, 新加坡, 台北, 香港)
+        - Layer 3: Default to Beijing if no match found
     -   **AI Verifier Stamping**: Adds OCR model, version, confidence, timestamp, agent type metadata
+    -   **Geo Presets Library**: Embedded fallback database for common Asian cities with complete environment data (latitude, climate zone, humidity, terrain)
     -   **Integration**: Seamlessly injected into Agent workflow post-recognition pipeline
 -   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
 -   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
