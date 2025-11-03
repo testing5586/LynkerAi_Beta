@@ -29,13 +29,14 @@ app.get("/health", (req, res) => {
 io.on("connection", (socket) => {
   console.log("✅ client connected:", socket.id);
 
-  socket.on("bazi_upload", async (payload) => {
+  socket.on("analyze:bazi", async (payload) => {
     try {
+      console.log("📥 Received analyze:bazi request");
       const result = await SupervisorAgent(payload, socket);
-      socket.emit("bazi_result", result);
+      socket.emit("agent:result", { success: true, result });
     } catch (err) {
       console.error("❌ supervisor error:", err);
-      socket.emit("bazi_error", err.message || "unknown error");
+      socket.emit("agent:error", { message: err.message || "unknown error" });
     }
   });
 
