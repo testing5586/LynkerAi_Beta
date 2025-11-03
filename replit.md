@@ -3,6 +3,11 @@ LynkerAI is an AI-powered task execution system designed to generate and execute
 
 LynkerAI's core vision is to establish a self-learning, self-validating intelligent system for "scientizing, socializing, and datafying" metaphysics. It aims to build a global database of verified birth times to advance "Second-Pillar Metaphysics" by collecting 1 million accurate birth times.
 
+## Recent Updates (Nov 2025)
+- **Environment Auto-Fill Module**: Intelligent birthplace selection system with country/city dropdowns that auto-populate climate zone, humidity, latitude, and terrain data
+- **Bazi JSON Auto-Complete**: Automatic five-element (Wuxing) calculation from pillars, environment data completion, and AI verifier metadata stamping
+- **Smart Integration**: Environment data seamlessly flows from frontend selectors → Agent API → GPT-4o Vision → Auto-complete → Final results
+
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -38,6 +43,16 @@ The system includes several web-based interfaces:
         - Full table preservation (主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞)
         - Four-pillar summary extraction
     -   **Integration**: Flask API endpoint `/verify/api/run_agent_workflow` with real-time progress callbacks
+-   **Environment Auto-Fill System**: Intelligent birthplace data module (`admin_dashboard/verify/routes_location_info.py` + `admin_dashboard/static/js/auto_env_fill.js`):
+    -   **Database**: 20-city environment template with climate zones, humidity, terrain, coordinates
+    -   **API Endpoints**: `/api/location_info/countries`, `/api/location_info/cities/<code>`, `/api/location_info?country=<>&city=<>`
+    -   **Frontend Integration**: Cascading dropdowns (country → city → auto-fill environment data)
+    -   **Data Flow**: User selection → API fetch → Auto-populate latitude, climate, humidity, terrain
+-   **Bazi JSON Auto-Complete**: Automatic metadata enrichment system (`admin_dashboard/verify/auto_complete_bazi_json.py`):
+    -   **Five-Element Calculation**: Analyzes pillars (天干地支) to compute Wuxing counts (木火土金水)
+    -   **Environment Completion**: Merges frontend-selected or default environment data
+    -   **AI Verifier Stamping**: Adds OCR model, version, confidence, timestamp, agent type metadata
+    -   **Integration**: Seamlessly injected into Agent workflow post-recognition pipeline
 -   **Soulmate Matching**: `soulmate_matcher.py` uses semantic matching and cosine similarity.
 -   **AI Insight Generation**: `child_ai_insight.py` generates rule-based insights.
 -   **User Memory & Interaction**: `child_ai_memory.py` tracks user interactions and engagement.

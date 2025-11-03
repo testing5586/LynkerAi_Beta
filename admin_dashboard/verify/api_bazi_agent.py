@@ -6,6 +6,7 @@ Bazi Agent API - Flask 路由
 
 from flask import Blueprint, request, jsonify, session
 from .bazi_vision_agent import BaziVisionAgent
+from .auto_complete_bazi_json import auto_complete_bazi_json
 import json
 
 bp = Blueprint('bazi_agent_api', __name__, url_prefix='/verify/api')
@@ -59,6 +60,34 @@ def run_agent_workflow():
         
         # 添加进度消息到结果
         result['messages'] = messages
+        
+        # 自动补全功能：五行计算、环境信息、AI验证信息
+        if result['success'] and result.get('bazi'):
+            try:
+                # 准备完整的数据结构用于补全
+                data_to_complete = {
+                    "agent_recognition": {
+                        "bazi": result.get('bazi', {}),
+                        "full_table": result.get('full_table', {})
+                    }
+                }
+                
+                # 如果有环境数据，传递给补全器
+                completed_data = auto_complete_bazi_json(data_to_complete, environment)
+                
+                # 将补全后的数据合并回结果
+                result['wuxing'] = completed_data.get('agent_recognition', {}).get('wuxing', {})
+                result['ai_verifier'] = completed_data.get('ai_verifier', {})
+                if 'environment' not in result and 'environment' in completed_data:
+                    result['environment'] = completed_data['environment']
+                
+                print(f"[Bazi Agent] ✅ 自动补全完成 - 五行: {result['wuxing']}")
+                messages.append(f"✅ 五行统计: {', '.join([f'{k}:{v}' for k, v in result['wuxing'].items()])}")
+                result['messages'] = messages
+                
+            except Exception as e:
+                print(f"[Bazi Agent] ⚠️ 自动补全失败: {str(e)}")
+                # 补全失败不影响主流程，继续返回结果
         
         if result['success']:
             print(f"[Bazi Agent] ✅ 识别成功")

@@ -1,0 +1,113 @@
+✅ 功能说明
+
+自动补齐的功能：
+
+补全缺失字段
+
+若缺少 environment、ai_verifier、wuxing 等字段 → 自动添加默认值
+
+五行自动计算
+
+依据八字天干地支计算五行（金木水火土）数量
+
+输出类似：
+
+"wuxing": {"木": 3, "火": 2, "土": 2, "金": 1, "水": 2}
+
+
+OCR模型追踪与置信度标注
+
+自动写入：
+
+"ai_verifier": {
+  "ocr_model": "GPT-4o",
+  "bazi_version": "v2.1",
+  "verify_confidence": 0.97
+}
+
+🧠 Python 脚本源码
+
+📁 保存路径：admin_dashboard/verify/auto_complete_bazi_json.py
+
+import json
+from datetime import datetime
+
+class BaziJsonAutoCompleter:
+    def __init__(self):
+        self.five_elements_map = {
+            "甲": "木", "乙": "木",
+            "丙": "火", "丁": "火",
+            "戊": "土", "己": "土",
+            "庚": "金", "辛": "金",
+            "壬": "水", "癸": "水",
+            "寅": "木", "卯": "木",
+            "巳": "火", "午": "火",
+            "辰": "土", "丑": "土", "未": "土", "戌": "土",
+            "申": "金", "酉": "金",
+            "亥": "水", "子": "水"
+        }
+
+    def calculate_wuxing(self, pillars):
+        """统计八字天干地支的五行数量"""
+        count = {"木": 0, "火": 0, "土": 0, "金": 0, "水": 0}
+        for key, val in pillars.items():
+            for char in val:
+                if char in self.five_elements_map:
+                    elem = self.five_elements_map[char]
+                    count[elem] += 1
+        return count
+
+    def auto_complete(self, data: dict, environment=None):
+        """自动补齐缺失字段"""
+        data = data.copy()
+
+        # === 环境信息 ===
+        if "environment" not in data:
+            data["environment"] = environment or {
+                "country": "中国",
+                "city": "北京",
+                "latitude": 39.904,
+                "climate_zone": "温带",
+                "humidity_type": "干燥",
+                "terrain_type": "内陆"
+            }
+
+        # === 五行计算 ===
+        pillars = data.get("agent_recognition", {}).get("bazi", {})
+        wuxing = self.calculate_wuxing(pillars)
+        if "agent_recognition" not in data:
+            data["agent_recognition"] = {}
+        data["agent_recognition"]["wuxing"] = wuxing
+
+        # === AI 验证信息 ===
+        if "ai_verifier" not in data:
+            data["ai_verifier"] = {
+                "ocr_model": "GPT-4o",
+                "bazi_version": "v2.1",
+                "verify_confidence": 0.97,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        return data
+
+
+# === 测试示例 ===
+if __name__ == "__main__":
+    test_json = {
+        "year_pillar": "庚辰",
+        "month_pillar": "己卯",
+        "day_pillar": "丁丑",
+        "hour_pillar": "甲辰",
+        "agent_recognition": {
+            "bazi": {
+                "year_pillar": "庚辰",
+                "month_pillar": "己卯",
+                "day_pillar": "丁丑",
+                "hour_pillar": "甲辰"
+            }
+        }
+    }
+
+    completer = BaziJsonAutoCompleter()
+    completed = completer.auto_complete(test_json)
+    print(json.dumps(completed, ensure_ascii=False, indent=2))
