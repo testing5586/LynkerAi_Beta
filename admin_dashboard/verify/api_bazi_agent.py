@@ -5,7 +5,7 @@ Bazi Agent API - Flask 路由
 """
 
 from flask import Blueprint, request, jsonify, session
-from .bazi_vision_agent import process_bazi_image
+from .bazi_vision_agent import BaziVisionAgent
 import json
 
 bp = Blueprint('bazi_agent_api', __name__, url_prefix='/verify/api')
@@ -36,8 +36,9 @@ def run_agent_workflow():
         def progress_callback(message):
             messages.append(message)
         
-        # 调用三层识别系统
-        result = process_bazi_image(image_base64, progress_callback)
+        # 初始化 Agent 并调用三层识别系统
+        agent = BaziVisionAgent()
+        result = agent.process_image(image_base64, progress_callback)
         
         # 添加进度消息到结果
         result['messages'] = messages
@@ -62,15 +63,15 @@ def test_agent():
         import os
         
         status = {
-            "agent_system": "ok",
-            "minimax_api_key": "configured" if os.getenv("MINIMAX_API_KEY") else "missing",
-            "openai_api_key": "configured" if os.getenv("OPENAI_API_KEY") else "missing"
+            "agent_system": "GPT-4o Vision (v1.2)",
+            "openai_api_key": "configured" if os.getenv("OPENAI_API_KEY") else "missing",
+            "architecture": "Three-layer (Vision → Normalizer → Formatter)"
         }
         
         return jsonify({
             "success": True,
             "status": status,
-            "message": "Bazi Agent System is ready"
+            "message": "GPT-4o Bazi Agent System is ready"
         }), 200
     
     except Exception as e:
