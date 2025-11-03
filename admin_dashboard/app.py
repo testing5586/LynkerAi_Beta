@@ -90,6 +90,14 @@ try:
 except Exception as e:
     print(f"[WARN] Bazi Agent API 挂载失败: {e}")
 
+# 注册智能环境自动补全 API
+try:
+    from verify.routes_location_info import bp as location_info_bp
+    app.register_blueprint(location_info_bp)
+    print("[OK] 智能环境自动补全 API 已注册: /api/location_info, /api/location_info/countries, /api/location_info/cities/<country_code>")
+except Exception as e:
+    print(f"[WARN] 位置信息 API 挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")

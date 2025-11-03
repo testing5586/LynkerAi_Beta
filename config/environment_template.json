@@ -1,0 +1,202 @@
+[
+  {
+    "country_code": "MY",
+    "country_name": "马来西亚",
+    "city": "吉隆坡",
+    "latitude": 3.139,
+    "longitude": 101.686,
+    "climate_zone": "热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "CN",
+    "country_name": "中国",
+    "city": "北京",
+    "latitude": 39.904,
+    "longitude": 116.407,
+    "climate_zone": "温带",
+    "humidity_type": "干燥",
+    "terrain_type": "内陆"
+  },
+  {
+    "country_code": "CN",
+    "country_name": "中国",
+    "city": "上海",
+    "latitude": 31.230,
+    "longitude": 121.474,
+    "climate_zone": "亚热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "CN",
+    "country_name": "中国",
+    "city": "广州",
+    "latitude": 23.129,
+    "longitude": 113.264,
+    "climate_zone": "亚热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "CN",
+    "country_name": "中国",
+    "city": "深圳",
+    "latitude": 22.543,
+    "longitude": 114.058,
+    "climate_zone": "亚热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "JP",
+    "country_name": "日本",
+    "city": "东京",
+    "latitude": 35.682,
+    "longitude": 139.769,
+    "climate_zone": "温带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "JP",
+    "country_name": "日本",
+    "city": "大阪",
+    "latitude": 34.693,
+    "longitude": 135.502,
+    "climate_zone": "温带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "TH",
+    "country_name": "泰国",
+    "city": "曼谷",
+    "latitude": 13.756,
+    "longitude": 100.502,
+    "climate_zone": "热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "VN",
+    "country_name": "越南",
+    "city": "胡志明市",
+    "latitude": 10.823,
+    "longitude": 106.629,
+    "climate_zone": "热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "VN",
+    "country_name": "越南",
+    "city": "河内",
+    "latitude": 21.028,
+    "longitude": 105.804,
+    "climate_zone": "热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "内陆"
+  },
+  {
+    "country_code": "KR",
+    "country_name": "韩国",
+    "city": "首尔",
+    "latitude": 37.566,
+    "longitude": 126.978,
+    "climate_zone": "温带",
+    "humidity_type": "潮湿",
+    "terrain_type": "内陆"
+  },
+  {
+    "country_code": "SG",
+    "country_name": "新加坡",
+    "city": "新加坡",
+    "latitude": 1.352,
+    "longitude": 103.820,
+    "climate_zone": "热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "US",
+    "country_name": "美国",
+    "city": "纽约",
+    "latitude": 40.713,
+    "longitude": -74.006,
+    "climate_zone": "温带",
+    "humidity_type": "适中",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "US",
+    "country_name": "美国",
+    "city": "洛杉矶",
+    "latitude": 34.052,
+    "longitude": -118.244,
+    "climate_zone": "亚热带",
+    "humidity_type": "干燥",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "GB",
+    "country_name": "英国",
+    "city": "伦敦",
+    "latitude": 51.507,
+    "longitude": -0.128,
+    "climate_zone": "温带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "AU",
+    "country_name": "澳大利亚",
+    "city": "悉尼",
+    "latitude": -33.868,
+    "longitude": 151.209,
+    "climate_zone": "亚热带",
+    "humidity_type": "适中",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "FR",
+    "country_name": "法国",
+    "city": "巴黎",
+    "latitude": 48.856,
+    "longitude": 2.352,
+    "climate_zone": "温带",
+    "humidity_type": "适中",
+    "terrain_type": "内陆"
+  },
+  {
+    "country_code": "DE",
+    "country_name": "德国",
+    "city": "柏林",
+    "latitude": 52.520,
+    "longitude": 13.405,
+    "climate_zone": "温带",
+    "humidity_type": "适中",
+    "terrain_type": "内陆"
+  },
+  {
+    "country_code": "IT",
+    "country_name": "意大利",
+    "city": "罗马",
+    "latitude": 41.902,
+    "longitude": 12.496,
+    "climate_zone": "地中海",
+    "humidity_type": "适中",
+    "terrain_type": "沿海"
+  },
+  {
+    "country_code": "TW",
+    "country_name": "台湾",
+    "city": "台北",
+    "latitude": 25.033,
+    "longitude": 121.565,
+    "climate_zone": "亚热带",
+    "humidity_type": "潮湿",
+    "terrain_type": "沿海"
+  }
+]

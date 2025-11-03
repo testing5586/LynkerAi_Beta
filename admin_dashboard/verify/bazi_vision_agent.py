@@ -25,8 +25,15 @@ class BaziVisionAgent:
         self.model = "gpt-4o"  # 或 gpt-4o-mini
 
     # ---------- Layer 1 ----------
-    def process_image(self, image_base64, progress_callback=None):
-        """主入口：识别命盘图片并输出标准化结果"""
+    def process_image(self, image_base64, progress_callback=None, environment=None):
+        """
+        主入口：识别命盘图片并输出标准化结果
+        
+        参数:
+            image_base64: 图片的 base64 编码
+            progress_callback: 进度回调函数
+            environment: 环境数据 (可选)，包含气候带、湿度、地形等信息
+        """
         def say(msg): 
             if progress_callback: progress_callback(msg)
 
@@ -35,6 +42,12 @@ class BaziVisionAgent:
             response = self._call_gpt4o_vision(image_base64)
             say("✅ 模型响应成功，开始标准化数据...")
             result = self._normalize_output(response)
+            
+            # 合并环境数据（如果提供）
+            if environment:
+                result["environment"] = environment
+                say(f"🌍 已合并环境数据: {environment.get('city', 'Unknown')}")
+            
             say("✅ 三层识别完成！")
             return result
         except Exception as e:

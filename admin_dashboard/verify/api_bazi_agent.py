@@ -16,7 +16,17 @@ def run_agent_workflow():
     """
     运行八字识别工作流
     
-    接收: { "imageData": "base64_string" }
+    接收: { 
+        "imageData": "base64_string",
+        "environment": {  // 可选
+            "country_code": "CN",
+            "city": "北京",
+            "latitude": 39.904,
+            "climate_zone": "温带",
+            "humidity_type": "干燥",
+            "terrain_type": "内陆"
+        }
+    }
     返回: { "success": true/false, "data": {...}, "messages": [...] }
     """
     try:
@@ -29,9 +39,12 @@ def run_agent_workflow():
             }), 400
         
         image_base64 = data['imageData']
+        environment = data.get('environment')  # 获取可选的环境数据
         
         # 日志：显示接收的数据大小
         print(f"[Bazi Agent] 接收图片数据大小: {len(image_base64)} 字符")
+        if environment:
+            print(f"[Bazi Agent] 接收环境数据: {environment.get('city', 'Unknown')}")
         
         # 收集进度消息
         messages = []
@@ -42,7 +55,7 @@ def run_agent_workflow():
         
         # 初始化 Agent 并调用三层识别系统
         agent = BaziVisionAgent()
-        result = agent.process_image(image_base64, progress_callback)
+        result = agent.process_image(image_base64, progress_callback, environment=environment)
         
         # 添加进度消息到结果
         result['messages'] = messages

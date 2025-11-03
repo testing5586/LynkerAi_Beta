@@ -1,0 +1,40 @@
+📦 创建 LynkerAI 智能环境自动补全模块
+目标：实现“国家→城市→自动生成气候带、湿度、纬度、地形标签”的智能化环境标签系统。
+
+✅ 任务结构：
+1️⃣ 生成环境数据库 `/config/environment_template.json`
+2️⃣ 创建前端脚本 `/admin_dashboard/static/js/auto_env_fill.js`
+3️⃣ 创建后端API `/admin_dashboard/api/routes_location_info.py`
+4️⃣ 在 `bazi_vision_agent.py` 中自动合并 environment 数据
+
+---
+
+📁 Step 1：生成环境数据库
+创建 `/config/environment_template.json`
+内容格式如下：
+[
+  {"country_code": "MY", "country_name": "马来西亚", "city": "吉隆坡", "latitude": 3.139, "longitude": 101.686, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "沿海"},
+  {"country_code": "CN", "country_name": "中国", "city": "北京", "latitude": 39.904, "longitude": 116.407, "climate_zone": "温带", "humidity_type": "干燥", "terrain_type": "内陆"},
+  {"country_code": "JP", "country_name": "日本", "city": "东京", "latitude": 35.682, "longitude": 139.769, "climate_zone": "温带", "humidity_type": "潮湿", "terrain_type": "沿海"},
+  {"country_code": "TH", "country_name": "泰国", "city": "曼谷", "latitude": 13.756, "longitude": 100.502, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "沿海"},
+  {"country_code": "VN", "country_name": "越南", "city": "胡志明市", "latitude": 10.823, "longitude": 106.629, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "沿海"},
+  {"country_code": "KR", "country_name": "韩国", "city": "首尔", "latitude": 37.566, "longitude": 126.978, "climate_zone": "温带", "humidity_type": "潮湿", "terrain_type": "内陆"},
+  {"country_code": "SG", "country_name": "新加坡", "city": "新加坡", "latitude": 1.352, "longitude": 103.820, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "沿海"}
+]
+
+---
+
+📁 Step 2：前端逻辑文件 `/admin_dashboard/static/js/auto_env_fill.js`
+实现智能补全逻辑：
+```javascript
+document.getElementById("citySelect").addEventListener("change", async () => {
+  const country = document.getElementById("countrySelect").value;
+  const city = document.getElementById("citySelect").value;
+  if (!country || !city) return;
+  const response = await fetch(`/api/location_info?country=${country}&city=${city}`);
+  const data = await response.json();
+  document.getElementById("latitude").value = data.latitude;
+  document.getElementById("climate_zone").value = data.climate_zone;
+  document.getElementById("humidity_type").value = data.humidity_type;
+  document.getElementById("terrain_type").value = data.terrain_type;
+});
