@@ -1,30 +1,30 @@
+// agents/visionAgent.js
 import fetch from "node-fetch";
 
+/**
+ * VisionAgent — 多层识别与回退逻辑
+ * Primary: MiniMax-VL-01
+ * Fallback: GPT-4-Turbo-Vision
+ * Last resort: Local simulation
+ */
 export async function VisionAgent(input, socket) {
-  const apiKey = process.env.MINIMAX_API_KEY;
-  const hasImage = !!input.imageData;
-  const hasText = !!input.raw_text;
+  const minimaxKey = process.env.MINIMAX_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (!hasImage && hasText) {
-    socket?.emit("agent:progress", { agent: "vision", message: "检测到手动输入文本，跳过 Vision，直接进入解析" });
-    return simulateFromText(input.raw_text);
+  // 有图就先试 MiniMax，否则直接走文字或模拟
+  if (!input?.image_url && !input?.image_base64) {
+    socket?.emit("childAI_msg", "⚠️ 未检测到图片，改用手动文本识别。");
+    return simulateFromText(input?.raw_text || "");
   }
 
-  if (hasImage && !apiKey) {
-    socket?.emit("agent:progress", { agent: "vision", message: "没有 MINIMAX_API_KEY，使用本地 fallback 识别" });
-    return simulateFromImage();
-  }
-
-  if (hasImage && apiKey) {
+  // ① MiniMax 识别
+  if (minimaxKey) {
+    socket?.emit("childAI_msg", "📸 使用 MiniMax-VL-01 识别八字命盘...");
     try {
-      socket?.emit("agent:progress", { agent: "vision", message: "使用 MiniMax Vision Pro 开始识别八字命盘" });
-      
-      const imageBase64 = input.imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-      
       const res = await fetch("https://api.minimax.chat/v1/text/chatcompletion_v2", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
+          "Authorization": `Bearer ${minimaxKey}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -33,15 +33,54 @@ export async function VisionAgent(input, socket) {
             {
               role: "user",
               content: [
-                {
-                  type: "text",
-                  text: "你是一名专业的命理识别AI。请仔细阅读上传的八字命盘截图，提取【年柱】【月柱】【日柱】【时柱】四列对应的完整信息。务必以以下JSON结构直接输出结果，不要附加说明或多余文字：{\"columns\": [\"年柱\", \"月柱\", \"日柱\", \"时柱\"],\"rows\": {\"主星\": [\"\", \"\", \"\", \"\"],\"天干\": [\"\", \"\", \"\", \"\"],\"地支\": [\"\", \"\", \"\", \"\"],\"藏干\": [\"\", \"\", \"\", \"\"],\"副星\": [\"\", \"\", \"\", \"\"],\"星运\": [\"\", \"\", \"\", \"\"],\"自坐\": [\"\", \"\", \"\", \"\"],\"空亡\": [\"\", \"\", \"\", \"\"],\"纳音\": [\"\", \"\", \"\", \"\"],\"神煞\": [\"\", \"\", \"\", \"\"]}}。要求：1.只输出JSON，不要任何解释性语言；2.如果识别不全，也必须保证JSON字段齐全；3.保持列顺序为 年柱→月柱→日柱→时柱；4.如果图中文字不清晰，请根据排版推测补齐可能的内容。"
-                },
+                { type: "text", text: getPromptTemplate() },
                 {
                   type: "image_url",
-                  image_url: {
-                    url: `data:image/png;base64,${imageBase64}`
-                  }
+                  image_url: input.image_url || `data:image/png;base64,${input.image_base64}`
+                }
+              ]
+            }
+          ],
+          stream: false
+        })
+      });
+
+      if (!res.ok) throw new Error(`MiniMax 返回 ${res.status}`);
+      const data = await res.json();
+      let raw = data?.choices?.[0]?.message?.content || data?.text || "";
+
+      try {
+        const json = JSON.parse(raw);
+        socket?.emit("childAI_msg", "✅ MiniMax 识别成功。");
+        return formatResult("MiniMax-VL-01", raw, json);
+      } catch {
+        socket?.emit("childAI_msg", "⚠️ MiniMax 返回非纯 JSON，切换 GPT-4-Vision...");
+      }
+    } catch (err) {
+      socket?.emit("childAI_msg", `❌ MiniMax 出错：${err.message}`);
+    }
+  }
+
+  // ② GPT-4-Turbo-Vision fallback
+  if (openaiKey) {
+    socket?.emit("childAI_msg", "🧠 使用 GPT-4-Turbo-Vision 备用识别中...");
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4-turbo",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: getPromptTemplate() },
+                {
+                  type: "image_url",
+                  image_url: input.image_url || `data:image/png;base64,${input.image_base64}`
                 }
               ]
             }
@@ -49,89 +88,77 @@ export async function VisionAgent(input, socket) {
         })
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        socket?.emit("agent:progress", { agent: "vision", message: `MiniMax API 返回错误 ${res.status}: ${errorText}，改用 fallback` });
-        return simulateFromImage();
-      }
-
+      if (!res.ok) throw new Error(`OpenAI 返回 ${res.status}`);
       const data = await res.json();
-      let raw = data.choices?.[0]?.message?.content || "";
-      let detected_elements = {};
-
+      const raw = data?.choices?.[0]?.message?.content || "{}";
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          detected_elements = JSON.parse(jsonMatch[0]);
-          socket?.emit("agent:progress", { agent: "vision", message: "成功解析 JSON 结构" });
-        } else {
-          throw new Error("No JSON found in response");
-        }
-      } catch (err) {
-        socket?.emit("agent:progress", { agent: "vision", message: "MiniMax 返回内容不是有效JSON，使用 fallback 结构" });
-        detected_elements = fakeDetectedElements();
+        const json = JSON.parse(raw);
+        socket?.emit("childAI_msg", "✅ GPT-4-Vision 识别成功。");
+        return formatResult("GPT-4-Turbo-Vision", raw, json);
+      } catch {
+        socket?.emit("childAI_msg", "⚠️ GPT-4-Vision 返回非纯 JSON，使用本地模拟。");
       }
-
-      return {
-        layer: "layer1",
-        success: true,
-        model: "MiniMax-VL-01",
-        processing_time: 2000,
-        confidence: 0.95,
-        raw_text: raw,
-        table_detected: true,
-        detected_elements
-      };
     } catch (err) {
-      socket?.emit("agent:progress", { agent: "vision", message: `调用 MiniMax 出错: ${err.message}，使用 fallback 版本` });
-      console.error("MiniMax Vision Error:", err);
-      return simulateFromImage();
+      socket?.emit("childAI_msg", `❌ GPT-4-Vision 出错：${err.message}`);
     }
   }
 
+  // ③ 最终本地模拟
+  socket?.emit("childAI_msg", "🪄 所有模型失败，使用本地模拟结果。");
   return simulateFromImage();
 }
 
-function simulateFromImage() {
+// ---------- 辅助函数 ----------
+
+function getPromptTemplate() {
+  return `
+你是一名专业的八字命盘识别师。
+请仔细读取上传的命盘图片，输出严格的 JSON，不要额外文字：
+
+{
+  "columns": ["年柱","月柱","日柱","时柱"],
+  "rows": {
+    "天干": ["","","",""],
+    "地支": ["","","",""],
+    "藏干": ["","","",""],
+    "主星": ["","","",""],
+    "副星": ["","","",""],
+    "神煞": ["","","",""]
+  }
+}`;
+}
+
+function formatResult(model, raw, json) {
   return {
     layer: "layer1",
     success: true,
-    model: "simulated-ocr",
-    processing_time: 1800,
-    confidence: 0.9,
-    raw_text: sampleRawText(),
-    table_detected: true,
-    detected_elements: fakeDetectedElements()
+    model,
+    confidence: 0.95,
+    raw_text: raw,
+    detected_elements: json
   };
 }
 
+// ---------- fallback 本地模拟 ----------
+
+function simulateFromImage() {
+  return formatResult("local-simulated", sampleRawText(), fakeDetectedElements());
+}
+
 function simulateFromText(text) {
-  return {
-    layer: "layer1",
-    success: true,
-    model: "manual-text",
-    processing_time: 500,
-    confidence: 0.99,
-    raw_text: text,
-    table_detected: true,
-    detected_elements: fakeDetectedElements()
-  };
+  return formatResult("manual-text", text, fakeDetectedElements());
 }
 
 function fakeDetectedElements() {
   return {
     columns: ["年柱", "月柱", "日柱", "时柱"],
     rows: {
-      "主星": ["正财", "食神", "元男", "正印"],
-      "天干": ["庚", "己", "丁", "甲"],
-      "地支": ["辰", "卯", "丑", "辰"],
-      "藏干": ["戊土 乙木 癸水", "乙木", "己土 癸水 辛金", "戊土 乙木 癸水"],
-      "副星": ["伤官 偏印 七杀", "偏印", "食神 七杀 偏财", "伤官 偏印 七杀"],
-      "星运": ["衰", "病", "墓", "衰"],
-      "自坐": ["养", "病", "墓", "衰"],
-      "空亡": ["申酉", "申酉", "申酉", "寅卯"],
-      "纳音": ["白蜡金", "城头土", "涧下水", "覆灯火"],
-      "神煞": [
+      天干: ["庚", "己", "丁", "甲"],
+      地支: ["辰", "卯", "丑", "辰"],
+      藏干: ["戊土 乙木 癸水", "乙木", "己土 癸水 辛金", "戊土 乙木 癸水"],
+      主星: ["正财", "食神", "元男", "正印"],
+      副星: ["伤官 偏印 七杀", "偏印", "食神 七杀 偏财", "伤官 偏印 七杀"],
+      神煞: [
         "国印贵人",
         "太极贵人 月德合",
         "阴差阳错 天乙贵人 德秀贵人 寡宿 披麻",
@@ -142,20 +169,5 @@ function fakeDetectedElements() {
 }
 
 function sampleRawText() {
-  const text = [
-    "阴历：2000年二月十五辰时（乾造）",
-    "阳历：2000年03月20日 08:18",
-    "| 日期 | 年柱 | 月柱 | 日柱 | 时柱 |",
-    "| **主星** | 正财 | 食神 | 元男 | 正印 |",
-    "| **天干** | 庚 | 己 | 丁 | 甲 |",
-    "| **地支** | 辰 | 卯 | 丑 | 辰 |",
-    "| **藏干** | 戊土 乙木 癸水 | 乙木 | 己土 癸水 辛金 | 戊土 乙木 癸水 |",
-    "| **副星** | 伤官 偏印 七杀 | 偏印 | 食神 七杀 偏财 | 伤官 偏印 七杀 |",
-    "| **星运** | 衰 | 病 | 墓 | 衰 |",
-    "| **自坐** | 养 | 病 | 墓 | 衰 |",
-    "| **空亡** | 申酉 | 申酉 | 申酉 | 寅卯 |",
-    "| **纳音** | 白蜡金 | 城头土 | 涧下水 | 覆灯火 |",
-    "| **神煞** | 国印贵人 | 太极贵人 月德合 | 阴差阳错 天乙贵人 德秀贵人 寡宿 披麻 | 国印贵人 月德贵人 德秀贵人 华盖 |"
-  ];
-  return text.join('\n');
+  return "八字：庚辰 己卯 丁丑 甲辰（示例）";
 }
