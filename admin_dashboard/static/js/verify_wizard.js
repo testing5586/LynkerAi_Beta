@@ -760,12 +760,20 @@ function displayResult(data, type) {
     let jsonToDisplay = data.parsed;
     
     if (type === 'bazi' && currentGroup.agentFullData) {
-        // 合并 Agent 的完整数据
+        // 合并 Agent 的完整数据（包括 environment, wuxing, ai_verifier）
         jsonToDisplay = {
             ...data.parsed,
-            agent_recognition: currentGroup.agentFullData
+            agent_recognition: {
+                bazi: currentGroup.agentFullData.bazi,
+                full_table: currentGroup.agentFullData.full_table,
+                wuxing: currentGroup.agentFullData.wuxing
+            },
+            environment: currentGroup.agentFullData.environment,
+            ai_verifier: currentGroup.agentFullData.ai_verifier,
+            gender: currentGroup.agentFullData.gender,
+            birth_time: currentGroup.agentFullData.birth_time
         };
-        console.log(`[displayResult] 合并 Agent 数据到 JSON 输出`);
+        console.log(`[displayResult] 合并 Agent 数据到 JSON 输出（包含 environment）`);
     }
     
     html += `
@@ -2015,11 +2023,21 @@ function handleAgentResult(result) {
                 wuxing: result.wuxing || null,
                 gender: result.gender || null,
                 birth_time: result.birth_time || null,
+                environment: result.environment || null,
+                ai_verifier: result.ai_verifier || null,
                 timestamp: result.timestamp || new Date().toISOString()
             };
             
             // 保存到当前组的 agentFullData
             currentGroup.agentFullData = completeAgentData;
+            
+            // 输出环境数据日志
+            if (result.environment) {
+                console.log(`[Agent Data] environment 字段已保存:`, result.environment);
+            }
+            if (result.ai_verifier) {
+                console.log(`[Agent Data] ai_verifier 字段已保存:`, result.ai_verifier);
+            }
             
             // 输出 JSON 合并日志
             if (result.full_table && result.full_table.rows) {
