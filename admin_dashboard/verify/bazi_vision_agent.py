@@ -21,6 +21,13 @@ class BaziVisionAgent:
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.openai_client = OpenAI(api_key=self.openai_api_key) if self.openai_api_key else None
         
+        # MiniMax 官方端点列表（支持全球访问）
+        self.minimax_endpoints = [
+            "https://api.minimaxi.com/v1/chat/completions",  # 中国区（优先）
+            "https://api.minimax.io/v1/chat/completions"     # 国际区
+        ]
+        self.last_successful_endpoint = None  # 记录上次成功的端点
+        
         # 天干地支映射
         self.tiangan = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
         self.dizhi = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
@@ -111,10 +118,33 @@ class BaziVisionAgent:
         return self._get_simulated_data()
     
     def _call_minimax_vision(self, image_base64: str) -> Optional[str]:
-        """调用 MiniMax Vision Pro API（官方 OpenAI-compatible 端点）"""
-        # 官方端点 (支持中国和国际两个区域)
-        url = "https://api.minimax.chat/v1/chat/completions"
+        """
+        调用 MiniMax Vision Pro API（智能端点切换）
+        支持中国区和国际区自动切换
+        """
+        # 优先使用上次成功的端点
+        if self.last_successful_endpoint:
+            endpoints_to_try = [self.last_successful_endpoint] + [
+                ep for ep in self.minimax_endpoints if ep != self.last_successful_endpoint
+            ]
+        else:
+            endpoints_to_try = self.minimax_endpoints
         
+        last_error = None
+        for endpoint in endpoints_to_try:
+            try:
+                result = self._call_minimax_with_endpoint(endpoint, image_base64)
+                self.last_successful_endpoint = endpoint  # 记录成功的端点
+                return result
+            except Exception as e:
+                last_error = str(e)
+                continue
+        
+        # 所有端点都失败
+        raise Exception(f"所有 MiniMax 端点均不可用。最后错误: {last_error}")
+    
+    def _call_minimax_with_endpoint(self, url: str, image_base64: str) -> str:
+        """使用指定端点调用 MiniMax Vision API"""
         # 移除可能的 data:image 前缀
         if "," in image_base64:
             image_base64 = image_base64.split(",", 1)[1]
