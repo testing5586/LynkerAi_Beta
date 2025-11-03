@@ -1883,6 +1883,30 @@ window.runProphecyAI = runProphecyAI;
 window.recordProphecyFeedback = recordProphecyFeedback;
 window.loadProphecyStats = loadProphecyStats;
 
+// ========== 环境数据收集函数 ==========
+function collectEnvironmentData() {
+    const countryCode = document.getElementById('countrySelect')?.value;
+    const city = document.getElementById('citySelect')?.value;
+    const latitude = document.getElementById('latitude')?.value;
+    const climateZone = document.getElementById('climate_zone')?.value;
+    const humidityType = document.getElementById('humidity_type')?.value;
+    const terrainType = document.getElementById('terrain_type')?.value;
+    
+    // 如果没有选择国家和城市，返回 null
+    if (!countryCode || !city) {
+        return null;
+    }
+    
+    return {
+        country_code: countryCode,
+        city: city,
+        latitude: parseFloat(latitude) || null,
+        climate_zone: climateZone || null,
+        humidity_type: humidityType || null,
+        terrain_type: terrainType || null
+    };
+}
+
 // ========== Python Agent Workflow Integration (AJAX) ==========
 
 async function callAgentWorkflow(imageFile) {
@@ -1894,14 +1918,28 @@ async function callAgentWorkflow(imageFile) {
             try {
                 const base64Data = reader.result;
                 
+                // 收集环境数据
+                const environmentData = collectEnvironmentData();
+                if (environmentData) {
+                    console.log('[Bazi Agent] 环境数据:', environmentData);
+                    addAIMessage(`🌍 出生地: ${environmentData.city}, ${environmentData.climate_zone || ''}`);
+                }
+                
+                const requestBody = {
+                    imageData: base64Data
+                };
+                
+                // 如果有环境数据，添加到请求中
+                if (environmentData) {
+                    requestBody.environment = environmentData;
+                }
+                
                 const response = await fetch('/verify/api/run_agent_workflow', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        imageData: base64Data
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const result = await response.json();
