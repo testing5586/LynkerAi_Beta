@@ -134,40 +134,5 @@ def verify_view():
 def my_real_bazi():
     return render_template("agent/my_real_bazi.html")
 
-# Proxy for Node.js Agent System Socket.io
-NODE_AGENT_URL = "http://localhost:3001"
-
-@app.route('/agent-socket.io/', defaults={'path': ''})
-@app.route('/agent-socket.io/<path:path>', methods=['GET', 'POST', 'OPTIONS'])
-def proxy_agent_socketio(path):
-    """Proxy Socket.io requests to Node.js Agent System"""
-    url = f"{NODE_AGENT_URL}/socket.io/{path}"
-    
-    # Forward query parameters
-    if request.query_string:
-        url += '?' + request.query_string.decode('utf-8')
-    
-    try:
-        if request.method == 'GET':
-            resp = requests.get(url, headers=dict(request.headers), stream=True)
-        elif request.method == 'POST':
-            resp = requests.post(url, headers=dict(request.headers), data=request.get_data(), stream=True)
-        elif request.method == 'OPTIONS':
-            resp = requests.options(url, headers=dict(request.headers))
-        else:
-            return Response("Method not allowed", status=405)
-        
-        # Forward response
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items() 
-                   if name.lower() not in excluded_headers]
-        
-        return Response(resp.iter_content(chunk_size=1024), 
-                       status=resp.status_code, 
-                       headers=headers)
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Proxy error: {e}")
-        return Response(f"Proxy error: {e}", status=502)
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
