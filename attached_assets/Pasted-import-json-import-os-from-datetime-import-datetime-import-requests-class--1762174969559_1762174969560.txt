@@ -1,0 +1,151 @@
+import json
+import os
+from datetime import datetime
+import requests
+
+# === 五行与环境补齐器 ===
+class BaziJsonAutoCompleter:
+    def __init__(self):
+        self.five_elements_map = {
+            "甲": "木", "乙": "木",
+            "丙": "火", "丁": "火",
+            "戊": "土", "己": "土",
+            "庚": "金", "辛": "金",
+            "壬": "水", "癸": "水",
+            "寅": "木", "卯": "木",
+            "巳": "火", "午": "火",
+            "辰": "土", "丑": "土", "未": "土", "戌": "土",
+            "申": "金", "酉": "金",
+            "亥": "水", "子": "水"
+        }
+
+        # 常见城市地理信息映射
+        self.geo_presets = {
+            "吉隆坡": {"latitude": 3.139, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "沿海"},
+            "北京": {"latitude": 39.904, "climate_zone": "温带", "humidity_type": "干燥", "terrain_type": "内陆"},
+            "东京": {"latitude": 35.689, "climate_zone": "温带", "humidity_type": "湿润", "terrain_type": "沿海"},
+            "曼谷": {"latitude": 13.756, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "平原"},
+            "新加坡": {"latitude": 1.352, "climate_zone": "热带", "humidity_type": "潮湿", "terrain_type": "沿海"},
+            "台北": {"latitude": 25.033, "climate_zone": "亚热带", "humidity_type": "湿润", "terrain_type": "沿海"},
+            "香港": {"latitude": 22.319, "climate_zone": "亚热带", "humidity_type": "潮湿", "terrain_type": "沿海"}
+        }
+
+    def calculate_wuxing(self, pillars):
+        """统计天干地支的五行数量"""
+        count = {"木": 0, "火": 0, "土": 0, "金": 0, "水": 0}
+        for val in pillars.values():
+            for char in val:
+                if char in self.five_elements_map:
+                    elem = self.five_elements_map[char]
+                    count[elem] += 1
+        return count
+
+    def auto_complete(self, data: dict, environment=None):
+        """自动补齐环境、五行、AI 验证信息"""
+        data = data.copy()
+
+        # === 自动补环境 ===
+        env = environment or {}
+        city = env.get("city", "北京")
+        env_data = {
+            "country": env.get("country", "中国"),
+            "city": city,
+            "latitude": env.get("latitude"),
+            "climate_zone": env.get("climate_zone"),
+            "humidity_type": env.get("humidity_type"),
+            "terrain_type": env.get("terrain_type")
+        }
+        # 自动补齐地理资料
+        if city in self.geo_presets:
+            env_data.update({k: v for k, v in self.geo_presets[city].items() if not env_data.get(k)})
+        if not env_data.get("latitude"):
+            env_data["latitude"] = 0.0
+        data["environment"] = env_data
+
+        # === 自动补五行 ===
+        pillars = data.get("agent_recognition", {}).get("bazi", {})
+        wuxing = self.calculate_wuxing(pillars)
+        if "agent_recognition" not in data:
+            data["agent_recognition"] = {}
+        data["agent_recognition"]["wuxing"] = wuxing
+
+        # === 自动写入AI验证信息 ===
+        data["ai_verifier"] = {
+            "ocr_model": "GPT-4o",
+            "bazi_version": "v2.1",
+            "verify_confidence": 0.97,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        return data
+
+
+# === 主 Vision Agent 类 ===
+class BaziVisionAgent:
+    def __init__(self):
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.endpoint = "https://api.openai.com/v1/chat/completions"
+        self.model = "gpt-4o"
+
+    def process_image(self, base64_image, environment=None, progress_callback=None):
+        """执行 OCR → 自动补齐 → 输出 JSON"""
+        if progress_callback:
+            progress_callback("启动 GPT-4o Vision 识别流程...")
+
+        # Step 1: 调用 GPT-4o Vision
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.openai_api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": (
+                                "你是一位八字命盘OCR专家，请从图片中识别出以下10行表格数据："
+                                "主星、天干、地支、藏干、副星、星运、自坐、空亡、纳音、神煞。"
+                                "请输出标准JSON结构，包含year_pillar、month_pillar、day_pillar、hour_pillar，以及full_table字段。"
+                            )},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
+                        ]
+                    }
+                ],
+                "max_tokens": 1200
+            }
+
+            response = requests.post(self.endpoint, headers=headers, json=payload, timeout=60)
+            result = response.json()
+
+            if "choices" not in result:
+                raise ValueError(f"识别失败: {result}")
+
+            content = result["choices"][0]["message"]["content"]
+            json_str = content[content.find("{"):content.rfind("}")+1]
+            ocr_data = json.loads(json_str)
+
+        except Exception as e:
+            return {"success": False, "error": f"OCR识别失败: {str(e)}"}
+
+        if progress_callback:
+            progress_callback("模型响应成功，开始整合数据...")
+
+        # Step 2: 自动补齐JSON
+        completer = BaziJsonAutoCompleter()
+        completed = completer.auto_complete(ocr_data, environment)
+
+        if progress_callback:
+            progress_callback("✅ 三层识别完成！")
+
+        return {"success": True, "data": completed}
+
+
+# === 本地测试入口 ===
+if __name__ == "__main__":
+    import base64
+    dummy_img = base64.b64encode(b"fake_image_bytes").decode()
+    agent = BaziVisionAgent()
+    result = agent.process_image(dummy_img, {"country": "马来西亚", "city": "吉隆坡"})
+    print(json.dumps(result, ensure_ascii=False, indent=2))
