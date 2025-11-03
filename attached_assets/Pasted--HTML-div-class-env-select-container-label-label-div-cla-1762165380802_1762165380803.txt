@@ -1,0 +1,86 @@
+在「上传八字命盘」那块上传框上方插入以下 HTML：
+
+<div class="env-select-container">
+  <label>🌍 出生地信息：</label>
+  <div class="row">
+    <div class="col">
+      <select id="countrySelect" class="form-select">
+        <option value="">选择国家</option>
+        <option value="MY">马来西亚</option>
+        <option value="CN">中国</option>
+        <option value="JP">日本</option>
+        <option value="TH">泰国</option>
+        <option value="VN">越南</option>
+        <option value="KR">韩国</option>
+        <option value="SG">新加坡</option>
+      </select>
+    </div>
+    <div class="col">
+      <select id="citySelect" class="form-select">
+        <option value="">选择城市</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row mt-2">
+    <div class="col">
+      <input type="text" id="latitude" class="form-control" placeholder="纬度" readonly>
+    </div>
+    <div class="col">
+      <input type="text" id="climate_zone" class="form-control" placeholder="气候带" readonly>
+    </div>
+    <div class="col">
+      <input type="text" id="humidity_type" class="form-control" placeholder="湿度" readonly>
+    </div>
+    <div class="col">
+      <input type="text" id="terrain_type" class="form-control" placeholder="地形" readonly>
+    </div>
+  </div>
+</div>
+
+✅ Step 2：在页面底部导入自动补全脚本
+
+确保在文件底部（</body> 前）加入：
+
+<script src="/static/js/auto_env_fill.js"></script>
+
+✅ Step 3：自动加载城市列表
+
+在 auto_env_fill.js 里补上城市映射逻辑（连后端 /api/location_info）：
+
+const citiesByCountry = {
+  "MY": ["吉隆坡", "槟城", "新山"],
+  "CN": ["北京", "上海", "广州", "深圳"],
+  "JP": ["东京", "大阪", "京都"],
+  "TH": ["曼谷", "清迈"],
+  "VN": ["胡志明市", "河内"],
+  "KR": ["首尔", "釜山"],
+  "SG": ["新加坡"]
+};
+
+document.getElementById("countrySelect").addEventListener("change", function () {
+  const country = this.value;
+  const citySelect = document.getElementById("citySelect");
+  citySelect.innerHTML = `<option value="">选择城市</option>`;
+  if (citiesByCountry[country]) {
+    citiesByCountry[country].forEach(city => {
+      const option = document.createElement("option");
+      option.value = city;
+      option.textContent = city;
+      citySelect.appendChild(option);
+    });
+  }
+});
+
+document.getElementById("citySelect").addEventListener("change", async function () {
+  const country = document.getElementById("countrySelect").value;
+  const city = this.value;
+  if (!country || !city) return;
+
+  const res = await fetch(`/api/location_info?country=${country}&city=${city}`);
+  const data = await res.json();
+  document.getElementById("latitude").value = data.latitude;
+  document.getElementById("climate_zone").value = data.climate_zone;
+  document.getElementById("humidity_type").value = data.humidity_type;
+  document.getElementById("terrain_type").value = data.terrain_type;
+});
