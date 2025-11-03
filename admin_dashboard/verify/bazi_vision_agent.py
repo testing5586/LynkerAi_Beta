@@ -172,6 +172,9 @@ class BaziVisionAgent:
     def _call_gpt4_vision(self, image_base64: str) -> Optional[str]:
         """调用 GPT-4 Vision API"""
         
+        if not self.openai_client:
+            raise Exception("OpenAI client not initialized")
+        
         # 移除可能的 data:image 前缀
         if "," in image_base64:
             image_base64 = image_base64.split(",", 1)[1]

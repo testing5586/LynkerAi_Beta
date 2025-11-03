@@ -1870,90 +1870,45 @@ window.runProphecyAI = runProphecyAI;
 window.recordProphecyFeedback = recordProphecyFeedback;
 window.loadProphecyStats = loadProphecyStats;
 
-// ========== Node.js Agent Workflow Integration ==========
-let agentSocket = null;
-let agentConnected = false;
-
-function initAgentWorkflow() {
-    try {
-        // Connect to Flask proxy which forwards to Node.js Agent System
-        const agentUrl = window.location.origin;
-        
-        console.log('🔌 Connecting to Agent Workflow via proxy:', agentUrl);
-        
-        agentSocket = io(agentUrl, {
-            path: '/agent-socket.io/',
-            transports: ['polling', 'websocket'],
-            reconnection: true,
-            reconnectionDelay: 1000,
-            reconnectionAttempts: 5,
-            timeout: 10000
-        });
-
-        agentSocket.on('connect', () => {
-            agentConnected = true;
-            console.log('✅ Agent Workflow connected');
-        });
-
-        agentSocket.on('disconnect', () => {
-            agentConnected = false;
-            console.log('⚠️ Agent Workflow disconnected');
-        });
-
-        agentSocket.on('connect_error', (error) => {
-            console.log('⚠️ Agent Workflow connection error:', error.message);
-        });
-
-        agentSocket.on('agent:progress', (data) => {
-            const { agent, message, step, total } = data;
-            const emoji = {
-                'vision': '📸',
-                'normalizer': '🔧',
-                'formatter': '📦',
-                'supervisor': '🎯'
-            }[agent] || '🤖';
-            
-            const progressMsg = step && total ? ` (${step}/${total})` : '';
-            addAIMessage(`${emoji} <strong>${agent}</strong>: ${message}${progressMsg}`);
-        });
-
-        agentSocket.on('agent:result', (data) => {
-            console.log('[Agent Result]', data);
-            if (data.success && data.result) {
-                handleAgentResult(data.result);
-            } else {
-                addAIMessage(`❌ Agent识别失败: ${data.error || '未知错误'}`);
-            }
-        });
-
-        agentSocket.on('agent:error', (data) => {
-            console.error('[Agent Error]', data);
-            addAIMessage(`❌ Agent出错: ${data.message || data.error}`);
-        });
-
-    } catch (error) {
-        console.error('Failed to initialize Agent Workflow:', error);
-    }
-}
+// ========== Python Agent Workflow Integration (AJAX) ==========
 
 async function callAgentWorkflow(imageFile) {
-    if (!agentSocket || !agentConnected) {
-        console.log('⚠️ Agent Workflow not connected, skipping...');
-        return;
-    }
-
     try {
-        addAIMessage('🚀 启动智能八字识别工作流...');
+        addAIMessage('🚀 启动三层智能识别工作流...');
         
         const reader = new FileReader();
-        reader.onload = () => {
-            const base64Data = reader.result;
-            
-            agentSocket.emit('analyze:bazi', {
-                imageData: base64Data,
-                userId: state.userId,
-                groupIndex: state.currentGroupIndex
-            });
+        reader.onload = async () => {
+            try {
+                const base64Data = reader.result;
+                
+                const response = await fetch('/verify/api/run_agent_workflow', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageData: base64Data
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.messages && Array.isArray(result.messages)) {
+                    result.messages.forEach(msg => {
+                        addAIMessage(msg);
+                    });
+                }
+                
+                if (result.success && result.data) {
+                    handleAgentResult(result.data);
+                } else {
+                    addAIMessage(`❌ 识别失败: ${result.error || '未知错误'}`);
+                }
+                
+            } catch (error) {
+                console.error('Agent Workflow API error:', error);
+                addAIMessage(`❌ API调用失败: ${error.message}`);
+            }
         };
         
         reader.readAsDataURL(imageFile);
@@ -1966,24 +1921,30 @@ async function callAgentWorkflow(imageFile) {
 
 function handleAgentResult(result) {
     try {
-        addAIMessage(`✅ <strong>Agent识别完成！</strong>`);
+        addAIMessage(`✅ <strong>三层识别完成！</strong>`);
         
-        if (result.bazi_data) {
-            const baziData = result.bazi_data;
+        if (result.bazi) {
+            const bazi = result.bazi;
             let displayText = '识别结果：\n';
             
-            if (baziData.year_pillar) displayText += `年柱: ${baziData.year_pillar}\n`;
-            if (baziData.month_pillar) displayText += `月柱: ${baziData.month_pillar}\n`;
-            if (baziData.day_pillar) displayText += `日柱: ${baziData.day_pillar}\n`;
-            if (baziData.hour_pillar) displayText += `时柱: ${baziData.hour_pillar}\n`;
+            if (bazi.year) displayText += `年柱: ${bazi.year}\n`;
+            if (bazi.month) displayText += `月柱: ${bazi.month}\n`;
+            if (bazi.day) displayText += `日柱: ${bazi.day}\n`;
+            if (bazi.hour) displayText += `时柱: ${bazi.hour}\n`;
             
-            if (baziData.five_elements) {
-                displayText += `\n五行：${JSON.stringify(baziData.five_elements)}`;
+            if (result.gender) displayText += `\n性别: ${result.gender}`;
+            if (result.birth_time) displayText += `\n出生时间: ${result.birth_time}`;
+            
+            if (result.wuxing) {
+                const wuxingStr = Object.entries(result.wuxing)
+                    .map(([element, count]) => `${element}:${count}`)
+                    .join(' ');
+                displayText += `\n五行：${wuxingStr}`;
             }
             
             addAIMessage(`<pre style="background: #1a1a1a; padding: 12px; border-radius: 8px; font-size: 13px;">${displayText}</pre>`);
             
-            const formattedText = formatBaziFromAgent(baziData);
+            const formattedText = formatBaziFromAgent(bazi);
             const baziText = document.getElementById('baziText');
             if (baziText && formattedText) {
                 baziText.value = formattedText;
@@ -1997,20 +1958,14 @@ function handleAgentResult(result) {
     }
 }
 
-function formatBaziFromAgent(baziData) {
-    if (!baziData) return '';
+function formatBaziFromAgent(bazi) {
+    if (!bazi) return '';
     
     const parts = [];
-    if (baziData.year_pillar) parts.push(`年柱:${baziData.year_pillar}`);
-    if (baziData.month_pillar) parts.push(`月柱:${baziData.month_pillar}`);
-    if (baziData.day_pillar) parts.push(`日柱:${baziData.day_pillar}`);
-    if (baziData.hour_pillar) parts.push(`时柱:${baziData.hour_pillar}`);
+    if (bazi.year) parts.push(`年柱:${bazi.year}`);
+    if (bazi.month) parts.push(`月柱:${bazi.month}`);
+    if (bazi.day) parts.push(`日柱:${bazi.day}`);
+    if (bazi.hour) parts.push(`时柱:${bazi.hour}`);
     
     return parts.join(' ');
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        initAgentWorkflow();
-    }, 1000);
-});

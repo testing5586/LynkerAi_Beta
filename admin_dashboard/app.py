@@ -82,6 +82,14 @@ try:
 except Exception as e:
     print(f"[WARN] 预言验证中心挂载失败: {e}")
 
+# 注册 Bazi Agent 智能识别 API
+try:
+    from verify.api_bazi_agent import bp as bazi_agent_bp
+    app.register_blueprint(bazi_agent_bp)
+    print("[OK] Bazi Agent 智能识别 API 已注册: /verify/api/run_agent_workflow, /verify/api/test_agent")
+except Exception as e:
+    print(f"[WARN] Bazi Agent API 挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")
