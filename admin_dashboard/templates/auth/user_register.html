@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建用户档案 - LynkerAI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 28px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: #666; font-size: 14px; }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        label .required { color: #f44336; }
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .error {
+            background: #fee;
+            border-left: 4px solid #f44336;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            color: #c62828;
+            font-size: 14px;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            color: #2e7d32;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌟 创建用户档案</h1>
+            <p>填写你的灵性信息，开始探索命运奥秘</p>
+        </div>
+
+        <div id="message"></div>
+
+        <form id="profileForm">
+            <div class="form-group">
+                <label for="pseudonym">灵性假名 <span class="required">*</span></label>
+                <input type="text" id="pseudonym" required minlength="2">
+                <div class="help-text">请使用灵性假名，而非真实姓名（至少2个字符）</div>
+            </div>
+
+            <div class="form-group">
+                <label for="gender">性别（可选）</label>
+                <select id="gender">
+                    <option value="">请选择</option>
+                    <option value="male">男</option>
+                    <option value="female">女</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="birthDate">出生日期（可选）</label>
+                <input type="date" id="birthDate">
+                <div class="help-text">用于八字分析</div>
+            </div>
+
+            <div class="form-group">
+                <label for="birthTime">出生时辰（可选）</label>
+                <input type="time" id="birthTime">
+                <div class="help-text">精确的时辰信息可提升分析准确度</div>
+            </div>
+
+            <div class="form-group">
+                <label for="birthLocation">出生地点（可选）</label>
+                <input type="text" id="birthLocation" placeholder="例：北京市">
+            </div>
+
+            <div class="form-group">
+                <label for="preferredProvider">AI 服务提供商</label>
+                <select id="preferredProvider">
+                    <option value="LocalMock">LocalMock（免费模拟）</option>
+                    <option value="OpenAI">OpenAI（需 API Key）</option>
+                    <option value="Gemini">Gemini（有免费额度）</option>
+                </select>
+                <div class="help-text">可在设置中修改</div>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">创建档案</button>
+        </form>
+    </div>
+
+    <script>
+        const form = document.getElementById('profileForm');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pseudonym = document.getElementById('pseudonym').value.trim();
+            const gender = document.getElementById('gender').value || null;
+            const birthDate = document.getElementById('birthDate').value || null;
+            const birthTime = document.getElementById('birthTime').value || null;
+            const birthLocation = document.getElementById('birthLocation').value.trim() || null;
+            const preferredProvider = document.getElementById('preferredProvider').value;
+            
+            messageDiv.innerHTML = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = '创建中...';
+            
+            try {
+                const response = await fetch('/api/user/normal-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pseudonym,
+                        gender,
+                        birthDate,
+                        birthTime,
+                        birthLocation,
+                        preferredProvider
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    messageDiv.innerHTML = `<div class="success">${data.message}</div>`;
+                    setTimeout(() => {
+                        window.location.href = '/user/home';
+                    }, 1000);
+                } else {
+                    messageDiv.innerHTML = `<div class="error">${data.error}</div>`;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '创建档案';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error">网络错误，请稍后重试</div>`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '创建档案';
+            }
+        });
+    </script>
+</body>
+</html>

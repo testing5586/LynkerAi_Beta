@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建命理师档案 - LynkerAI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 28px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: #666; font-size: 14px; }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        label .required { color: #f44336; }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .checkbox-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        .checkbox-item.checked {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .error, .success {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .error {
+            background: #fee;
+            border-left: 4px solid #f44336;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔮 创建命理师档案</h1>
+            <p>展示你的专业能力，开启命理服务之旅</p>
+        </div>
+
+        <div id="message"></div>
+
+        <form id="guruForm">
+            <div class="form-group">
+                <label for="pseudonym">灵性假名 <span class="required">*</span></label>
+                <input type="text" id="pseudonym" required minlength="2">
+                <div class="help-text">你的专业名号</div>
+            </div>
+
+            <div class="form-group">
+                <label for="bio">个人简介 <span class="required">*</span></label>
+                <textarea id="bio" required maxlength="500" placeholder="介绍你的专长、经验和服务理念..."></textarea>
+                <div class="help-text">最多 500 字</div>
+            </div>
+
+            <div class="form-group">
+                <label>专长领域 <span class="required">*（至少选择一项）</span></label>
+                <div class="checkbox-group" id="specializationsGroup">
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="specialization" value="bazi">
+                        <span>八字</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="specialization" value="ziwei">
+                        <span>紫微斗数</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="specialization" value="iching">
+                        <span>易经</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="specialization" value="tarot">
+                        <span>塔罗</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="specialization" value="numerology">
+                        <span>数字学</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="specialization" value="feng-shui">
+                        <span>风水</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="region">所在地区</label>
+                <input type="text" id="region" placeholder="例：东南亚">
+            </div>
+
+            <div class="form-group">
+                <label for="nationality">国籍</label>
+                <input type="text" id="nationality" placeholder="例：马来西亚">
+            </div>
+
+            <div class="form-group">
+                <label for="aiProvider">AI 助理提供商</label>
+                <select id="aiProvider">
+                    <option value="LocalMock">LocalMock（免费模拟）</option>
+                    <option value="OpenAI">OpenAI（推荐）</option>
+                    <option value="Gemini">Gemini（有免费额度）</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="aiTone">AI 助理语气</label>
+                <select id="aiTone">
+                    <option value="professional">专业权威</option>
+                    <option value="casual">友好随性</option>
+                    <option value="mystical">神秘诗意</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">创建命理师档案</button>
+        </form>
+    </div>
+
+    <script>
+        const form = document.getElementById('guruForm');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        // Checkbox 样式切换
+        document.querySelectorAll('.checkbox-item input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                e.target.closest('.checkbox-item').classList.toggle('checked', e.target.checked);
+            });
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pseudonym = document.getElementById('pseudonym').value.trim();
+            const bio = document.getElementById('bio').value.trim();
+            const region = document.getElementById('region').value.trim() || null;
+            const nationality = document.getElementById('nationality').value.trim() || null;
+            const aiProvider = document.getElementById('aiProvider').value;
+            const aiTone = document.getElementById('aiTone').value;
+            
+            // 收集选中的专长
+            const specializations = Array.from(
+                document.querySelectorAll('input[name="specialization"]:checked')
+            ).map(cb => cb.value);
+            
+            messageDiv.innerHTML = '';
+            
+            // 验证至少选择一项专长
+            if (specializations.length === 0) {
+                messageDiv.innerHTML = '<div class="error">请至少选择一项专长领域</div>';
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '创建中...';
+            
+            try {
+                const response = await fetch('/api/guru/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pseudonym,
+                        bio,
+                        specializations,
+                        region,
+                        nationality,
+                        aiProvider,
+                        aiTone
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    messageDiv.innerHTML = `<div class="success">${data.message}</div>`;
+                    setTimeout(() => {
+                        window.location.href = '/guru/dashboard';
+                    }, 1000);
+                } else {
+                    messageDiv.innerHTML = `<div class="error">${data.error}</div>`;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '创建命理师档案';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error">网络错误，请稍后重试</div>`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '创建命理师档案';
+            }
+        });
+    </script>
+</body>
+</html>

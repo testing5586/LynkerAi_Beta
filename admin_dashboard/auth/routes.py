@@ -49,11 +49,33 @@ def choose_user_type():
     """选择用户类型（普通用户或命理师）"""
     # 如果已经选择过类型，跳转到对应页面
     if current_user.user_type == 'guru':
-        return redirect(url_for('guru.dashboard'))
+        return redirect('/guru/dashboard')
     elif current_user.user_type == 'normal_user':
-        return redirect(url_for('user.home'))
+        return redirect('/user/home')
     
     return render_template('auth/choose_type.html')
+
+
+@auth_bp.route('/user-register', methods=['GET'])
+@login_required
+def user_register_page():
+    """普通用户档案注册页面"""
+    # 如果已有档案，跳转到主页
+    if current_user.user_type == 'normal_user':
+        return redirect('/user/home')
+    
+    return render_template('auth/user_register.html')
+
+
+@auth_bp.route('/guru-register', methods=['GET'])
+@login_required
+def guru_register_page():
+    """命理师档案注册页面"""
+    # 如果已有档案，跳转到仪表盘
+    if current_user.user_type == 'guru':
+        return redirect('/guru/dashboard')
+    
+    return render_template('auth/guru_register.html')
 
 
 # ==================== API 路由 ====================

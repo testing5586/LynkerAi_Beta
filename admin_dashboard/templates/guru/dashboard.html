@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>命理师仪表盘 - LynkerAI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            color: white;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .navbar h1 { font-size: 24px; }
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .navbar button {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .navbar button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .welcome {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .welcome h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .profile-info {
+            background: #f8f9ff;
+            border-left: 4px solid #764ba2;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        .profile-info p {
+            margin: 4px 0;
+            color: #555;
+        }
+        .specializations {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .specializations span {
+            background: #e8eaf6;
+            color: #5e35b1;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .stat-card h4 {
+            color: #999;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .card-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .card p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>LynkerAI 命理师平台</h1>
+        <div class="user-info">
+            <span>🔮 {{ profile.pseudonym }}</span>
+            <button onclick="logout()">退出登录</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="welcome">
+            <h2>欢迎回来，{{ profile.pseudonym }} 大师</h2>
+            
+            <div class="profile-info">
+                <p><strong>灵性名号：</strong>{{ profile.pseudonym }}</p>
+                <p><strong>个人简介：</strong>{{ profile.bio[:100] }}...</p>
+                <p><strong>专长领域：</strong></p>
+                <div class="specializations">
+                    {% for spec in profile.specializations %}
+                    <span>{{ spec }}</span>
+                    {% endfor %}
+                </div>
+                <p style="margin-top: 8px;"><strong>AI 助理：</strong>{{ profile.ai_provider }} ({{ profile.ai_tone }})</p>
+                <p><strong>会员等级：</strong>{{ profile.subscription_tier }}</p>
+                <p><strong>Token 余额：</strong>{{ profile.token_balance }}</p>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h4>本月咨询</h4>
+                <div class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <h4>总收益</h4>
+                <div class="value">¥0</div>
+            </div>
+            <div class="stat-card">
+                <h4>用户评分</h4>
+                <div class="value">-</div>
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card" onclick="alert('功能即将上线')">
+                <div class="card-icon">👥</div>
+                <h3>用户管理</h3>
+                <p>查看和管理你的咨询用户</p>
+            </div>
+
+            <div class="card" onclick="alert('功能即将上线')">
+                <div class="card-icon">📊</div>
+                <h3>数据分析</h3>
+                <p>查看咨询数据和收益统计</p>
+            </div>
+
+            <div class="card" onclick="alert('功能即将上线')">
+                <div class="card-icon">🎓</div>
+                <h3>学习资源</h3>
+                <p>访问命理知识库和案例分析</p>
+            </div>
+
+            <div class="card" onclick="alert('功能即将上线')">
+                <div class="card-icon">⚙️</div>
+                <h3>账户设置</h3>
+                <p>管理你的个人资料和偏好设置</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>

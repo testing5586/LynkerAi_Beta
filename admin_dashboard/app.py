@@ -120,6 +120,22 @@ try:
 except Exception as e:
     print(f"[WARN] 用户认证系统挂载失败: {e}")
 
+# 注册普通用户 Blueprint
+try:
+    from user.routes import user_bp
+    app.register_blueprint(user_bp)
+    print("[OK] 普通用户模块已注册: /user/home")
+except Exception as e:
+    print(f"[WARN] 普通用户模块挂载失败: {e}")
+
+# 注册命理师 Blueprint
+try:
+    from guru.routes import guru_bp
+    app.register_blueprint(guru_bp)
+    print("[OK] 命理师模块已注册: /guru/dashboard")
+except Exception as e:
+    print(f"[WARN] 命理师模块挂载失败: {e}")
+
 @app.route("/")
 def index():
     return redirect("/admin")

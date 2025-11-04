@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户主页 - LynkerAI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .navbar h1 { font-size: 24px; }
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .navbar button {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .navbar button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .welcome {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .welcome h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .welcome p { color: #666; line-height: 1.6; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .card-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .card p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .profile-info {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        .profile-info p {
+            margin: 4px 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>LynkerAI</h1>
+        <div class="user-info">
+            <span>{{ profile.pseudonym }}</span>
+            <button onclick="logout()">退出登录</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="welcome">
+            <h2>欢迎回来，{{ profile.pseudonym }} 🌟</h2>
+            <p>探索你的命运，发现生命的奥秘</p>
+            
+            <div class="profile-info">
+                <p><strong>灵性假名：</strong>{{ profile.pseudonym }}</p>
+                {% if profile.gender %}
+                <p><strong>性别：</strong>{{ profile.gender }}</p>
+                {% endif %}
+                {% if profile.birth_date %}
+                <p><strong>出生日期：</strong>{{ profile.birth_date }}</p>
+                {% endif %}
+                <p><strong>AI 提供商：</strong>{{ profile.preferred_provider }}</p>
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card" onclick="location.href='/verify?user_id={{ profile.user_id }}'">
+                <div class="card-icon">🔮</div>
+                <h3>真命盘验证</h3>
+                <p>上传你的八字和紫微命盘，使用 AI 进行智能验证分析</p>
+            </div>
+
+            <div class="card" onclick="alert('功能即将上线')">
+                <div class="card-icon">💫</div>
+                <h3>同命匹配</h3>
+                <p>发现与你命运相似的人，建立深层连接</p>
+            </div>
+
+            <div class="card" onclick="alert('功能即将上线')">
+                <div class="card-icon">📖</div>
+                <h3>我的档案</h3>
+                <p>查看和编辑你的个人信息及命理档案</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>
