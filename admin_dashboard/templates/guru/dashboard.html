@@ -149,17 +149,17 @@
             <h2>欢迎回来，{{ profile.pseudonym }} 大师</h2>
             
             <div class="profile-info">
-                <p><strong>灵性名号：</strong>{{ profile.pseudonym }}</p>
-                <p><strong>个人简介：</strong>{{ profile.bio[:100] }}...</p>
+                <p><strong>灵性名号：</strong>{{ profile['pseudonym'] }}</p>
+                <p><strong>个人简介：</strong>{{ profile['bio'][:100] }}...</p>
                 <p><strong>专长领域：</strong></p>
                 <div class="specializations">
-                    {% for spec in profile.specializations %}
+                    {% for spec in profile['specializations'] %}
                     <span>{{ spec }}</span>
                     {% endfor %}
                 </div>
-                <p style="margin-top: 8px;"><strong>AI 助理：</strong>{{ profile.ai_provider }} ({{ profile.ai_tone }})</p>
-                <p><strong>会员等级：</strong>{{ profile.subscription_tier }}</p>
-                <p><strong>Token 余额：</strong>{{ profile.token_balance }}</p>
+                <p style="margin-top: 8px;"><strong>AI 助理：</strong>{{ profile['ai_provider'] }} ({{ profile['ai_tone'] }})</p>
+                <p><strong>会员等级：</strong>{{ profile['subscription_tier'] }}</p>
+                <p><strong>Token 余额：</strong>{{ profile['token_balance'] }}</p>
             </div>
         </div>
 

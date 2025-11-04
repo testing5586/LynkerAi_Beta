@@ -115,19 +115,19 @@
             <p>探索你的命运，发现生命的奥秘</p>
             
             <div class="profile-info">
-                <p><strong>灵性假名：</strong>{{ profile.pseudonym }}</p>
-                {% if profile.gender %}
-                <p><strong>性别：</strong>{{ profile.gender }}</p>
+                <p><strong>灵性假名：</strong>{{ profile['pseudonym'] }}</p>
+                {% if profile.get('gender') %}
+                <p><strong>性别：</strong>{{ profile['gender'] }}</p>
                 {% endif %}
-                {% if profile.birth_date %}
-                <p><strong>出生日期：</strong>{{ profile.birth_date }}</p>
+                {% if profile.get('birth_date') %}
+                <p><strong>出生日期：</strong>{{ profile['birth_date'] }}</p>
                 {% endif %}
-                <p><strong>AI 提供商：</strong>{{ profile.preferred_provider }}</p>
+                <p><strong>AI 提供商：</strong>{{ profile['preferred_provider'] }}</p>
             </div>
         </div>
 
         <div class="cards">
-            <div class="card" onclick="location.href='/verify?user_id={{ profile.user_id }}'">
+            <div class="card" onclick="location.href='/verify'">
                 <div class="card-icon">🔮</div>
                 <h3>真命盘验证</h3>
                 <p>上传你的八字和紫微命盘，使用 AI 进行智能验证分析</p>

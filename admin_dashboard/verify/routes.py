@@ -6,6 +6,7 @@ import os
 import json
 import re
 from flask import Blueprint, request, jsonify, render_template, session
+from flask_login import login_required, current_user
 from supabase import create_client
 import pytesseract
 from PIL import Image
@@ -140,27 +141,23 @@ def get_primary_context(user_id):
 
 
 @bp.get("")
+@login_required
 def render_page():
     """
     渲染真命盘验证中心主页
-    需要用户登录（从 session 获取 user_id）
+    需要用户登录（使用 Flask-Login）
     """
-    user_id = request.args.get("user_id") or session.get("user_id")
+    # 从当前登录用户获取 user_id
+    user_id = current_user.id
     
-    if not user_id:
-        return jsonify({
-            "ok": False,
-            "toast": "请先登录后再使用真命盘验证功能。请在URL中添加?user_id=你的用户ID"
-        }), 401
-    
-    # 如果从 URL 参数获取user_id，同时存入session以便后续API调用
-    if request.args.get("user_id"):
-        session["user_id"] = user_id
+    # 存入 session 以便后续 API 调用
+    session["user_id"] = user_id
     
     return render_template("verify_wizard.html", user_id=user_id)
 
 
 @bp.post("/api/preview")
+@login_required
 def preview():
     """
     预览评分接口
@@ -180,7 +177,7 @@ def preview():
     use_ai = data.get("use_ai", False)
     chart_type = data.get("chart_type", "bazi")  # 'bazi' 或 'ziwei'
     life_events = data.get("life_events", "")  # 用户讲述的人生事件
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     group_index = data.get("group_index", 0)  # 当前组索引（0/1/2）
     
     if not raw_text.strip():
@@ -282,6 +279,7 @@ def preview():
 
 
 @bp.post("/api/submit")
+@login_required
 def submit():
     """
     提交验证接口
@@ -295,17 +293,11 @@ def submit():
     
     data = request.json or {}
     
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     wizard = data.get("wizard", {})
     notes = data.get("notes", "")
     raw_text = data.get("raw_text", "")
     manual = data.get("manual", {})
-    
-    if not user_id:
-        return jsonify({
-            "ok": False,
-            "toast": "缺少用户ID，请重新登录"
-        }), 400
     
     if not raw_text.strip():
         return jsonify({
@@ -337,7 +329,7 @@ def submit():
         
         # 6. 写入 verified_charts 表
         record = sp.table("verified_charts").insert({
-            "user_id": int(user_id),
+            "user_id": user_id,  # 已经是字符串 UUID
             "source_text": raw_text,
             "parsed": json.dumps(parsed, ensure_ascii=False),
             "wizard": json.dumps(wizard, ensure_ascii=False),
