@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path='../.env')
 load_dotenv(dotenv_path='.env')
 load_dotenv()
-from auth import verify_login
+from admin_auth import verify_login
 from data_fetcher import get_dashboard_data
 from chat_hub_v2 import process_message, get_agent_info
 import requests
@@ -20,6 +20,20 @@ app.config.from_mapping(
 app.secret_key = os.getenv("MASTER_VAULT_KEY")
 if not app.secret_key:
     raise ValueError("MASTER_VAULT_KEY environment variable must be set for secure session management")
+
+# ==================== Flask-Login 初始化 ====================
+from flask_login import LoginManager
+from models.user import get_user_by_id
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login_page'
+login_manager.login_message = '请先登录'
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Flask-Login 用户加载函数"""
+    return get_user_by_id(user_id)
 
 # 注册用户事件追踪 Blueprint
 from user_events.event_api import event_bp
@@ -97,6 +111,14 @@ try:
     print("[OK] 智能环境自动补全 API 已注册: /api/location_info, /api/location_info/countries, /api/location_info/cities/<country_code>")
 except Exception as e:
     print(f"[WARN] 位置信息 API 挂载失败: {e}")
+
+# 注册用户认证系统 Blueprint
+try:
+    from auth.routes import auth_bp
+    app.register_blueprint(auth_bp)
+    print("[OK] 用户认证系统已注册: /login, /register, /api/login, /api/register")
+except Exception as e:
+    print(f"[WARN] 用户认证系统挂载失败: {e}")
 
 @app.route("/")
 def index():

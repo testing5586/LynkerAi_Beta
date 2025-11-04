@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选择用户类型 - LynkerAI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 16px;
+        }
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        .card-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .card ul {
+            text-align: left;
+            color: #666;
+            font-size: 14px;
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        .card li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .card li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .btn {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>欢迎来到 LynkerAI</h1>
+            <p>请选择你的身份类型</p>
+        </div>
+
+        <div class="cards">
+            <div class="card" onclick="chooseType('normal')">
+                <div class="card-icon">🌟</div>
+                <h2>普通用户</h2>
+                <p>探索你的命运奥秘</p>
+                <ul>
+                    <li>AI 命盘验证</li>
+                    <li>同命匹配系统</li>
+                    <li>命理咨询服务</li>
+                    <li>个人数据保护</li>
+                </ul>
+                <button class="btn">选择普通用户</button>
+            </div>
+
+            <div class="card" onclick="chooseType('guru')">
+                <div class="card-icon">🔮</div>
+                <h2>命理师</h2>
+                <p>分享你的专业知识</p>
+                <ul>
+                    <li>创建专业档案</li>
+                    <li>AI 辅助分析</li>
+                    <li>用户管理工具</li>
+                    <li>收益追踪系统</li>
+                </ul>
+                <button class="btn">选择命理师</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function chooseType(type) {
+            if (type === 'normal') {
+                window.location.href = '/user-register';
+            } else if (type === 'guru') {
+                window.location.href = '/guru-register';
+            }
+        }
+    </script>
+</body>
+</html>
