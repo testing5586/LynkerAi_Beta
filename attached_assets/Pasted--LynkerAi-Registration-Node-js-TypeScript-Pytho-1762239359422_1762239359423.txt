@@ -1,0 +1,763 @@
+我现在为您整理完整的迁移文档！基于我对代码的分析，这里是所有您需要的信息：
+
+📦 LynkerAi Registration 项目迁移文档
+Node.js/TypeScript → Python/Flask + Supabase
+====== 1. SQL Schema (Supabase 数据库结构) ======
+-- ============================================================================
+-- SESSIONS TABLE (Flask-Session 会话存储)
+-- ============================================================================
+CREATE TABLE sessions (
+    sid VARCHAR PRIMARY KEY,
+    sess JSONB NOT NULL,
+    expire TIMESTAMP NOT NULL
+);
+CREATE INDEX IDX_session_expire ON sessions(expire);
+-- ============================================================================
+-- USERS TABLE (基础用户表 - Replit Auth → Flask Auth)
+-- ============================================================================
+CREATE TABLE users (
+    id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR UNIQUE,
+    first_name VARCHAR,
+    last_name VARCHAR,
+    profile_image_url VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+-- ============================================================================
+-- NORMAL USER PROFILES (普通用户档案 - 98%)
+-- ============================================================================
+CREATE TABLE normal_user_profiles (
+    id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- 必填字段
+    pseudonym VARCHAR(100) NOT NULL,  -- 四字真名 (灵性假名)
+    
+    -- 可选字段
+    avatar_url VARCHAR,
+    gender VARCHAR,  -- 'male' | 'female' | 'other'
+    birth_date TIMESTAMP,  -- ISO 字符串格式
+    birth_time VARCHAR,
+    birth_location VARCHAR,
+    
+    -- AI 配置
+    preferred_provider VARCHAR DEFAULT 'LocalMock',  -- 'LocalMock' | 'OpenAI' | 'Gemini'
+    
+    -- Google Drive 集成 (可选)
+    drive_folder_id VARCHAR,
+    drive_refresh_token VARCHAR,
+    google_user_id VARCHAR,
+    
+    preferred_language VARCHAR DEFAULT 'en',  -- 'en' | 'zh' | 'ja' | 'ko' | 'th' | 'vi'
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+-- ============================================================================
+-- GURU PROFILES (命理师档案 - 2%)
+-- ============================================================================
+CREATE TABLE guru_profiles (
+    id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- 基本信息
+    pseudonym VARCHAR(100),
+    bio TEXT,
+    avatar_url VARCHAR,
+    
+    -- 专业信息
+    specializations TEXT[],  -- PostgreSQL数组: ['Bazi', 'Zi Wei Dou Shu', 'I Ching', 'Tarot']
+    region VARCHAR,
+    nationality VARCHAR,
+    
+    -- AI 配置
+    ai_provider VARCHAR DEFAULT 'LocalMock',  -- 'LocalMock' | 'OpenAI' | 'Gemini'
+    ai_tone VARCHAR DEFAULT 'professional',  -- 'professional' | 'casual' | 'mystical'
+    
+    -- 账户信息
+    token_balance INTEGER DEFAULT 0,
+    subscription_tier VARCHAR DEFAULT 'free',  -- 'free' | 'pro'
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+-- ============================================================================
+-- DESTINY CHARTS (命盘数据 - 2.0 隐藏功能，静默收集)
+-- ============================================================================
+CREATE TABLE destiny_charts (
+    id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR REFERENCES users(id) ON DELETE CASCADE,
+    guru_id VARCHAR REFERENCES guru_profiles(id),
+    
+    birth_date TIMESTAMP,
+    birth_time VARCHAR,
+    birth_location VARCHAR,
+    latitude DECIMAL(10, 7),
+    longitude DECIMAL(10, 7),
+    
+    chart_type VARCHAR,  -- 'Bazi' | 'Zi Wei' | 'I Ching' | 'Tarot'
+    chart_data JSONB,  -- 命盘计算结果
+    frequency_vector JSONB,  -- 频率向量 (用于匹配算法)
+    environment_context JSONB,  -- 环境上下文 (气候、湿度、温度)
+    
+    created_at TIMESTAMP DEFAULT NOW()
+);
+-- ============================================================================
+-- MATCHING MATRIX (同命匹配矩阵 - 2.0 隐藏功能)
+-- ============================================================================
+CREATE TABLE matching_matrix (
+    id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+    user1_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user2_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    resonance_score INTEGER,  -- 0-100
+    chart_similarity DECIMAL(5, 2),  -- 百分比
+    shared_fate_events JSONB,  -- 共同命运事件数组
+    
+    computed_at TIMESTAMP DEFAULT NOW()
+);
+-- ============================================================================
+-- 其他 2.0 隐藏表 (可选，暂时不用创建)
+-- ============================================================================
+-- resonance_events, social_feed, forum_posts, forum_votes, ai_learning_log,
+-- subscription_tiers, guru_usage_log, transactions, lynker_tokens, knowledge_packs, token_exchange_log
+
+====== 2. 业务逻辑详解 ======
+2.1 用户注册流程
+普通用户注册 (Normal User Registration)
+步骤:
+
+用户填写注册表单
+前端验证 → 后端验证 → 数据库插入
+重定向到 /home
+必填字段:
+
+pseudonym (灵性假名) - 至少2个字符，不能是真名
+可选字段:
+
+gender - 'male' | 'female' | 'other'
+birthDate - ISO 日期字符串格式 (例: "1990-01-15")
+preferredProvider - 'LocalMock' (默认) | 'Gemini' | 'OpenAI'
+验证规则:
+
+# Python (Flask) 验证逻辑
+def validate_pseudonym(name):
+    if len(name) < 2:
+        return "Pseudonym must be at least 2 characters"
+    
+    # 检查是否为真名模式
+    real_name_patterns = [
+        r'^[A-Z][a-z]+ [A-Z][a-z]+$',  # John Smith
+        r'^(Mr|Mrs|Ms|Dr)\.',           # 头衔
+        r'\b(firstname|lastname|name)\b'
+    ]
+    
+    for pattern in real_name_patterns:
+        if re.match(pattern, name, re.IGNORECASE):
+            return "Please use a spiritual pseudonym, not your real name"
+    
+    return None  # 验证通过
+
+数据格式:
+
+{
+  "pseudonym": "星若无声",
+  "gender": "male",
+  "birthDate": "1990-01-15",
+  "preferredProvider": "LocalMock",
+  "avatarUrl": "/api/placeholder/avatar/3"
+}
+
+命理师注册 (Guru Registration)
+多步骤表单:
+
+Step 1: 档案 (Profile)
+
+pseudonym * (必填)
+bio (自我介绍，最多500字)
+region (地区，例: Southeast Asia)
+nationality (国籍，例: Malaysia)
+Step 2: 专长 (Specialization)
+
+specializations * (必填，多选)
+Options: ['bazi', 'ziwei', 'iching', 'tarot', 'numerology', 'feng-shui']
+对应中文: ['八字', '紫微斗数', '易经', '塔罗', '数字学', '风水']
+Step 3: AI 设置 (AI Setup)
+
+aiProvider (单选)
+'LocalMock' (免费，无需API密钥)
+'OpenAI' (需要API密钥)
+'Gemini' (有免费额度)
+aiTone (语气风格)
+'professional' (专业权威)
+'casual' (友好随性)
+'mystical' (神秘诗意)
+提交的数据格式:
+
+{
+  "pseudonym": "灵知若风",
+  "bio": "25年命理研究经验，专注于八字与紫微斗数...",
+  "region": "Southeast Asia",
+  "nationality": "Malaysia",
+  "specializations": ["bazi", "ziwei", "iching"],
+  "aiProvider": "OpenAI",
+  "aiTone": "mystical"
+}
+
+2.2 认证流程
+当前系统 (Replit Auth - OpenID Connect)
+
+工作原理:
+
+用户点击 "Sign in with Replit"
+重定向到 /api/auth/replit
+OAuth 流程 → 回调到 /api/auth/replit/callback
+创建 session，存储 userId 和 claims
+重定向到首页
+Session 存储:
+
+// Node.js session 数据
+req.session = {
+  passport: {
+    user: {
+      claims: {
+        sub: "user-uuid-123",  // userId
+        email: "user@example.com",
+        name: "User Name"
+      }
+    }
+  }
+}
+
+Flask 替代方案建议:
+
+由于 Replit Auth 仅限于 Replit 平台，在 Flask 中需要替换认证方案：
+
+方案 1: Flask-Login + 传统邮箱密码
+
+# pip install flask-login
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required
+login_manager = LoginManager()
+login_manager.init_app(app)
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.json['email']
+    password = request.json['password']
+    
+    user = User.query.filter_by(email=email).first()
+    if user and check_password_hash(user.password_hash, password):
+        login_user(user)
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Invalid credentials'}), 401
+
+方案 2: Flask + JWT (更现代化)
+
+# pip install flask-jwt-extended
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+jwt = JWTManager(app)
+@app.route('/api/login', methods=['POST'])
+def login():
+    email = request.json['email']
+    password = request.json['password']
+    
+    user = User.query.filter_by(email=email).first()
+    if user and verify_password(password, user.password_hash):
+        access_token = create_access_token(identity=user.id)
+        return jsonify(access_token=access_token)
+    
+    return jsonify({'error': 'Invalid credentials'}), 401
+@app.route('/api/users/me', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    return jsonify(user.to_dict())
+
+判断用户类型:
+
+def get_user_type(user_id):
+    # 检查是否有 guru_profile
+    guru = db.session.query(GuruProfile).filter_by(user_id=user_id).first()
+    if guru:
+        return 'guru'
+    
+    # 检查是否有 normal_user_profile
+    normal = db.session.query(NormalUserProfile).filter_by(user_id=user_id).first()
+    if normal:
+        return 'normal_user'
+    
+    return 'new_user'  # 未注册
+
+2.3 API 端点逻辑
+POST /api/users/me/profile (创建普通用户档案)
+接收数据:
+
+{
+  "pseudonym": "星若无声",
+  "gender": "male",        # 可选
+  "birthDate": "1990-01-15",  # 可选，ISO格式
+  "preferredProvider": "LocalMock"
+}
+
+验证逻辑:
+
+from marshmallow import Schema, fields, validate, ValidationError
+class NormalUserProfileSchema(Schema):
+    pseudonym = fields.Str(required=True, validate=validate.Length(min=2, max=100))
+    gender = fields.Str(validate=validate.OneOf(['male', 'female', 'other']))
+    birthDate = fields.DateTime(allow_none=True)
+    preferredProvider = fields.Str(validate=validate.OneOf(['LocalMock', 'OpenAI', 'Gemini']))
+    avatarUrl = fields.Str()
+@app.route('/api/users/me/profile', methods=['POST'])
+@login_required  # 或 @jwt_required()
+def create_normal_profile():
+    user_id = current_user.id  # Flask-Login
+    # 或: user_id = get_jwt_identity()  # JWT
+    
+    # 验证数据
+    schema = NormalUserProfileSchema()
+    try:
+        data = schema.load(request.json)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    
+    # 检查是否已有档案
+    existing = NormalUserProfile.query.filter_by(user_id=user_id).first()
+    if existing:
+        return jsonify({'error': 'Profile already exists'}), 409
+    
+    # 创建档案
+    profile = NormalUserProfile(
+        user_id=user_id,
+        pseudonym=data['pseudonym'],
+        gender=data.get('gender'),
+        birth_date=data.get('birthDate'),
+        preferred_provider=data.get('preferredProvider', 'LocalMock'),
+        avatar_url=data.get('avatarUrl')
+    )
+    
+    db.session.add(profile)
+    db.session.commit()
+    
+    # 静默数据收集日志 (可选)
+    app.logger.info(f'[DATA COLLECTION] New user registered: {profile.id}')
+    
+    return jsonify(profile.to_dict()), 201
+
+POST /api/gurus (创建命理师档案)
+接收数据:
+
+{
+  "pseudonym": "灵知若风",
+  "bio": "25年命理研究经验...",
+  "region": "Southeast Asia",
+  "nationality": "Malaysia",
+  "specializations": ["bazi", "ziwei", "iching"],
+  "aiProvider": "OpenAI",
+  "aiTone": "mystical"
+}
+
+验证 + 数据库操作:
+
+class GuruProfileSchema(Schema):
+    pseudonym = fields.Str(validate=validate.Length(max=100))
+    bio = fields.Str()
+    specializations = fields.List(fields.Str(), required=True)
+    region = fields.Str()
+    nationality = fields.Str()
+    aiProvider = fields.Str(validate=validate.OneOf(['LocalMock', 'OpenAI', 'Gemini']))
+    aiTone = fields.Str(validate=validate.OneOf(['professional', 'casual', 'mystical']))
+@app.route('/api/gurus', methods=['POST'])
+@login_required
+def create_guru_profile():
+    user_id = current_user.id
+    
+    schema = GuruProfileSchema()
+    try:
+        data = schema.load(request.json)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    
+    # 检查是否已有档案
+    existing = GuruProfile.query.filter_by(user_id=user_id).first()
+    if existing:
+        return jsonify({'error': 'Guru profile already exists'}), 409
+    
+    # 创建档案
+    profile = GuruProfile(
+        user_id=user_id,
+        pseudonym=data.get('pseudonym'),
+        bio=data.get('bio'),
+        specializations=data['specializations'],  # PostgreSQL ARRAY
+        region=data.get('region'),
+        nationality=data.get('nationality'),
+        ai_provider=data.get('aiProvider', 'LocalMock'),
+        ai_tone=data.get('aiTone', 'professional')
+    )
+    
+    db.session.add(profile)
+    db.session.commit()
+    
+    return jsonify(profile.to_dict()), 201
+
+GET /api/users/me (获取当前用户)
+@app.route('/api/users/me', methods=['GET'])
+@login_required
+def get_current_user():
+    user_id = current_user.id
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({
+        'id': user.id,
+        'email': user.email,
+        'firstName': user.first_name,
+        'lastName': user.last_name,
+        'profileImageUrl': user.profile_image_url,
+        'createdAt': user.created_at.isoformat()
+    })
+
+====== 3. 前端逻辑 (React → 保持不变或重写) ======
+3.1 用户注册表单 (UserRegistration.tsx)
+关键字段:
+
+const formData = {
+  pseudonym: '',        // 必填
+  gender: '',           // 可选: 'male' | 'female' | 'other'
+  birthDate: '',        // 可选: ISO 日期字符串
+  preferredProvider: 'LocalMock'  // 'LocalMock' | 'Gemini' | 'OpenAI'
+}
+
+伪代码逻辑:
+
+// 1. 验证假名
+function validatePseudonym(name) {
+  if (name.length < 2) return false;
+  if (/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(name)) return false; // 拒绝真名
+  return true;
+}
+// 2. 提交表单
+async function handleSubmit(e) {
+  e.preventDefault();
+  
+  const response = await fetch('/api/users/me/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pseudonym: formData.pseudonym,
+      gender: formData.gender || undefined,
+      birthDate: formData.birthDate || undefined,
+      preferredProvider: formData.preferredProvider
+    })
+  });
+  
+  if (response.ok) {
+    window.location.href = '/home';
+  }
+}
+
+3.2 命理师注册表单 (GuruRegistration.tsx)
+步骤管理:
+
+const steps = ['profile', 'specialization', 'ai'];
+const [currentStep, setCurrentStep] = useState(0);
+const formData = {
+  pseudonym: '',
+  bio: '',
+  specializations: [],  // 多选数组
+  region: '',
+  nationality: '',
+  aiProvider: 'LocalMock',
+  aiTone: 'professional'
+}
+
+Step 1: Profile 字段
+
+pseudonym (必填)
+bio (textarea, 500字限制)
+region
+nationality
+Step 2: Specialization (多选)
+
+const specializationOptions = [
+  { value: 'bazi', label: 'Bazi (八字)' },
+  { value: 'ziwei', label: 'Zi Wei Dou Shu (紫微斗数)' },
+  { value: 'iching', label: 'I Ching (易经)' },
+  { value: 'tarot', label: 'Tarot' },
+  { value: 'numerology', label: 'Numerology' },
+  { value: 'feng-shui', label: 'Feng Shui (风水)' }
+];
+function toggleSpecialization(spec) {
+  setFormData(prev => ({
+    ...prev,
+    specializations: prev.specializations.includes(spec)
+      ? prev.specializations.filter(s => s !== spec)
+      : [...prev.specializations, spec]
+  }));
+}
+
+Step 3: AI Setup
+
+const aiProviders = [
+  { value: 'LocalMock', label: 'LocalMock (Free)', description: '即时响应，无成本' },
+  { value: 'OpenAI', label: 'OpenAI', description: 'GPT-5 智能' },
+  { value: 'Gemini', label: 'Google Gemini', description: '多模态AI' }
+];
+const aiTones = [
+  { value: 'professional', label: 'Professional', description: '正式权威' },
+  { value: 'casual', label: 'Casual', description: '友好随性' },
+  { value: 'mystical', label: 'Mystical', description: '神秘诗意' }
+];
+
+3.3 多语言系统
+支持的语言:
+
+en - English
+zh - 中文
+ja - 日语
+ko - 韩语
+th - 泰语
+vi - 越南语
+关键翻译 (示例):
+
+键名	英语	中文	日语
+user.welcome.title	Welcome to LynkerAi	欢迎来到 LynkerAi	LynkerAiへようこそ
+user.pseudonym.label	Spiritual Pseudonym	灵性假名	スピリチュアル仮名
+user.submit	Begin Your Journey	开始您的旅程	旅を始める
+user.guru.button	Register as a Guru instead	改为注册成为导师	代わりにグルとして登录
+实现方式 (React Context):
+
+// LanguageContext.tsx
+const translations = {
+  en: { 'user.welcome.title': 'Welcome to LynkerAi', ... },
+  zh: { 'user.welcome.title': '欢迎来到 LynkerAi', ... }
+};
+export function useLanguage() {
+  const [language, setLanguage] = useState('en');
+  
+  const t = (key) => translations[language][key] || key;
+  
+  return { language, setLanguage, t };
+}
+
+Flask 后端翻译 (可选):
+
+# pip install flask-babel
+from flask_babel import Babel, gettext
+babel = Babel(app)
+@babel.localeselector
+def get_locale():
+    return request.accept_languages.best_match(['en', 'zh', 'ja', 'ko', 'th', 'vi'])
+# 使用
+message = gettext('user.welcome.title')
+
+====== 4. 配置映射 (Node.js → Flask) ======
+环境变量对照表
+Node.js (当前)	Flask (迁移后)	说明
+DATABASE_URL	DATABASE_URL	Supabase PostgreSQL 连接字符串
+SESSION_SECRET	SECRET_KEY	Flask session 加密密钥
+REPL_ID	不需要	Replit 平台专用，Flask 不需要
+ISSUER_URL	不需要	Replit Auth 专用，Flask 不需要
+GITHUB_PERSONAL_ACCESS_TOKEN	保持	Git 推送权限 (可选)
+OPENAI_API_KEY	OPENAI_API_KEY	OpenAI API密钥 (可选)
+Flask 配置示例
+# config.py
+import os
+class Config:
+    # 数据库
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Session 加密
+    SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
+    
+    # JWT (如果使用)
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+    JWT_ACCESS_TOKEN_EXPIRES = 3600  # 1小时
+    
+    # AI Providers (可选)
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    
+    # 应用配置
+    DEBUG = os.getenv('FLASK_ENV') == 'development'
+
+# app.py
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+app = Flask(__name__)
+app.config.from_object('config.Config')
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+
+认证方案替换建议
+当前系统: Replit Auth (OpenID Connect)
+
+推荐替代方案:
+
+Option 1: 简单邮箱密码登录 (最快实现)
+
+# 使用 Flask-Login
+pip install flask-login werkzeug
+from werkzeug.security import generate_password_hash, check_password_hash
+# 用户注册
+@app.route('/register', methods=['POST'])
+def register():
+    email = request.json['email']
+    password = request.json['password']
+    
+    hashed_password = generate_password_hash(password)
+    user = User(email=email, password_hash=hashed_password)
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+# 用户登录
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.json['email']
+    password = request.json['password']
+    
+    user = User.query.filter_by(email=email).first()
+    if user and check_password_hash(user.password_hash, password):
+        login_user(user)
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Invalid credentials'}), 401
+
+Option 2: Google OAuth (保持 OAuth 体验)
+
+# 使用 Authlib
+pip install authlib
+from authlib.integrations.flask_client import OAuth
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+@app.route('/login/google')
+def login_google():
+    redirect_uri = url_for('auth_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+@app.route('/auth/callback')
+def auth_callback():
+    token = google.authorize_access_token()
+    user_info = google.parse_id_token(token)
+    
+    # 创建或获取用户
+    user = User.query.filter_by(email=user_info['email']).first()
+    if not user:
+        user = User(email=user_info['email'], ...)
+        db.session.add(user)
+        db.session.commit()
+    
+    login_user(user)
+    return redirect('/home')
+
+====== 5. 数据导出 (如果有真实用户) ======
+由于我无法直接访问生产数据库，我提供导出脚本供您运行：
+
+数据导出脚本
+# 连接到 Neon 数据库并导出数据
+psql $DATABASE_URL -c "COPY (SELECT * FROM users) TO STDOUT WITH CSV HEADER" > users.csv
+psql $DATABASE_URL -c "COPY (SELECT * FROM normal_user_profiles) TO STDOUT WITH CSV HEADER" > normal_profiles.csv
+psql $DATABASE_URL -c "COPY (SELECT * FROM guru_profiles) TO STDOUT WITH CSV HEADER" > guru_profiles.csv
+
+SQL INSERT 生成脚本
+# export_data.py - 运行此脚本生成 SQL INSERT 语句
+import psycopg2
+import os
+DATABASE_URL = os.getenv('DATABASE_URL')
+conn = psycopg2.connect(DATABASE_URL)
+cur = conn.cursor()
+# 导出 users
+cur.execute("SELECT * FROM users")
+users = cur.fetchall()
+columns = [desc[0] for desc in cur.description]
+with open('users_insert.sql', 'w') as f:
+    for row in users:
+        values = ', '.join([f"'{v}'" if v is not None else 'NULL' for v in row])
+        f.write(f"INSERT INTO users ({', '.join(columns)}) VALUES ({values});\n")
+# 导出 normal_user_profiles
+cur.execute("SELECT * FROM normal_user_profiles")
+profiles = cur.fetchall()
+columns = [desc[0] for desc in cur.description]
+with open('normal_profiles_insert.sql', 'w') as f:
+    for row in profiles:
+        values = ', '.join([f"'{v}'" if v is not None else 'NULL' for v in row])
+        f.write(f"INSERT INTO normal_user_profiles ({', '.join(columns)}) VALUES ({values});\n")
+# 导出 guru_profiles
+cur.execute("SELECT * FROM guru_profiles")
+gurus = cur.fetchall()
+columns = [desc[0] for desc in cur.description]
+with open('guru_profiles_insert.sql', 'w') as f:
+    for row in gurus:
+        # 处理 PostgreSQL 数组字段 (specializations)
+        values = []
+        for i, v in enumerate(row):
+            if columns[i] == 'specializations' and v:
+                # PostgreSQL 数组格式: ARRAY['value1', 'value2']
+                values.append(f"ARRAY{v}")
+            elif v is not None:
+                values.append(f"'{v}'")
+            else:
+                values.append('NULL')
+        
+        f.write(f"INSERT INTO guru_profiles ({', '.join(columns)}) VALUES ({', '.join(values)});\n")
+conn.close()
+print("✅ SQL INSERT 语句已生成！")
+
+====== 6. Flask 项目结构建议 ======
+lynkerai-flask/
+├── app/
+│   ├── __init__.py           # Flask app 初始化
+│   ├── models.py             # SQLAlchemy models
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── auth.py           # 认证路由
+│   │   ├── users.py          # 普通用户路由
+│   │   └── gurus.py          # 命理师路由
+│   ├── schemas.py            # Marshmallow schemas (验证)
+│   └── utils.py              # 工具函数
+├── migrations/               # Flask-Migrate (Alembic)
+├── config.py                 # 配置文件
+├── requirements.txt          # Python 依赖
+└── run.py                    # 启动文件
+
+依赖包列表 (requirements.txt)
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-JWT-Extended==4.6.0
+Flask-Migrate==4.0.5
+marshmallow==3.20.1
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+Werkzeug==3.0.1
+
+====== 总结与下一步 ======
+✅ 您现在拥有的信息:
+完整的数据库 Schema (可直接在 Supabase 中执行)
+所有业务逻辑说明 (Python 代码示例)
+前端表单逻辑 (可复用或用 Jinja2 重写)
+环境变量映射表
+认证方案建议 (Flask-Login / JWT / Google OAuth)
+数据导出脚本
+🚀 建议的迁移步骤:
+在 Supabase 创建数据库表 (复制上面的 SQL)
+设置 Flask 项目 (使用上面的结构)
+实现认证系统 (选择 Flask-Login 或 JWT)
+迁移 API 端点 (参考上面的 Python 代码)
+迁移用户数据 (运行导出脚本)
+前端连接新后端 (修改 API 地址)
+测试完整流程

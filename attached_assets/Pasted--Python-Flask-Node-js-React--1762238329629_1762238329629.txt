@@ -1,0 +1,240 @@
+好的！让我详细分析这个项目的结构。不过我注意到一个重要问题：
+
+这个项目不是 Python/Flask 项目，而是 Node.js + React 项目！
+
+让我为您详细分析实际的技术栈：
+
+
+Show 3 more
+
+决定了项目信息整理
+📋 LynkerAi Registration 项目结构分析
+1. 技术栈 🛠️
+不是 Python 项目！ 这是一个全栈 JavaScript/TypeScript 项目：
+
+后端框架: Node.js + Express.js
+前端框架: React 18 + Vite
+语言: TypeScript
+数据库: PostgreSQL (通过 Neon Serverless)
+ORM: Drizzle ORM
+UI 库: Radix UI + Tailwind CSS + Shadcn/ui
+状态管理: TanStack Query (React Query v5)
+路由: Wouter (轻量级客户端路由)
+认证: Replit Auth (OpenID Connect) + Passport.js
+主程序文件: server/index.ts
+
+2. 项目文件结构 📁
+LynkerAi_Registration/
+├── client/                    # 前端 React 应用
+│   ├── src/
+│   │   ├── components/       # UI 组件
+│   │   │   ├── ui/           # Shadcn/ui 基础组件 (40+ 组件)
+│   │   │   └── Navigation.tsx # 导航栏
+│   │   ├── contexts/         # React 上下文
+│   │   │   ├── LanguageContext.tsx  # 多语言系统 (6种语言)
+│   │   │   └── ThemeProvider.tsx    # 主题切换
+│   │   ├── hooks/            # 自定义 Hooks
+│   │   ├── lib/              # 工具函数
+│   │   ├── pages/            # 页面组件
+│   │   │   ├── Landing.tsx          # 首页
+│   │   │   ├── UserRegistration.tsx # 普通用户注册
+│   │   │   ├── GuruRegistration.tsx # 命理师注册
+│   │   │   ├── Home.tsx             # 普通用户主页
+│   │   │   ├── Dashboard.tsx        # 命理师仪表盘
+│   │   │   └── BroadcastStudio.tsx  # 直播工作室 (占位符)
+│   │   ├── App.tsx           # 路由配置
+│   │   ├── main.tsx          # 入口文件
+│   │   └── index.css         # 全局样式
+│   └── index.html
+│
+├── server/                    # 后端 Express 应用
+│   ├── index.ts              # **主程序入口**
+│   ├── routes.ts             # API 路由端点
+│   ├── storage.ts            # 数据库存储接口
+│   ├── db.ts                 # 数据库连接配置
+│   ├── replitAuth.ts         # Replit 认证配置
+│   └── vite.ts               # Vite 集成
+│
+├── shared/                    # 前后端共享代码
+│   ├── schema.ts             # **数据库 Schema (Drizzle)**
+│   └── featureFlags.ts       # 功能开关 (2.0 隐藏功能)
+│
+├── attached_assets/           # 项目文档
+│   ├── Evolution Archive.txt  # 项目演进历史
+│   ├── 1.0 Description.txt    # 版本说明
+│   └── Normal User Mechanism.txt
+│
+├── package.json              # 依赖管理
+├── drizzle.config.ts         # Drizzle ORM 配置
+├── vite.config.ts            # Vite 构建配置
+├── tailwind.config.ts        # Tailwind CSS 配置
+├── tsconfig.json             # TypeScript 配置
+├── design_guidelines.md      # 设计指南
+└── replit.md                 # **项目架构文档 (重要！)**
+
+3. 主要功能列表 ✨
+已实现功能：
+✅ 用户认证 (Replit Auth + OpenID)
+✅ 普通用户注册 (假名、AI选择、生日/性别可选)
+✅ 命理师注册 (多步骤表单：档案→专长→AI设置)
+✅ 多语言系统 (英语、中文、日语、韩语、泰语、越南语)
+✅ 主题切换 (亮色/暗色模式)
+✅ 会话管理 (PostgreSQL 存储)
+
+占位符功能（待开发）：
+⏳ 命理师发现/浏览
+⏳ 实时直播课程
+⏳ 学习资源库
+⏳ AI 咨询功能
+⏳ 命盘生成与匹配
+⏳ 社交功能 (2.0 隐藏)
+
+4. 数据库配置 🗄️
+不是 Supabase！是 Neon Serverless PostgreSQL
+
+数据库表结构：
+认证相关表:
+- sessions          # 会话存储
+  ├── sid (主键)
+  ├── sess (JSON)
+  └── expire
+- users             # 用户基本信息
+  ├── id (UUID, 主键)
+  ├── email
+  ├── firstName
+  ├── lastName
+  ├── profileImageUrl
+  ├── createdAt
+  └── updatedAt
+
+LynkerAi 1.0 表 (可见功能):
+- guru_profiles     # 命理师档案 (2%)
+  ├── id (UUID)
+  ├── userId (外键 → users.id)
+  ├── pseudonym (灵性假名)
+  ├── bio
+  ├── avatarUrl
+  ├── specializations (数组: ["Bazi", "Zi Wei", ...])
+  ├── region
+  ├── nationality
+  ├── aiProvider ("LocalMock" | "OpenAI" | "Gemini")
+  ├── aiTone ("professional" | "casual" | "mystical")
+  ├── tokenBalance
+  ├── subscriptionTier
+  └── ...
+- normal_user_profiles  # 普通用户档案 (98%)
+  ├── id (UUID)
+  ├── userId (外键 → users.id)
+  ├── pseudonym (四字真名，必填)
+  ├── avatarUrl
+  ├── gender (可选)
+  ├── birthDate (可选, ISO 字符串)
+  ├── birthTime (可选)
+  ├── birthLocation (可选)
+  ├── preferredProvider
+  ├── driveFolderId (Google Drive)
+  ├── preferredLanguage
+  └── ...
+
+LynkerAi 2.0 表 (隐藏功能，静默收集数据):
+- destiny_charts    # 命盘数据
+- matching_results  # 同命匹配结果
+- broadcast_sessions # 直播记录
+- knowledge_packs   # 知识包
+- ...
+
+RLS (Row Level Security): 未启用 (Neon 数据库，通过后端控制权限)
+
+5. 依赖包 📦
+核心依赖:
+{
+  "express": "^4.21.2",           // 后端框架
+  "react": "^18.3.1",             // 前端框架
+  "drizzle-orm": "^0.39.1",       // ORM
+  "@neondatabase/serverless": "^0.10.4",  // 数据库
+  "passport": "^0.7.0",           // 认证
+  "openid-client": "^6.8.1",      // OpenID
+  "@tanstack/react-query": "^5.60.5",  // 数据获取
+  "wouter": "^3.3.5",             // 路由
+  "zod": "^3.24.2",               // 验证
+  "@radix-ui/*": "...",           // UI 组件 (20+ 包)
+  "tailwindcss": "^3.4.17",       // CSS
+  "vite": "^5.4.20",              // 构建工具
+  "typescript": "5.6.3"           // 类型系统
+}
+
+没有 requirements.txt (这不是 Python 项目！)
+
+6. API 路由端点 🛣️
+认证路由:
+GET  /api/auth/replit              # Replit Auth 登录
+GET  /api/auth/replit/callback     # OAuth 回调
+POST /api/logout                   # 登出
+GET  /api/user                     # 获取当前用户
+
+普通用户路由:
+POST /api/user/normal-profile     # 创建普通用户档案
+GET  /api/user/normal-profile     # 获取普通用户档案
+
+命理师路由:
+POST /api/guru/profile             # 创建命理师档案
+GET  /api/guru/profile             # 获取命理师档案
+GET  /api/guru/dashboard-stats     # 仪表盘数据 (占位符)
+
+前端页面路由 (Wouter):
+/                  # 首页 (Landing)
+/user-register     # 普通用户注册
+/register          # 命理师注册
+/home              # 普通用户主页
+/dashboard         # 命理师仪表盘
+/broadcast-studio  # 直播工作室 (占位符)
+
+7. 环境变量 (Secrets) 🔐
+当前项目需要的环境变量:
+
+# 数据库
+DATABASE_URL                    # Neon PostgreSQL 连接字符串
+PGHOST                         # PostgreSQL 主机
+PGPORT                         # PostgreSQL 端口
+PGUSER                         # PostgreSQL 用户
+PGPASSWORD                     # PostgreSQL 密码
+PGDATABASE                     # PostgreSQL 数据库名
+# 认证
+SESSION_SECRET                 # Express session 加密密钥
+REPL_ID                        # Replit 应用 ID
+ISSUER_URL                     # OpenID Connect issuer
+# Git (你刚添加的)
+GITHUB_PERSONAL_ACCESS_TOKEN   # GitHub 推送权限
+# 可选 (AI 集成，目前未使用)
+OPENAI_API_KEY                 # OpenAI API (未配置)
+
+注意: 没有 SUPABASE_URL 或 SUPABASE_KEY！
+
+8. 与 Lynker_master_ai 合并建议 💡
+安全合并策略:
+
+先导出两个项目的关键文件对比:
+
+数据库 Schema (shared/schema.ts)
+API 路由 (server/routes.ts)
+环境变量列表
+识别冲突点:
+
+同名的数据库表
+重复的API端点
+相同的环境变量
+建议合并顺序:
+
+a) 合并数据库 Schema (避免表冲突)
+b) 合并后端路由 (避免端点冲突)
+c) 合并前端页面 (集成UI)
+d) 统一环境变量
+e) 测试完整流程
+
+需要您提供 Lynker_master_ai 的信息:
+
+它的 package.json (检查依赖冲突)
+数据库 Schema 文件
+主要的路由/API 端点
+使用的环境变量
+这样我才能给出精确的合并方案！🎯
