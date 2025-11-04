@@ -173,3 +173,24 @@ yarn-error.log*
 package-lock.json
 .npm
 .eslintcache
+
+# Replit
+.replit
+replit.nix
+.config/
+.upm/
+.cache/
+
+# Temporary files
+*_fixed.py
+*_backup.py
+*_old.py
+*.tmp
+
+# Log files
+*.log
+/tmp/logs/
+
+# Database dumps
+*.sql
+*.dump
