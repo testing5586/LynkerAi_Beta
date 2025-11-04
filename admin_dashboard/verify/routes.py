@@ -482,6 +482,7 @@ def ocr_image():
 
 
 @bp.post("/api/chat")
+@login_required
 def chat():
     """
     Primary AI 聊天接口
@@ -513,7 +514,7 @@ def chat():
         }), 500
     
     data = request.json or {}
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     user_message = data.get("message", "").strip()
     conversation_history = data.get("history", [])  # 对话历史
     
@@ -780,6 +781,7 @@ def chat():
 
 
 @bp.post("/api/validation_log")
+@login_required
 def log_validation():
     """
     记录用户对命理断语的验证结果
@@ -792,7 +794,7 @@ def log_validation():
     
     data = request.json or {}
     
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     chart_id = data.get("chart_id")
     click_data = data.get("click_data")  # 格式: "#yes-STATEMENT_ID" 或 "#no-STATEMENT_ID"
     ai_statement = data.get("ai_statement", "")
@@ -876,6 +878,7 @@ def log_validation():
 
 
 @bp.post("/api/confirm_true_chart")
+@login_required
 def confirm_true_chart():
     """
     用户确认真命盘，启用验证模式
@@ -888,10 +891,10 @@ def confirm_true_chart():
     
     data = request.json or {}
     
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     chart_id = data.get("chart_id")
     
-    if not user_id or not chart_id:
+    if not chart_id:
         return jsonify({
             "ok": False,
             "toast": "缺少用户ID或命盘ID"
@@ -1024,6 +1027,7 @@ def run_ziwei_child_ai(question, answer, chart_data):
 
 
 @bp.post("/api/run_child_ai")
+@login_required
 def run_child_ai_endpoint():
     """
     Child AI 分析接口
@@ -1037,13 +1041,7 @@ def run_child_ai_endpoint():
     question = data.get("question", "")
     answer = data.get("answer", "")
     chart_data = data.get("chart_data", {})
-    user_id = data.get("user_id")
-    
-    if not user_id:
-        return jsonify({
-            "ok": False,
-            "toast": "缺少用户ID"
-        }), 400
+    user_id = current_user.id  # 从当前登录用户获取
     
     if not question or not answer:
         return jsonify({

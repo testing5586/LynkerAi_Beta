@@ -16,6 +16,7 @@ import re
 import asyncio
 from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, session
+from flask_login import login_required, current_user
 from supabase import create_client
 
 import sys
@@ -450,17 +451,13 @@ def save_verification_log(user_id, mode, bazi_result, ziwei_result, primary_summ
 # ======================
 
 @bp.get("/full_chart")
+@login_required
 def render_full_chart_page():
     """
     渲染 Mode B 全盘验证页面
     """
-    user_id = session.get("user_id") or request.args.get("user_id")
-
-    if not user_id:
-        return jsonify({
-            "ok": False,
-            "toast": "请先登录后再使用全盘验证功能"
-        }), 401
+    user_id = current_user.id
+    session["user_id"] = user_id
 
     return render_template("full_chart_verification.html", user_id=user_id)
 
@@ -574,6 +571,7 @@ def upload_custom_sop():
 
 
 @bp.post("/api/run_full_chart_ai")
+@login_required
 def run_full_chart_analysis():
     """
     ⚠️ 核心接口：运行 Mode B 全盘验证分析
@@ -583,7 +581,6 @@ def run_full_chart_analysis():
         - sop_template_id: SOP 模板ID
         - bazi_chart: 八字命盘 JSON
         - ziwei_chart: 紫微命盘 JSON
-        - user_id: 用户ID
         - lang: 语言 (默认 "zh")
 
     返回：
@@ -599,7 +596,7 @@ def run_full_chart_analysis():
     # ========== 1. 参数接收（兼容新旧格式）==========
     # 🔧 新格式：bazi_text, ziwei_text, sop_template
     # 🔧 旧格式：bazi_chart, ziwei_chart, sop_template_id
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     bazi_text = data.get("bazi_text") or data.get("bazi_chart", "")
     ziwei_text = data.get("ziwei_text") or data.get("ziwei_chart", "")
     sop_template_id = data.get("sop_template") or data.get("sop_template_id", "standard_v1")

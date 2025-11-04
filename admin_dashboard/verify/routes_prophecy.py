@@ -13,6 +13,7 @@ import os
 import json
 import datetime
 from flask import Blueprint, request, jsonify
+from flask_login import login_required, current_user
 from pathlib import Path
 
 from .prophecy_generator import generate_prophecies, analyze_prophecy_accuracy
@@ -26,12 +27,12 @@ FEEDBACK_LOG_FILE = DATA_DIR / "prophecy_feedback_log.jsonl"
 
 
 @bp.post("/api/run_prophecy_ai")
+@login_required
 def run_prophecy_ai():
     """
     生成预言问题
     
     接收：
-        - user_id: 用户ID
         - ziwei_text: 紫微命盘文本（文墨天机格式）
         - bazi_text: 八字文本（可选）
     
@@ -40,7 +41,7 @@ def run_prophecy_ai():
     """
     data = request.get_json() or {}
     
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     ziwei_text = data.get("ziwei_text", "")
     bazi_text = data.get("bazi_text", "")
     
@@ -72,12 +73,12 @@ def run_prophecy_ai():
 
 
 @bp.post("/api/record_prophecy_feedback")
+@login_required
 def record_prophecy_feedback():
     """
     记录用户对预言问题的反馈
     
     接收：
-        - user_id: 用户ID
         - question: 预言问题文本
         - palace: 对应宫位
         - pattern: 星曜组合
@@ -88,13 +89,13 @@ def record_prophecy_feedback():
     """
     data = request.get_json() or {}
     
-    user_id = data.get("user_id")
+    user_id = current_user.id  # 从当前登录用户获取
     question = data.get("question")
     palace = data.get("palace", "未知")
     pattern = data.get("pattern", "未知")
     result = data.get("result")
     
-    if not all([user_id, question, result]):
+    if not all([question, result]):
         return jsonify({
             "ok": False,
             "error": "缺少必要参数"

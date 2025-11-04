@@ -5,6 +5,7 @@ Bazi Agent API - Flask 路由
 """
 
 from flask import Blueprint, request, jsonify, session
+from flask_login import login_required, current_user
 from .bazi_vision_agent import BaziVisionAgent
 from .auto_complete_bazi_json import auto_complete_bazi_json
 import json
@@ -13,9 +14,10 @@ bp = Blueprint('bazi_agent_api', __name__, url_prefix='/verify/api')
 
 
 @bp.route('/run_agent_workflow', methods=['POST'])
+@login_required
 def run_agent_workflow():
     """
-    运行八字识别工作流
+    运行八字识别工作流（需要登录）
     
     接收: { 
         "imageData": "base64_string",
