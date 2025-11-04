@@ -4,6 +4,11 @@ LynkerAI is an AI-powered task execution system designed to generate and execute
 LynkerAI's core vision is to establish a self-learning, self-validating intelligent system for "scientizing, socializing, and datafying" metaphysics. It aims to build a global database of verified birth times to advance "Second-Pillar Metaphysics" by collecting 1 million accurate birth times.
 
 ## Recent Updates (Nov 2025)
+- **User Authentication System**: Complete user registration and authentication system with Flask-Login, supporting both normal users and astrology masters (gurus)
+  - Email/password authentication with bcrypt password hashing
+  - Separate profile systems for normal users and gurus
+  - User type detection and automatic redirection
+  - Session management with Flask-Login
 - **Environment Auto-Fill Module**: Intelligent birthplace selection system with country/city dropdowns that auto-populate climate zone, humidity, latitude, and terrain data
 - **Bazi JSON Auto-Complete**: Automatic five-element (Wuxing) calculation from pillars, environment data completion, and AI verifier metadata stamping
 - **Smart Integration**: Environment data seamlessly flows from frontend selectors → Agent API → GPT-4o Vision → Auto-complete → Final results
@@ -23,6 +28,16 @@ The system includes several web-based interfaces:
 -   An admin-only questionnaire management center (`/superintendent/questionnaire`) for managing verification content.
 
 ## Technical Implementations & Feature Specifications
+-   **User Authentication & Profile System**: Complete user management system integrated with Flask-Login
+    -   **Database Schema**: Extended `users` table with UUID ids and password_hash fields, separate `normal_user_profiles` and `guru_profiles` tables
+    -   **Authentication Routes**: `/login`, `/register`, `/choose-type`, `/user-register`, `/guru-register`
+    -   **API Endpoints**: `/api/register`, `/api/login`, `/api/logout`, `/api/user/normal-profile`, `/api/guru/profile`
+    -   **User Types**: Dynamic type detection (new_user → normal_user or guru based on profile creation)
+    -   **Security**: Bcrypt password hashing, Flask-Login session management, email validation
+    -   **Profile Features**:
+        - Normal Users: Pseudonym, gender, birth date/time/location, AI provider preferences
+        - Gurus: Pseudonym, bio, specializations (bazi/ziwei/iching/tarot/etc), region, AI assistant tone
+    -   **Location**: `admin_dashboard/models/user.py`, `admin_dashboard/auth/`, `admin_dashboard/user/`, `admin_dashboard/guru/`
 -   **Core AI Generation**: Handled by `lynker_master_ai.py` using OpenAI's chat completion API.
 -   **Database Management**: Supabase integration via `supabase_init.py` for various data storage.
 -   **Birth Chart Verification**: `ai_truechart_verifier.py` and `admin_dashboard/verify/ai_verifier.py` perform semantic validation using qualitative confidence levels (高/中高/中/偏低/低) instead of numeric scores to align with traditional metaphysical practices.

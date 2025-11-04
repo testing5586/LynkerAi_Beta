@@ -31,7 +31,7 @@ class User(UserMixin):
         self.first_name = user_data.get('first_name')
         self.last_name = user_data.get('last_name')
         self.profile_image_url = user_data.get('profile_image_url')
-        self.is_active = user_data.get('is_active', True)
+        self._is_active = user_data.get('is_active', True)
         self.created_at = user_data.get('created_at')
         
         # 用户类型缓存
@@ -40,6 +40,11 @@ class User(UserMixin):
     def get_id(self):
         """Flask-Login 需要的方法"""
         return self.id
+    
+    @property
+    def is_active(self):
+        """Flask-Login 需要的属性"""
+        return self._is_active
     
     @property
     def user_type(self):
